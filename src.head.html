@@ -57,10 +57,18 @@ tr.me td{background:#36f1a60d}
 #stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
 #stage canvas{display:block;width:100%;height:100%}
 #stage:fullscreen{border-radius:0;border:0}
-.xh{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none}
-.xh:before,.xh:after{content:"";position:absolute;background:var(--acc);box-shadow:0 0 2px #000}
-.xh:before{left:8px;top:0;width:2px;height:18px}.xh:after{top:8px;left:0;height:2px;width:18px}
-.xh i{position:absolute;left:7px;top:7px;width:4px;height:4px;background:#05070a;z-index:2}
+#xh{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
+#xh i{position:absolute;display:block}
+#rhud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:28px;padding:8px 22px;border-radius:12px;background:#0b0f16b0;font-weight:800;font-variant-numeric:tabular-nums;pointer-events:none;color:#fff;letter-spacing:.5px}
+#rhud span{display:flex;flex-direction:column;align-items:center;font-size:22px}#rhud small{font-size:10px;color:#b8c4d4;letter-spacing:1.5px;font-weight:700}
+#stage.range #rhud{display:flex}#stage.range .hud{display:none}
+.rpanel{position:absolute;left:12px;top:12px;z-index:5;display:none;max-width:290px;max-height:calc(100% - 24px);overflow:auto;background:#0b0f16e8;border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:13px}
+#stage.range .rpanel{display:block}#stage.locked .rpanel{display:none!important}
+.rpanel summary{cursor:pointer;font-weight:800;padding:4px 0;list-style:none}.rpanel summary::-webkit-details-marker{display:none}
+.rpanel label{margin:8px 0 2px;font-size:11px}.rpanel input,.rpanel select{padding:5px 8px;font-size:13px}
+.rpanel input[type=range]{padding:0}.rpanel .rowx{display:flex;gap:8px}.rpanel .rowx>*{flex:1}
+.rpanel table td{padding:3px 4px;font-size:12px}
+#ov.begin{background:#0000004d}#ov.begin .big{color:#fff;font-size:40px;letter-spacing:3px;text-shadow:0 2px 10px #000a}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:12px 16px;font-weight:700;font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 3px #000}
 #hudFps{position:absolute;left:12px;bottom:10px;font:12px ui-monospace,monospace;color:#9fe;pointer-events:none;text-shadow:0 1px 2px #000}
 .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05070acc;text-align:center;padding:20px;gap:10px}
@@ -85,7 +93,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 <header>
   <div class="logo">EZ<b>Sens</b><small>aim lab · sens converter</small></div>
   <nav id="nav">
-    <button data-t="setup" class="on">Converter</button>
+    <button data-t="range" class="on">Range</button>
+    <button data-t="setup">Converter</button>
     <button data-t="train">Train</button>
     <button data-t="finder">Sens Finder</button>
     <button data-t="custom">Custom game</button>
@@ -96,7 +105,15 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 <main>
 <div class="banner hide" id="shareBanner"><span>This link contains shared EZ Sens settings.</span><button class="btn sm" id="shareLoad">Load them</button><button class="btn alt sm" id="shareIgnore">Ignore</button></div>
 
-<section class="tab on" id="t-setup">
+<section class="tab on" id="t-range">
+  <h2>Shooting Range</h2>
+  <p class="sub">An open-air range with targets on the back wall. Click the view to begin a 1-minute run; your mouse turns exactly like your game at <span id="rangeInfo"></span>. Settings are in the ⚙ panel (top-left of the view); press <b>Esc</b> to pause and change them.</p>
+  <p class="touchnote warn">The range needs a desktop mouse (Chrome or Edge). The converter works on this device.</p>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center"><div></div><div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn3">Fullscreen</button><button class="btn alt" id="rangeReset">New run</button></div></div>
+  <div id="stageHost0"></div>
+</section>
+
+<section class="tab" id="t-setup">
   <h2>Converter</h2>
   <p class="sub">Enter your DPI and the sensitivity you use in one game. Every other game gets the setting that turns the same distance (cm/360). Works on phones and tablets too.</p>
   <div class="grid g2">
@@ -210,6 +227,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p class="sub">Saved in this browser only (localStorage).</p>
   <div class="card tw"><table><thead><tr><th>When</th><th>Drill</th><th>cm/360</th><th>Score</th><th>Accuracy</th><th>Avg TTK</th><th>Over / under</th><th>FPS</th></tr></thead><tbody id="hist"></tbody></table>
   <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
+  <h3>Range — timed challenge history</h3>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">

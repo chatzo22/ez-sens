@@ -57,10 +57,18 @@ tr.me td{background:#36f1a60d}
 #stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
 #stage canvas{display:block;width:100%;height:100%}
 #stage:fullscreen{border-radius:0;border:0}
-.xh{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none}
-.xh:before,.xh:after{content:"";position:absolute;background:var(--acc);box-shadow:0 0 2px #000}
-.xh:before{left:8px;top:0;width:2px;height:18px}.xh:after{top:8px;left:0;height:2px;width:18px}
-.xh i{position:absolute;left:7px;top:7px;width:4px;height:4px;background:#05070a;z-index:2}
+#xh{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
+#xh i{position:absolute;display:block}
+#rhud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:28px;padding:8px 22px;border-radius:12px;background:#0b0f16b0;font-weight:800;font-variant-numeric:tabular-nums;pointer-events:none;color:#fff;letter-spacing:.5px}
+#rhud span{display:flex;flex-direction:column;align-items:center;font-size:22px}#rhud small{font-size:10px;color:#b8c4d4;letter-spacing:1.5px;font-weight:700}
+#stage.range #rhud{display:flex}#stage.range .hud{display:none}
+.rpanel{position:absolute;left:12px;top:12px;z-index:5;display:none;max-width:290px;max-height:calc(100% - 24px);overflow:auto;background:#0b0f16e8;border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:13px}
+#stage.range .rpanel{display:block}#stage.locked .rpanel{display:none!important}
+.rpanel summary{cursor:pointer;font-weight:800;padding:4px 0;list-style:none}.rpanel summary::-webkit-details-marker{display:none}
+.rpanel label{margin:8px 0 2px;font-size:11px}.rpanel input,.rpanel select{padding:5px 8px;font-size:13px}
+.rpanel input[type=range]{padding:0}.rpanel .rowx{display:flex;gap:8px}.rpanel .rowx>*{flex:1}
+.rpanel table td{padding:3px 4px;font-size:12px}
+#ov.begin{background:#0000004d}#ov.begin .big{color:#fff;font-size:40px;letter-spacing:3px;text-shadow:0 2px 10px #000a}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:12px 16px;font-weight:700;font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 3px #000}
 #hudFps{position:absolute;left:12px;bottom:10px;font:12px ui-monospace,monospace;color:#9fe;pointer-events:none;text-shadow:0 1px 2px #000}
 .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05070acc;text-align:center;padding:20px;gap:10px}
@@ -85,7 +93,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 <header>
   <div class="logo">EZ<b>Sens</b><small>aim lab · sens converter</small></div>
   <nav id="nav">
-    <button data-t="setup" class="on">Converter</button>
+    <button data-t="range" class="on">Range</button>
+    <button data-t="setup">Converter</button>
     <button data-t="train">Train</button>
     <button data-t="finder">Sens Finder</button>
     <button data-t="custom">Custom game</button>
@@ -96,7 +105,15 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 <main>
 <div class="banner hide" id="shareBanner"><span>This link contains shared EZ Sens settings.</span><button class="btn sm" id="shareLoad">Load them</button><button class="btn alt sm" id="shareIgnore">Ignore</button></div>
 
-<section class="tab on" id="t-setup">
+<section class="tab on" id="t-range">
+  <h2>Shooting Range</h2>
+  <p class="sub">An open-air range with targets on the back wall. Click the view to begin a 1-minute run; your mouse turns exactly like your game at <span id="rangeInfo"></span>. Settings are in the ⚙ panel (top-left of the view); press <b>Esc</b> to pause and change them.</p>
+  <p class="touchnote warn">The range needs a desktop mouse (Chrome or Edge). The converter works on this device.</p>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center"><div></div><div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn3">Fullscreen</button><button class="btn alt" id="rangeReset">New run</button></div></div>
+  <div id="stageHost0"></div>
+</section>
+
+<section class="tab" id="t-setup">
   <h2>Converter</h2>
   <p class="sub">Enter your DPI and the sensitivity you use in one game. Every other game gets the setting that turns the same distance (cm/360). Works on phones and tablets too.</p>
   <div class="grid g2">
@@ -210,6 +227,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p class="sub">Saved in this browser only (localStorage).</p>
   <div class="card tw"><table><thead><tr><th>When</th><th>Drill</th><th>cm/360</th><th>Score</th><th>Accuracy</th><th>Avg TTK</th><th>Over / under</th><th>FPS</th></tr></thead><tbody id="hist"></tbody></table>
   <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
+  <h3>Range — timed challenge history</h3>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
@@ -367,9 +386,10 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
+S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh); store.rangeHistory=store.rangeHistory||[];
 if(S.arcFov){ S.params.arc=Object.assign({fov:S.arcFov},S.params.arc); delete S.arcFov; }
 M.setCustom(S.custom); if(!safeGet(S.game)) S.game='cs2';
 function safeGet(id){ try{return M.get(id);}catch(e){return null;} }
@@ -387,7 +407,8 @@ const short=n=>n.replace('Counter-Strike 2','CS2').replace(/ \(.*\)/,'');
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   $$('#nav button').forEach(x=>x.classList.toggle('on',x===b));
   $$('section.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+b.dataset.t));
-  if(b.dataset.t==='train')mountStage('#stageHost'); if(b.dataset.t==='finder')mountStage('#stageHost2');
+  setMode(b.dataset.t==='range'?'range':'arena');
+  if(b.dataset.t==='range')mountStage('#stageHost0'); if(b.dataset.t==='train')mountStage('#stageHost'); if(b.dataset.t==='finder')mountStage('#stageHost2');
   if(b.dataset.t==='results')renderHist(); refresh();});
 
 /* ---------- game picker ---------- */
@@ -436,6 +457,7 @@ function refresh(){
   $('#yawTbl').innerHTML=M.GAMES.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td><code>${esc(x.model)}</code></td><td>${tag(x.status)}</td><td class="small">${esc(x.note)}</td><td class="small">${x.src.map(k=>M.SOURCES[k]).filter(Boolean).map(([t,u])=>`<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join('<br>')}</td></tr>`).join('');
   const pick=[...new Set([S.game,...S.fav])].map(safeGet).filter(Boolean).slice(0,6);
   const info=good?`Arena turns at <b>${fmt(cm,1)} cm/360</b> = ${pick.map(x=>`${esc(short(x.name))} ${x.id===S.game?S.sens:fmtS(x,equiv(cm,x).r)}`).join(' · ')} @ ${S.dpi} DPI`:'Fill in the converter first.';
+  { const ri=$('#rangeInfo'); if(ri) ri.innerHTML=good?`<b>${fmt(cm,1)} cm/360</b> (${esc(short(g.name))} ${S.sens} @ ${S.dpi} DPI — change it in the Converter tab)`:'your converter settings'; }
   $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info;
   $$('.cdpi').forEach(e=>e.textContent=S.dpi+' DPI'); $('#cpc').textContent=good?Math.round(M.countsPer360(cm,S.dpi)).toLocaleString():'—';
   renderCustomList(); calcCustom();
@@ -485,8 +507,8 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div id="hudFps"></div><div class="xh"><i></i></div><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
-$('#stageHost').appendChild(stage);
+stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div id="hudFps"></div><div id="xh"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+$('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
 function makeRenderer(){ if(renderer){ renderer.dispose(); renderer.domElement.remove(); }
@@ -494,6 +516,7 @@ function makeRenderer(){ if(renderer){ renderer.dispose(); renderer.domElement.r
   const ctx=c.getContext('webgl2',attrs)||c.getContext('webgl',attrs);
   renderer=new THREE.WebGLRenderer({canvas:c,context:ctx,antialias:!S.lowq,powerPreference:'high-performance'}); stage.prepend(c);
   scene.fog=S.lowq?null:fog; resize(); }
+let MODE='range';
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a0f); const fog=new THREE.Fog(0x070a0f,40,110);
 const camera=new THREE.PerspectiveCamera(70,16/9,0.05,300); camera.rotation.order='YXZ';
 scene.add(new THREE.HemisphereLight(0x9fb6ff,0x10151c,0.9));
@@ -509,7 +532,7 @@ const tgtMat=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0d6b47,ro
 const tgt=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),tgtMat); tgt.visible=false; scene.add(tgt);
 const DIST=20;
 function scaleRatio(){ return S.scale==='native'?Math.min(2,devicePixelRatio):(+S.scale||1)*(S.lowq?Math.min(1,devicePixelRatio):1); }
-function resize(){ if(!renderer)return; const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setPixelRatio(scaleRatio()); renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); }
+function resize(){ if(!renderer)return; const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setPixelRatio(scaleRatio()); renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); if(typeof rangeCam!=='undefined'){rangeCam.aspect=w/h; setRangeFov();} }
 addEventListener('resize',resize); document.addEventListener('fullscreenchange',()=>setTimeout(resize,50));
 function arenaHFov(){ if(+S.afov>=60)return +S.afov; const g=M.get(S.game); if(g.hfovFn)return g.hfovFn(P(g.id)); return g.hfov||103; }
 function setFov(){const h=arenaHFov()*Math.PI/180; camera.fov=2*Math.atan(Math.tan(h/2)/camera.aspect)*180/Math.PI; camera.updateProjectionMatrix();}
@@ -529,18 +552,20 @@ function beep(f,dur,type='sine',vol=0.06){ if(!S.sound)return; try{ actx=actx||n
 let degPerCount=0, rawOK=null, locked=null;
 async function lockEl(el){ try{ await el.requestPointerLock({unadjustedMovement:true}); rawOK=true; }
   catch(e){ try{ await el.requestPointerLock(); }catch(_){} rawOK=false; } }
-document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement;
+document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement; stage.classList.toggle('locked',locked===stage);
+  if(locked!==stage&&RG&&RG.phase==='run'){ RG.phase='pause'; rangeOverlay(); }
   if(locked!==pad&&swipe.on){ swipe.on=false; swipe.done=true; pad.classList.remove('on'); padTxt(); calcCustom(); }
   if(locked!==stage&&R&&R.phase==='run'){R.phase='pause';showOv(`<div class="big">Paused</div><div class="muted">Click to resume · or press Start to restart</div>`);} });
-function look(dx,dy){ if(!R||R.phase!=='run')return; view.yaw-=dx*degPerCount; view.pitch=Math.max(-89,Math.min(89,view.pitch-dy*degPerCount)); }
+function look(dx,dy){ if(MODE==='range'){ if(RG&&RG.phase==='run'){ rview.yaw-=dx*degPerCountRange(); rview.pitch=Math.max(-89,Math.min(89,rview.pitch-dy*degPerCountRange())); } return; } if(!R||R.phase!=='run')return; view.yaw-=dx*degPerCount; view.pitch=Math.max(-89,Math.min(89,view.pitch-dy*degPerCount)); }
 function onMove(e){ if(!locked)return; if(locked===stage) look(e.movementX,e.movementY); else if(locked===pad&&swipe.on){ swipe.counts+=e.movementX; padTxt(); } }
 const RAW_EVT=('onpointerrawupdate' in window)?'pointerrawupdate':'mousemove';
 document.addEventListener(RAW_EVT,onMove,{passive:true});
 stage.addEventListener('mousedown',e=>{ if(e.button!==0)return;
+  if(MODE==='range'){ if(e.target.closest('.rpanel'))return; if(locked!==stage){ if(!ok())return alert('Fill in the converter first.'); lockEl(stage).then(()=>{ if(document.pointerLockElement===stage)rangeBeginOrResume(); }); } else rangeShoot(); return; }
   if(locked!==stage){ if(R&&(R.phase==='pause'||R.phase==='ready')){ lockEl(stage).then(()=>{ if(R.phase==='pause'){R.phase='run';hideOv();R.last=performance.now();} else beginCountdown(); }); } return; }
   shoot(); });
 function showOv(h){const o=$('#ov');o.innerHTML=h;o.classList.remove('hide');} function hideOv(){$('#ov').classList.add('hide');}
-$('#fsBtn').onclick=$('#fsBtn2').onclick=()=>stage.requestFullscreen&&stage.requestFullscreen();
+$('#fsBtn').onclick=$('#fsBtn2').onclick=$('#fsBtn3').onclick=()=>stage.requestFullscreen&&stage.requestFullscreen();
 
 /* ---------- frame pacing ---------- */
 const F={hz:60,deltas:[],last:0,lastDraw:0,next:0,draws:[],ft:0};
@@ -616,8 +641,9 @@ function finish(){ const res=Object.assign(scoreOf(R.st),{cm:R.cm,label:R.label,
 function loop(now){ requestAnimationFrame(loop); measure(now);
   if(!shouldDraw(now))return;
   const ft=F.lastDraw?now-F.lastDraw:0; F.lastDraw=now; F.ft=F.ft?F.ft*0.9+ft*0.1:ft;
-  if(R&&R.phase==='run'){ step(now); if(R){R.fpsAcc+=ft;R.fpsN++;} }
-  camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera);
+  if(MODE==='range'){ if(RG&&RG.phase==='run')rangeStep(now); rangeCam.rotation.set(rview.pitch*D2R,rview.yaw*D2R,0); vmAnim(now); renderer.render(rscene,rangeCam); }
+  else { if(R&&R.phase==='run'){ step(now); if(R){R.fpsAcc+=ft;R.fpsN++;} }
+  camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); }
   if(S.showFps&&(F.dc=(F.dc||0)+1)%8===0) $('#hudFps').textContent=`${F.ft?Math.round(1000/F.ft):0} fps · ${F.ft.toFixed(2)} ms · ${F.hz} Hz${capFps()<F.hz?' · cap '+Math.round(capFps()):''}`; }
 const biasTxt=b=>Math.abs(b)<0.15?'balanced':(b>0?`overshoots (${Math.round(b*100)}%)`:`undershoots (${Math.round(-b*100)}%)`);
 
@@ -630,7 +656,8 @@ $('#startBtn').onclick=()=>{ if(!ok())return alert('Fill in the converter first.
 function showRes(r){ $('#lastRound').innerHTML=[['Score',Math.round(r.score)],['Accuracy',r.flick!=null?Math.round(r.acc*100)+'%':'—'],['Avg time-to-kill',Number.isFinite(r.ttk)?Math.round(r.ttk)+' ms':'—'],['On target',r.track!=null?Math.round(r.track)+'%':'—'],['Overshoot / undershoot',r.flick!=null?`${r.over} / ${r.under}`:`${r.trOver.toFixed(1)}s / ${r.trUnder.toFixed(1)}s`],['Tendency',biasTxt(r.bias)],['Avg FPS',r.fps||'—']]
   .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join(''); }
 function addHist(drill,r){ store.history.unshift({at:Date.now(),drill,cm:r.cm,score:r.score,acc:r.acc,ttk:r.ttk,over:r.over,under:r.under,bias:r.bias,fps:r.fps}); store.history=store.history.slice(0,200); save(); }
-function renderHist(){ $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?'—':Math.round(h.acc*100)+'%'}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td><td>${h.fps||'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No rounds yet.</td></tr>'; }
+function renderRangeHist(){ const rows=store.rangeHistory.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td><b>${h.points}</b></td><td>${h.shots?Math.round(100*h.hits/h.shots)+'%':'—'}</td><td>${h.hits} / ${h.shots}</td><td>${h.tth?Math.round(h.tth)+' ms':'—'}</td><td class="small">${esc(h.setup)}</td><td>${fmt(h.cm,1)}</td></tr>`).join(''); const el=$('#rhist'); if(el)el.innerHTML=rows||'<tr><td colspan="7" class="muted">No range runs yet.</td></tr>'; }
+function renderHist(){ renderRangeHist(); $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?'—':Math.round(h.acc*100)+'%'}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td><td>${h.fps||'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No rounds yet.</td></tr>'; }
 $('#clearBtn').onclick=()=>{ if(confirm('Clear all saved results?')){store.history=[];store.finder=null;save();renderHist();renderFinder();} };
 
 /* ---------- finder ---------- */
@@ -679,9 +706,112 @@ function drawChart(f){ const c=$('#chart'),x=c.getContext('2d'),W=c.width,H=c.he
   x.strokeStyle='#7c8cff';x.beginPath();rs.forEach((r,i)=>i?x.lineTo(X(r.cm),Y(r.score)):x.moveTo(X(r.cm),Y(r.score)));x.stroke();
   rs.forEach(r=>{x.fillStyle='#7c8cff';x.beginPath();x.arc(X(r.cm),Y(r.score),8,0,7);x.fill();x.fillStyle='#e6edf5';x.fillText(r.cm.toFixed(1),X(r.cm)-20,Y(r.score)-16);}); }
 
+/* ---------- crosshair (customizable, original) ---------- */
+const ARENA_XH={style:'cross',color:'#36f1a6',size:8,gap:2,outline:true};
+function drawXH(c){ const el=$('#xh'), col=c.color||'#fff', sh=c.outline?'box-shadow:0 0 0 1px #000a;':'', parts=[];
+  const box=(x,y,w,h,extra='')=>parts.push(`<i style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${col};${sh}${extra}"></i>`);
+  const s=+c.size||6, g=+c.gap||0, t=2;
+  if(c.style==='dot'||c.style==='crossdot'){ const d=c.style==='dot'?s:2; box(-d/2,-d/2,d,d,'border-radius:50%;'); }
+  if(c.style==='cross'||c.style==='crossdot'){ box(-t/2,-g-s,t,s); box(-t/2,g,t,s); box(-g-s,-t/2,s,t); box(g,-t/2,s,t); }
+  if(c.style==='circle'){ parts.push(`<i style="left:${-s}px;top:${-s}px;width:${2*s}px;height:${2*s}px;border:2px solid ${col};border-radius:50%;box-sizing:border-box;${c.outline?'box-shadow:0 0 0 1px #000a, inset 0 0 0 1px #000a;':''}"></i>`); box(-1,-1,2,2,'border-radius:50%;'); }
+  el.innerHTML=parts.join(''); }
+function setMode(m){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawXH(m==='range'?S.range.xh:ARENA_XH);
+  if(m==='range'){ setRangeFov(); rangeOverlay(); } else if(!R){ $('#ov').classList.remove('begin'); showOv(`<div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div>`); } }
+
+/* ---------- shooting range (original design) ---------- */
+let RG=null; const rview={yaw:0,pitch:2};
+const rscene=new THREE.Scene();
+const rangeCam=new THREE.PerspectiveCamera(70,16/9,0.03,500); rangeCam.rotation.order='YXZ'; rangeCam.position.set(0,1.6,0); rscene.add(rangeCam);
+function degPerCountRange(){ return M.degPerCountFromCm(currentCm(),S.dpi); }
+function setRangeFov(){ const h=arenaHFov()*D2R; rangeCam.fov=2*Math.atan(Math.tan(h/2)/rangeCam.aspect)/D2R; rangeCam.updateProjectionMatrix(); }
+const RB={x:5.8,yMin:0.8,yMax:4.4,z:-15.6}; // target area on the back wall
+const rTargets=[]; const rTgtGeo=new THREE.SphereGeometry(1,28,18);
+const rTgtMat=()=>new THREE.MeshStandardMaterial({color:0x1d222b,roughness:.55,metalness:.1,emissive:0x000000});
+let vm=null, vmKick=0;
+function buildRange(){
+  // sky dome with a vertical gradient
+  const sg=new THREE.SphereGeometry(300,32,16), cols=[], top=new THREE.Color(0x4f8fd8), hor=new THREE.Color(0xdbe9f6), c=new THREE.Color();
+  const pos=sg.attributes.position; for(let i=0;i<pos.count;i++){ const t=Math.max(0,Math.min(1,pos.getY(i)/300)); c.copy(hor).lerp(top,Math.pow(t,0.6)); cols.push(c.r,c.g,c.b); }
+  sg.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  rscene.add(new THREE.Mesh(sg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,depthWrite:false})));
+  rscene.add(new THREE.HemisphereLight(0xffffff,0xc4c9d1,2.2));
+  const sunL=new THREE.DirectionalLight(0xffffff,2.0); sunL.position.set(6,14,8); rscene.add(sunL);
+  const std=(col,r=0.95)=>new THREE.MeshStandardMaterial({color:col,roughness:r});
+  const W=14,L=16;
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(W,L+6),std(0xd9dce1)); floor.rotation.x=-Math.PI/2; floor.position.set(0,0,-L/2+3); rscene.add(floor);
+  for(let x=-W/2+2;x<=W/2-2;x+=2){ const ln=new THREE.Mesh(new THREE.PlaneGeometry(0.05,L-1.5),std(0x9da5b0)); ln.rotation.x=-Math.PI/2; ln.position.set(x,0.002,-L/2-0.75+1.5); rscene.add(ln); }
+  const sl=new THREE.Mesh(new THREE.PlaneGeometry(W,0.12),std(0x4a5260)); sl.rotation.x=-Math.PI/2; sl.position.set(0,0.003,-1.2); rscene.add(sl);
+  const wallM=std(0xcdd2d9), backM=std(0xe6e8ec);
+  [-1,1].forEach(s=>{ const w=new THREE.Mesh(new THREE.BoxGeometry(0.4,4.2,L+6),wallM); w.position.set(s*(W/2+0.2),2.1,-L/2+3); rscene.add(w); });
+  const back=new THREE.Mesh(new THREE.BoxGeometry(W+0.8,6,0.4),backM); back.position.set(0,3,-L+0.2); rscene.add(back);
+  const behind=new THREE.Mesh(new THREE.BoxGeometry(W+0.8,4.2,0.4),wallM); behind.position.set(0,2.1,3.2); rscene.add(behind);
+  // low-poly viewmodel: an original blocky "marker" blaster
+  vm=new THREE.Group(); const dark=std(0x2a2f38,0.6), mid=std(0x434a56,0.6), accent=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0f6b48,roughness:.4});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.075,0.085,0.30),mid); vm.add(body);
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.025,0.22),dark); rail.position.set(0,0.055,-0.01); vm.add(rail);
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.02,0.18,6),dark); barrel.rotation.x=Math.PI/2; barrel.position.set(0,0.012,-0.23); vm.add(barrel);
+  const grip=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.13,0.06),dark); grip.position.set(0,-0.09,0.07); grip.rotation.x=0.28; vm.add(grip);
+  const strip=new THREE.Mesh(new THREE.BoxGeometry(0.078,0.012,0.16),accent); strip.position.set(0,0.0,-0.03); vm.add(strip);
+  vm.scale.setScalar(0.75); vm.position.set(0.17,-0.15,-0.42); rangeCam.add(vm);
+}
+function vmAnim(){ if(!vm)return; vm.visible=!!S.range.viewmodel; vmKick*=0.82; vm.position.z=-0.42+vmKick*0.06; vm.rotation.x=vmKick*0.12; }
+function clearTargets(){ rTargets.splice(0).forEach(t=>rscene.remove(t.mesh)); }
+function placeRT(t){ const r=S.range.size; let tries=0,x,y;
+  do{ x=rnd(-RB.x+r,RB.x-r); y=rnd(RB.yMin+r,RB.yMax-r); tries++; } while(tries<40&&rTargets.some(o=>o!==t&&Math.hypot(o.mesh.position.x-x,o.mesh.position.y-y)<r*3.5));
+  t.mesh.scale.setScalar(r); t.mesh.position.set(x,y,RB.z+r); t.vx=(Math.random()<0.5?-1:1)*S.range.speed; t.ph=rnd(0,6.28); t.y0=y; t.born=performance.now(); }
+function layoutTargets(){ clearTargets(); for(let i=0;i<S.range.count;i++){ const t={mesh:new THREE.Mesh(rTgtGeo,rTgtMat())}; rscene.add(t.mesh); rTargets.push(t); placeRT(t); } }
+function rangeOverlay(){ const o=$('#ov'); o.classList.add('begin');
+  if(RG&&RG.phase==='pause') showOv(`<div class="big">PAUSED</div><div>Click to continue · ${fmtT(RG.remaining)} left</div>`);
+  else if(RG&&RG.last&&RG.result){ const r=RG.result; showOv(`<div class="big">CLICK TO BEGIN</div><div style="font-size:20px;font-weight:800">Last run: ${r.points} points · ${r.shots?Math.round(100*r.hits/r.shots):0}% accuracy</div><div class="small">${r.best?'New best! 🎯':'Best: '+bestPts()+' points'}</div>`); }
+  else showOv(`<div class="big">CLICK TO BEGIN</div><div class="small">${fmtT(S.range.dur*1000)} timed run · Esc to pause</div>`); }
+const fmtT=ms=>{ const s=Math.max(0,Math.ceil(ms/1000)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); };
+const bestPts=()=>store.rangeHistory.reduce((m,h)=>Math.max(m,h.points),0);
+function rangeBeginOrResume(){ if(RG&&RG.phase==='pause'){ RG.phase='run'; RG.last=performance.now(); hideOv(); return; }
+  RG={phase:'run',remaining:S.range.dur*1000,last:performance.now(),points:0,hits:0,shots:0,tth:[],cm:currentCm(),result:null};
+  rview.yaw=0; rview.pitch=2; layoutTargets(); hideOv(); rhud(); beep(880,0.08); }
+function rangeShoot(){ if(!RG||RG.phase!=='run')return; RG.shots++; vmKick=1;
+  const o=new THREE.Vector3(); rangeCam.getWorldPosition(o); const d=new THREE.Vector3(); rangeCam.getWorldDirection(d);
+  let best=null,bd=Infinity; for(const t of rTargets){ const c=t.mesh.position, r=S.range.size; const oc=c.clone().sub(o); const tc=oc.dot(d); if(tc<0)continue; const d2=oc.lengthSq()-tc*tc; if(d2<=r*r&&tc<bd){bd=tc;best=t;} }
+  if(best){ const tth=performance.now()-best.born; RG.tth.push(tth); RG.hits++; RG.points+=100+Math.max(0,Math.round((1000-tth)/20)); beep(1250,0.05,'triangle');
+    best.mesh.material.emissive.setHex(0xffffff); const m=best.mesh.material; setTimeout(()=>m.emissive.setHex(0),50); placeRT(best); }
+  else beep(170,0.05,'square',0.025);
+  rhud(); }
+function rangeStep(now){ const dt=Math.min(0.05,(now-RG.last)/1000); RG.last=now; RG.remaining-=dt*1000;
+  if(S.range.moving) for(const t of rTargets){ const p=t.mesh.position, r=S.range.size; p.x+=t.vx*dt; if(p.x>RB.x-r){p.x=RB.x-r;t.vx=-Math.abs(t.vx);} if(p.x<-RB.x+r){p.x=-RB.x+r;t.vx=Math.abs(t.vx);} t.ph+=dt*1.3; p.y=Math.max(RB.yMin+r,Math.min(RB.yMax-r,t.y0+Math.sin(t.ph)*0.35*S.range.speed)); }
+  if(RG.remaining<=0) return rangeEnd(); if((RG.fr=(RG.fr||0)+1)%4===0) rhud(); }
+function rhud(){ $('#rPts').textContent=RG?RG.points:0; $('#rTime').textContent=fmtT(RG?RG.remaining:S.range.dur*1000); $('#rAcc').textContent=RG&&RG.shots?Math.round(100*RG.hits/RG.shots)+'%':'—'; }
+function rangeEnd(){ RG.remaining=0; RG.phase='ready'; rhud(); beep(520,0.2); const prevBest=bestPts();
+  const h={at:Date.now(),points:RG.points,hits:RG.hits,shots:RG.shots,tth:RG.tth.length?RG.tth.reduce((a,b)=>a+b,0)/RG.tth.length:0,cm:RG.cm,
+    setup:`${S.range.dur}s · size ${S.range.size} · ${S.range.count} tgt${S.range.moving?' · moving '+S.range.speed:''}`};
+  store.rangeHistory.unshift(h); store.rangeHistory=store.rangeHistory.slice(0,200); save(); RG.result=Object.assign({best:h.points>prevBest&&h.points>0},h);
+  if(document.pointerLockElement===stage)document.exitPointerLock(); clearTargets(); renderRangeHist(); renderPanel(); rangeOverlay(); }
+function renderPanel(){ const r=S.range,x=r.xh, top=[...store.rangeHistory].sort((a,b)=>b.points-a.points).slice(0,3), rec=store.rangeHistory.slice(0,5);
+  $('#rpanelBody').innerHTML=`
+  <div class="rowx"><div><label>Run length</label><select data-r="dur">${[30,60,90,120].map(v=>`<option ${v==r.dur?'selected':''} value="${v}">${fmtT(v*1000)}</option>`).join('')}</select></div>
+  <div><label>Targets</label><input data-r="count" type="number" min="1" max="8" value="${r.count}"></div></div>
+  <label>Target size <span class="muted" id="szv">${Math.round(r.size*200)} cm</span></label><input data-r="size" type="range" min="0.08" max="0.6" step="0.01" value="${r.size}">
+  <label class="inl" style="margin-top:8px"><input data-r="moving" type="checkbox" ${r.moving?'checked':''}> Moving targets</label>
+  <label>Speed <span class="muted" id="spv">${r.speed} m/s</span></label><input data-r="speed" type="range" min="0.3" max="5" step="0.1" value="${r.speed}">
+  <div class="rowx" style="margin-top:8px"><label class="inl"><input data-r="viewmodel" type="checkbox" ${r.viewmodel?'checked':''}> Viewmodel</label><label class="inl"><input data-g="sound" type="checkbox" ${S.sound?'checked':''}> Hit sounds</label></div>
+  <label>Crosshair</label><div class="rowx"><select data-x="style">${[['dot','Dot'],['cross','Cross'],['crossdot','Cross + dot'],['circle','Circle']].map(([v,t])=>`<option ${v===x.style?'selected':''} value="${v}">${t}</option>`).join('')}</select><input data-x="color" type="color" value="${x.color}" style="height:30px;padding:2px"></div>
+  <div class="rowx"><div><label>Size</label><input data-x="size" type="range" min="2" max="24" step="1" value="${x.size}"></div><div><label>Gap</label><input data-x="gap" type="range" min="0" max="10" step="1" value="${x.gap}"></div></div>
+  <label class="inl" style="margin-top:6px"><input data-x="outline" type="checkbox" ${x.outline?'checked':''}> Outline</label>
+  <label>Best runs</label><table>${top.map(h=>`<tr><td><b>${h.points}</b></td><td>${h.shots?Math.round(100*h.hits/h.shots):0}%</td><td class="muted">${new Date(h.at).toLocaleDateString()}</td></tr>`).join('')||'<tr><td class="muted">No runs yet</td></tr>'}</table>
+  <label>Recent</label><table>${rec.map(h=>`<tr><td>${h.points}</td><td>${h.shots?Math.round(100*h.hits/h.shots):0}%</td><td class="muted small">${esc(h.setup)}</td></tr>`).join('')||'<tr><td class="muted">—</td></tr>'}</table>`; }
+function onPanel(e){ const el=e.target, v=el.type==='checkbox'?el.checked:(el.type==='color'||el.tagName==='SELECT'&&el.dataset.x)?el.value:+el.value;
+  if(el.dataset.r){ const k=el.dataset.r; S.range[k]=k==='count'?Math.max(1,Math.min(8,Math.round(v)||1)):v; if(k==='size')$('#szv').textContent=Math.round(v*200)+' cm'; if(k==='speed')$('#spv').textContent=v+' m/s';
+    if(RG&&(RG.phase==='pause')&&['size','count','moving','speed'].includes(k)) layoutTargets(); if(k==='dur'&&(!RG||RG.phase!=='pause'))rhud(); }
+  if(el.dataset.x){ S.range.xh[el.dataset.x]=v; drawXH(S.range.xh); }
+  if(el.dataset.g==='sound'){ S.sound=v; const sb=$('#sound'); if(sb)sb.checked=v; }
+  save(); }
+function RANGE_INIT(){ buildRange(); $('#rpanelBody').addEventListener('input',onPanel); $('#rpanelBody').addEventListener('change',onPanel);
+  ['mousedown','click'].forEach(t=>$('#rpanel').addEventListener(t,e=>e.stopPropagation()));
+  $('#rangeReset').onclick=()=>{ if(document.pointerLockElement===stage)document.exitPointerLock(); RG=null; clearTargets(); rhud(); rangeOverlay(); };
+  renderPanel(); RG=null; rhud(); setMode('range'); }
+
 /* test hooks for headless checks */
-window.EZ={simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S};
-makeRenderer(); syncInputs(); syncPerf(); renderHist(); renderFinder(); requestAnimationFrame(loop);
+window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:m=>setMode(m),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S};
+RANGE_INIT(); makeRenderer(); syncInputs(); syncPerf(); renderHist(); renderFinder(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
 </script>
 </body>
