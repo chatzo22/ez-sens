@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EZ Sens — aim trainer &amp; sensitivity finder</title>
+<style>
+:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0f141c,#0a0d12)}
+.logo{font-weight:800;font-size:22px;letter-spacing:.5px}
+.logo b{color:var(--acc)}
+.logo small{display:block;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:1.5px;text-transform:uppercase}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button{background:transparent;border:1px solid transparent;color:var(--mute);padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-weight:600}
+nav button.on{color:var(--bg);background:var(--acc)}
+nav button:hover:not(.on){border-color:var(--line);color:var(--text)}
+main{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
+section.tab{display:none}section.tab.on{display:block}
+h2{margin:0 0 4px;font-size:22px}h3{margin:18px 0 8px;font-size:16px}
+p.sub{margin:0 0 18px;color:var(--mute)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px}
+input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px 12px;font:inherit;font-size:16px}
+input:focus,select:focus{outline:2px solid var(--acc2);border-color:transparent}
+.row{display:flex;gap:12px}.row>*{flex:1}
+.stat .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.5px;vertical-align:middle}
+.tag.ok{background:#36f1a622;color:var(--acc)}.tag.cm{background:#ffb54722;color:var(--warn)}
+.btn{background:var(--acc);color:#04120c;border:0;padding:11px 18px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
+.btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.drills{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.drills button{flex:1;min-width:160px;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:12px;cursor:pointer;font:inherit}
+.drills button b{display:block;font-size:15px}.drills button span{font-size:12px;color:var(--mute)}
+.drills button.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+#stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
+#stage canvas{display:block;width:100%;height:100%}
+#stage:fullscreen{border-radius:0;border:0}
+.xh{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none}
+.xh:before,.xh:after{content:"";position:absolute;background:var(--acc);box-shadow:0 0 2px #000}
+.xh:before{left:8px;top:0;width:2px;height:18px}.xh:after{top:8px;left:0;height:2px;width:18px}
+.xh i{position:absolute;left:7px;top:7px;width:4px;height:4px;background:#05070a;z-index:2}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:12px 16px;font-weight:700;font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 3px #000}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05070acc;text-align:center;padding:20px;gap:10px}
+.overlay.hide{display:none}
+.overlay .big{font-size:52px;font-weight:900;color:var(--acc)}
+.muted{color:var(--mute)}.small{font-size:13px}
+.warn{color:var(--warn)}
+.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+canvas#chart{width:100%;height:220px;background:var(--panel2);border-radius:10px}
+.rec{font-size:40px;font-weight:900;color:var(--acc)}
+a{color:var(--acc2)}
+code{background:var(--panel2);padding:1px 6px;border-radius:5px}
+ul{padding-left:20px}li{margin:4px 0}
+footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<header>
+  <div class="logo">EZ<b>Sens</b><small>aim lab · sens finder</small></div>
+  <nav id="nav">
+    <button data-t="setup" class="on">Setup</button>
+    <button data-t="train">Train</button>
+    <button data-t="finder">Sens Finder</button>
+    <button data-t="results">Results</button>
+    <button data-t="about">About</button>
+  </nav>
+</header>
+<main>
+
+<section class="tab on" id="t-setup">
+  <h2>Your setup</h2>
+  <p class="sub">Enter your mouse DPI and the sensitivity you use now. Everything else is calculated from your 360° distance.</p>
+  <div class="grid g2">
+    <div class="card">
+      <label for="dpi">Mouse DPI</label><input id="dpi" type="number" min="50" max="32000" step="50" value="800">
+      <div class="row">
+        <div><label for="game">Game</label><select id="game"></select></div>
+        <div><label for="sens">In-game sensitivity</label><input id="sens" type="number" min="0.001" step="0.01" value="1"></div>
+      </div>
+      <label for="arcfov">ARC Raiders FOV setting (60–80, default 70)</label><input id="arcfov" type="number" min="60" max="80" step="1" value="70">
+      <p class="small muted">ARC Raiders' turn speed is reported to scale with its FOV setting. Leave 70 if you never changed it.</p>
+    </div>
+    <div class="grid g4" id="stats"></div>
+  </div>
+  <h3>Same 360° distance in each game</h3>
+  <div class="card">
+    <table><thead><tr><th>Game</th><th>Set this</th><th>Exact</th><th>cm/360 after rounding</th><th>Yaw (°/count)</th><th>Data</th></tr></thead><tbody id="conv"></tbody></table>
+    <p class="small muted">Matches hip-fire turn distance only. Aim-down-sights / scope multipliers are separate in every game and are not converted. Keep the same DPI in every game, turn off mouse acceleration and (in ARC Raiders) Mouse Smoothing.</p>
+  </div>
+</section>
+
+<section class="tab" id="t-train">
+  <h2>Train</h2>
+  <p class="sub">Pick a drill. Click the arena to lock the mouse; <b>Esc</b> pauses. Rotation per mouse count = yaw × sens of your setup, so it turns exactly like your game.</p>
+  <div class="drills" id="drills">
+    <button data-d="flick" class="on"><b>Flick</b><span>20 static targets, 12–60° away</span></button>
+    <button data-d="track"><b>Tracking</b><span>25 s, keep the crosshair on a strafing target</span></button>
+    <button data-d="micro"><b>Micro-adjust</b><span>20 tiny targets, 2–8° away</span></button>
+  </div>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="trainInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn">Fullscreen</button><button class="btn" id="startBtn">Start drill</button></div>
+  </div>
+  <div id="stageHost"></div>
+  <div class="grid g4" id="lastRound" style="margin-top:16px"></div>
+</section>
+
+<section class="tab" id="t-finder">
+  <h2>Sensitivity finder</h2>
+  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency.</p>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="finderInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn2">Fullscreen</button><button class="btn" id="finderBtn">Start finder</button></div>
+  </div>
+  <div id="stageHost2"></div>
+  <div class="bar" style="margin:12px 0"><i id="fprog" style="width:0"></i></div>
+  <div id="finderOut"></div>
+</section>
+
+<section class="tab" id="t-results">
+  <h2>Results</h2>
+  <p class="sub">Saved in this browser only (localStorage).</p>
+  <div class="card"><table><thead><tr><th>When</th><th>Drill</th><th>cm/360</th><th>Score</th><th>Accuracy</th><th>Avg TTK</th><th>Over / under</th></tr></thead><tbody id="hist"></tbody></table>
+  <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
+</section>
+
+<section class="tab" id="t-about">
+  <h2>About EZ Sens</h2>
+  <p class="sub">An original, independent tool. Not affiliated with Valve or Embark Studios.</p>
+  <div class="card">
+    <h3>The math</h3>
+    <p><code>degrees per count = yaw × sens</code> · <code>cm/360 = 914.4 ÷ (DPI × sens × yaw)</code> (914.4 = 360° × 2.54 cm/in) · <code>eDPI = DPI × sens</code>. Converting keeps cm/360 the same: <code>sens_B = sens_A × yaw_A ÷ yaw_B</code>.</p>
+    <h3>Yaw constants used</h3>
+    <table><thead><tr><th>Game</th><th>Yaw (°/count at sens 1)</th><th>Status</th><th>Notes / sources</th></tr></thead><tbody id="yawTbl"></tbody></table>
+    <h3>How scoring works</h3>
+    <ul>
+      <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged at the first point your crosshair settles after each flick: past the target along the flick direction = overshoot, short of it = undershoot.</li>
+      <li><b>Tracking:</b> score = % of time on target. Crosshair ahead of the target's motion = overshoot, behind = undershoot.</li>
+      <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% toward slower if you overshoot / faster if you undershoot.</li>
+    </ul>
+    <h3>Limitations</h3>
+    <ul>
+      <li>Raw input needs Chrome/Edge's <code>unadjustedMovement</code> pointer lock. If the browser refuses it, Windows pointer speed / acceleration can change the feel (set Windows to 6/11 and turn off "Enhance pointer precision").</li>
+      <li>THE FINALS and ARC Raiders yaw values are community-measured, not published by Embark. Check with one full 360° turn in-game.</li>
+      <li>THE FINALS accepts whole numbers only, so a converted value is rounded. ARC Raiders' decimal support is unconfirmed — the rounded value is a whole number to be safe.</li>
+      <li>ARC Raiders is third-person; this arena is first-person. Vertical sens is treated as equal to horizontal.</li>
+      <li>Arena FOV only changes what you see, not the turn distance. THE FINALS' default FOV is not verified here, so its arena preset (103° horizontal) is approximate.</li>
+      <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and use the average.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer>EZ Sens · made from scratch · settings stay in your browser</footer>
+
+<!-- Pure conversion math (also unit-tested with node: test/math.test.js) -->
+<script id="ezmath">
+(function(root){
+  const GAMES = {
+    cs2:{id:'cs2',name:'Counter-Strike 2',yaw:0.022,status:'verified',decimals:2,step:0.01,arenaHFov:106.26,
+      note:'Source engine m_yaw default 0.022 (same as CS:GO). Cited by every major converter (mouse-sensitivity.com, sensitivitymatch.com, senslab.pro).'},
+    finals:{id:'finals',name:'THE FINALS',yaw:0.001,status:'community',decimals:0,step:1,arenaHFov:103,arenaFovApprox:true,
+      note:'0.001 per point, community-measured; agreed by KovaaK\'s converter, aiming.pro, mouse-sensitivity.com ranges, sensitivitymatch.com, senslab.pro, findmymouse.com; matches pros\' published cm/360 within ~3%. Whole numbers only.'},
+    arc:{id:'arc',name:'ARC Raiders',yaw:0.00136101,status:'community',decimals:0,step:1,fovDependent:true,defaultFov:70,arenaHFov:102.45,
+      note:'0.00136101 at default FOV 70 (vertical), community-measured (sensitivitymatch.com, sensswap.com, sens-converter.com 0.001360975, findmymouse.com 0.00136097). Turn speed reported to scale ×(FOV/70) — partly single-source. Turn off Mouse Smoothing.'}
+  };
+  const K = 360*2.54; // 914.4
+  function effYaw(game, fov){
+    const g = typeof game==='string'?GAMES[game]:game;
+    if(!g) throw new Error('unknown game '+game);
+    if(g.fovDependent){ const f = (fov==null||!isFinite(fov))?g.defaultFov:fov; return g.yaw*(f/g.defaultFov); }
+    return g.yaw;
+  }
+  function degPerCount(game,sens,fov){ return effYaw(game,fov)*sens; }
+  function cm360(dpi,sens,game,fov){ return K/(dpi*sens*effYaw(game,fov)); }
+  function in360(dpi,sens,game,fov){ return cm360(dpi,sens,game,fov)/2.54; }
+  function sensForCm(cm,dpi,game,fov){ return K/(dpi*cm*effYaw(game,fov)); }
+  function convert(sens,from,to,opts){ opts=opts||{};
+    return sens*effYaw(from,opts.fovFrom)/effYaw(to,opts.fovTo)*((opts.dpiFrom||1)/(opts.dpiTo||opts.dpiFrom||1)); }
+  function edpi(dpi,sens){ return dpi*sens; }
+  function menuRound(game,sens){ const g=GAMES[game]; const p=Math.pow(10,g.decimals); return Math.max(1/p,Math.round(sens*p)/p); }
+  function degPerCountFromCm(cm,dpi){ return K/(cm*dpi); }
+  root.EZMath = {GAMES,K,effYaw,degPerCount,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm};
+})(typeof window!=='undefined'?window:globalThis);
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+const M = window.EZMath, G = M.GAMES;
+const $ = s=>document.querySelector(s);
+const LS='ezsens.v1';
+const store = Object.assign({settings:{dpi:800,game:'cs2',sens:1,arcFov:70},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
+const save=()=>localStorage.setItem(LS,JSON.stringify(store));
+const fmt=(n,d=2)=>Number.isFinite(n)?n.toFixed(d):'—';
+const TAG={verified:'<span class="tag ok">VERIFIED</span>',community:'<span class="tag cm">COMMUNITY-MEASURED</span>'};
+
+/* ---------- tabs ---------- */
+$('#nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+b.dataset.t));
+  if(b.dataset.t==='train')mountStage('#stageHost'); if(b.dataset.t==='finder')mountStage('#stageHost2');
+  if(b.dataset.t==='results')renderHist(); refresh();});
+
+/* ---------- setup ---------- */
+$('#game').innerHTML=Object.values(G).map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+const S=store.settings; $('#dpi').value=S.dpi; $('#game').value=S.game; $('#sens').value=S.sens; $('#arcfov').value=S.arcFov;
+['#dpi','#game','#sens','#arcfov'].forEach(id=>$(id).addEventListener('input',()=>{
+  S.dpi=+$('#dpi').value; S.game=$('#game').value; S.sens=+$('#sens').value; S.arcFov=+$('#arcfov').value||70;
+  $('#sens').step=G[S.game].step; save(); refresh();}));
+const fovOf=g=>g==='arc'?S.arcFov:undefined;
+function currentCm(){ return M.cm360(S.dpi,S.sens,S.game,fovOf(S.game)); }
+function equivRows(cm){
+  return Object.values(G).map(g=>{const exact=M.sensForCm(cm,S.dpi,g.id,fovOf(g.id)); const r=M.menuRound(g.id,exact);
+    return {g,exact,r,cmR:M.cm360(S.dpi,r,g.id,fovOf(g.id))};});
+}
+function refresh(){
+  const ok=S.dpi>0&&S.sens>0; const cm=ok?currentCm():NaN;
+  const dpc=ok?M.degPerCount(S.game,S.sens,fovOf(S.game)):NaN;
+  $('#stats').innerHTML=[['cm / 360°',fmt(cm,1)],['inches / 360°',fmt(cm/2.54,1)],['eDPI',ok?Math.round(M.edpi(S.dpi,S.sens)).toLocaleString():'—'],['° per count',fmt(dpc,4)]]
+    .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  $('#conv').innerHTML=ok?equivRows(cm).map(({g,exact,r,cmR})=>`<tr><td><b>${g.name}</b>${g.id===S.game?' <span class="muted small">(yours)</span>':''}</td><td><b style="color:var(--acc);font-size:18px">${g.id===S.game?S.sens:r}</b></td><td>${fmt(exact,g.decimals?3:2)}</td><td>${fmt(g.id===S.game?cm:cmR,1)}</td><td>${M.effYaw(g.id,fovOf(g.id)).toPrecision(6)}${g.fovDependent?` <span class="small muted">@FOV ${S.arcFov}</span>`:''}</td><td>${TAG[g.status]}</td></tr>`).join(''):'';
+  $('#yawTbl').innerHTML=Object.values(G).map(g=>`<tr><td>${g.name}</td><td><code>${g.yaw}</code>${g.fovDependent?' × (FOV/70)':''}</td><td>${TAG[g.status]}</td><td class="small">${g.note}</td></tr>`).join('');
+  const info=ok?`Arena turns at <b>${fmt(cm,1)} cm/360</b> = ${equivRows(cm).map(x=>`${x.g.name.replace('Counter-Strike 2','CS2')} ${x.g.id===S.game?S.sens:x.r}`).join(' · ')} @ ${S.dpi} DPI`:'Fill in your setup first.';
+  $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info;
+}
+
+/* ---------- 3D arena ---------- */
+const stage=document.createElement('div'); stage.id='stage';
+stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div class="xh"><i></i></div><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+function mountStage(sel){ $(sel).appendChild(stage); resize(); }
+$('#stageHost').appendChild(stage);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio)); stage.prepend(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a0f); scene.fog=new THREE.Fog(0x070a0f,40,110);
+const camera=new THREE.PerspectiveCamera(70,16/9,0.05,300); camera.rotation.order='YXZ';
+scene.add(new THREE.HemisphereLight(0x9fb6ff,0x10151c,0.9));
+const sun=new THREE.DirectionalLight(0xffffff,0.9); sun.position.set(10,30,5); scene.add(sun);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(90,64),new THREE.MeshStandardMaterial({color:0x0f141b,roughness:1}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-1.7; scene.add(floor);
+const grid=new THREE.PolarGridHelper(90,36,18,64,0x1d2a3a,0x141c27); grid.position.y=-1.69; scene.add(grid);
+// ring of pillars every 10° for rotation reference (with brighter ones each 90°)
+for(let a=0;a<360;a+=10){const r=Math.PI*a/180, major=a%90===0;
+  const p=new THREE.Mesh(new THREE.BoxGeometry(major?1.4:0.8,major?14:8+(a%30===0?3:0),major?1.4:0.8),
+    new THREE.MeshStandardMaterial({color:major?0x2b3a55:0x18212e,emissive:major?0x0d1630:0x000000}));
+  p.position.set(Math.sin(r)*48,(major?14:8)/2-1.7,-Math.cos(r)*48); scene.add(p);}
+const tgtMat=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0d6b47,roughness:.4});
+const tgt=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),tgtMat); tgt.visible=false; scene.add(tgt);
+const DIST=20;
+function resize(){const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); }
+addEventListener('resize',resize); document.addEventListener('fullscreenchange',()=>setTimeout(resize,50));
+function setFov(){const h=G[S.game].arenaHFov*Math.PI/180; camera.fov=2*Math.atan(Math.tan(h/2)/camera.aspect)*180/Math.PI; camera.updateProjectionMatrix();}
+const view={yaw:0,pitch:0}; // degrees
+const D2R=Math.PI/180;
+function dirFrom(yaw,pitch){const y=yaw*D2R,p=pitch*D2R;return new THREE.Vector3(-Math.sin(y)*Math.cos(p),Math.sin(p),-Math.cos(y)*Math.cos(p));}
+const wrap=a=>((a+540)%360)-180;
+function angErr(ty,tp){ // great-circle angle crosshair->target, plus local 2D components
+  const a=dirFrom(view.yaw,view.pitch),b=dirFrom(ty,tp); const ang=Math.acos(Math.min(1,a.dot(b)))/D2R;
+  return {ang,dx:wrap(ty-view.yaw)*Math.cos(tp*D2R),dy:tp-view.pitch};}
+function placeTarget(ty,tp,radDeg){const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(DIST*Math.tan(radDeg*D2R)); tgt.visible=true;}
+
+/* ---------- input ---------- */
+let degPerCount=0, rawOK=null, locked=false;
+const canvas=renderer.domElement;
+async function lock(){ try{ await canvas.requestPointerLock({unadjustedMovement:true}); rawOK=true; }
+  catch(e){ try{ await canvas.requestPointerLock(); }catch(_){} rawOK=false; } }
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas; if(!locked&&R&&R.phase==='run'){R.phase='pause';showOv(`<div class="big">Paused</div><div class="muted">Click to resume · or press Start to restart</div>`);} });
+function look(dx,dy){ if(!R||R.phase!=='run')return; view.yaw-=dx*degPerCount; view.pitch=Math.max(-89,Math.min(89,view.pitch-dy*degPerCount)); }
+document.addEventListener('mousemove',e=>{ if(locked) look(e.movementX,e.movementY); });
+canvas.addEventListener('mousedown',e=>{ if(e.button!==0)return;
+  if(!locked){ if(R&&(R.phase==='pause'||R.phase==='ready')){ lock().then(()=>{ if(R.phase==='pause'){R.phase='run';hideOv();R.last=performance.now();} else beginCountdown(); }); } return; }
+  shoot(); });
+function showOv(h){const o=$('#ov');o.innerHTML=h;o.classList.remove('hide');} function hideOv(){$('#ov').classList.add('hide');}
+$('#fsBtn').onclick=$('#fsBtn2').onclick=()=>stage.requestFullscreen&&stage.requestFullscreen();
+
+/* ---------- rounds ---------- */
+let R=null; // active round
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const SEG={flick:{min:12,max:60,rad:1.5},micro:{min:2,max:8,rad:0.45}};
+function newRound(segments,cm,onDone,label){
+  degPerCount=M.degPerCountFromCm(cm,S.dpi); setFov();
+  view.yaw=0;view.pitch=4;
+  R={segments,si:0,cm,onDone,label,phase:'ready',st:{clicks:0,hits:0,ttk:[],land:[],over:0,under:0,on:0,trackT:0,lead:0,leadN:0,trOver:0,trUnder:0}};
+  tgt.visible=false; $('#hudL').textContent=''; $('#hudR').textContent='';
+  showOv(`<div class="big">${label}</div><div class="muted">Click here to lock your mouse and start</div><div class="small muted">Esc to pause</div>`);
+}
+function beginCountdown(){ R.phase='count'; let n=3; const tick=()=>{ if(!R||R.phase!=='count')return; if(n===0){hideOv();R.phase='run';R.last=performance.now();startSeg();return;} showOv(`<div class="big">${n}</div>`); n--; setTimeout(tick,450);}; tick(); }
+function startSeg(){const s=R.segments[R.si]; s.done=0; s.t0=performance.now();
+  if(s.type==='track'){R.tr={yaw:view.yaw,pitch:view.pitch+0,vy:0,vp:0,ty:0,tp:0,next:0,el:0}; R.tr.yaw=view.yaw-3; placeTarget(R.tr.yaw,R.tr.pitch,1.3);} else spawn();}
+function spawn(){const s=R.segments[R.si],c=SEG[s.type]; const mag=rnd(c.min,c.max),th=rnd(0,Math.PI*2);
+  let ty=view.yaw+Math.cos(th)*mag, tp=view.pitch+Math.sin(th)*mag*0.55; tp=Math.max(-18,Math.min(32,tp));
+  R.t={ty,tp,rad:c.rad,t0:performance.now(),landed:false,peak:0,moved:0}; const e=angErr(ty,tp); R.t.d0=[e.dx,e.dy]; R.t.n0=Math.hypot(e.dx,e.dy)||1; placeTarget(ty,tp,c.rad);}
+function along(){const e=angErr(R.t.ty,R.t.tp);return (e.dx*R.t.d0[0]+e.dy*R.t.d0[1])/R.t.n0;}
+function recordLanding(){ if(R.t.landed)return; R.t.landed=true; const a=along(), e=angErr(R.t.ty,R.t.tp);
+  const s=R.st; if(e.ang<=R.t.rad*1.15){s.land.push(0);} else if(a<0){s.over++;s.land.push(a/R.t.n0);} else {s.under++;s.land.push(a/R.t.n0);} }
+function shoot(){ if(!R||R.phase!=='run')return; const s=R.segments[R.si]; if(s.type==='track')return;
+  R.st.clicks++; const e=angErr(R.t.ty,R.t.tp);
+  if(e.ang<=R.t.rad){ recordLanding(); R.st.hits++; R.st.ttk.push(performance.now()-R.t.t0); flash(); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); }
+  else if(!R.t.landed) recordLanding(); }
+function flash(){tgtMat.emissive.setHex(0xffffff);setTimeout(()=>tgtMat.emissive.setHex(0x0d6b47),60);}
+function nextSeg(){ R.si++; tgt.visible=false; if(R.si>=R.segments.length) return finish(); startSeg(); }
+function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const s=R.segments[R.si]; if(!s)return;
+  if(s.type==='track'){ const T=R.tr; T.el+=dt;
+    if(T.el>=T.next){T.next=T.el+rnd(0.5,1.4); const sp=rnd(22,62), th=Math.random()<0.75?(Math.random()<0.5?0:Math.PI)+rnd(-0.35,0.35):rnd(0,Math.PI*2); T.ty=Math.cos(th)*sp; T.tp=Math.sin(th)*sp*0.5;}
+    if(T.pitch>22)T.tp=-Math.abs(T.tp); if(T.pitch<-8)T.tp=Math.abs(T.tp);
+    const k=1-Math.exp(-dt*6); T.vy+=(T.ty-T.vy)*k; T.vp+=(T.tp-T.vp)*k; T.yaw+=T.vy*dt; T.pitch+=T.vp*dt; placeTarget(T.yaw,T.pitch,1.3);
+    if(T.el>0.6){ R.st.trackT+=dt; const e=angErr(T.yaw,T.pitch); if(e.ang<=1.3)R.st.on+=dt;
+      const v=Math.hypot(T.vy,T.vp); if(v>8&&e.ang<6){ const lead=-(e.dx*T.vy+e.dy*T.vp)/v; R.st.lead+=lead;R.st.leadN++; if(e.ang>1.3){ if(lead>0)R.st.trOver+=dt; else R.st.trUnder+=dt; } } }
+    if(T.el>=s.dur+0.6) nextSeg();
+  } else { const t=R.t; const sp=R.lastV?Math.hypot(wrap(view.yaw-R.lastV[0]),view.pitch-R.lastV[1])/dt:0; t.peak=Math.max(t.peak,sp);
+    const prog=1-along()/t.n0; if(!t.landed&&t.peak>Math.max(15,t.n0*1.5)&&sp<t.peak*0.2&&prog>0.4) recordLanding();
+    if(now-t.t0>4000){ if(!t.landed)recordLanding(); R.st.ttk.push(4000); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); } }
+  if(R&&R.phase==="run"){R.lastV=[view.yaw,view.pitch]; hud();} }
+function hud(){ const s=R.segments[R.si]; if(!s)return; const st=R.st;
+  $('#hudL').textContent=s.type==='track'?`Tracking ${Math.max(0,s.dur+0.6-R.tr.el).toFixed(1)}s · on target ${st.trackT?Math.round(100*st.on/st.trackT):0}%`:`${s.type==='micro'?'Micro':'Flick'} ${s.done}/${s.count} · acc ${st.clicks?Math.round(100*st.hits/st.clicks):100}%`;
+  $('#hudR').textContent=`${fmt(R.cm,1)} cm/360${rawOK===false?' · raw input OFF':''}`; if(R.hideCm)$('#hudR').textContent=R.label; }
+function scoreOf(st){
+  const acc=st.clicks?st.hits/st.clicks:0, ttk=st.ttk.length?st.ttk.reduce((a,b)=>a+b,0)/st.ttk.length:NaN;
+  const flick=st.ttk.length?Math.min(130,100*acc*500/Math.max(250,ttk)):null;
+  const track=st.trackT?100*st.on/st.trackT:null;
+  const parts=[flick,track].filter(x=>x!=null); const score=parts.reduce((a,b)=>a+b,0)/parts.length;
+  const nl=st.over+st.under+st.land.filter(x=>x===0).length;
+  const bF=nl?(st.over-st.under)/nl:null; const bT=st.leadN?Math.max(-1,Math.min(1,(st.lead/st.leadN)/1.3)):null;
+  const bs=[bF,bT].filter(x=>x!=null); const bias=bs.length?bs.reduce((a,b)=>a+b,0)/bs.length:0;
+  return {score,acc,ttk,flick,track,bias,over:st.over,under:st.under,trOver:st.trOver,trUnder:st.trUnder};
+}
+function finish(){ const res=Object.assign(scoreOf(R.st),{cm:R.cm,label:R.label}); R.phase='done'; tgt.visible=false; document.exitPointerLock&&document.exitPointerLock();
+  const cb=R.onDone; R=null; cb(res); }
+function loop(now){ if(R&&R.phase==='run')step(now); camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); requestAnimationFrame(loop);} requestAnimationFrame(loop);
+const biasTxt=b=>Math.abs(b)<0.15?'balanced':(b>0?`overshoots (${Math.round(b*100)}%)`:`undershoots (${Math.round(-b*100)}%)`);
+
+/* ---------- train ---------- */
+let drill='flick';
+$('#drills').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;drill=b.dataset.d;document.querySelectorAll('#drills button').forEach(x=>x.classList.toggle('on',x===b));});
+const DRILLS={flick:()=>[{type:'flick',count:20}],micro:()=>[{type:'micro',count:20}],track:()=>[{type:'track',dur:25}]};
+$('#startBtn').onclick=()=>{ if(!(S.dpi>0&&S.sens>0))return alert('Fill in your setup first.'); mountStage('#stageHost');
+  newRound(DRILLS[drill](),currentCm(),res=>{ addHist(drill,res); showRes(res); showOv(`<div class="big">${Math.round(res.score)}</div><div class="muted">score · ${biasTxt(res.bias)}</div><div class="small muted">Press Start to go again</div>`); },drill[0].toUpperCase()+drill.slice(1)); };
+function showRes(r){ $('#lastRound').innerHTML=[['Score',Math.round(r.score)],['Accuracy',r.flick!=null?Math.round(r.acc*100)+'%':'—'],['Avg time-to-kill',Number.isFinite(r.ttk)?Math.round(r.ttk)+' ms':'—'],['On target',r.track!=null?Math.round(r.track)+'%':'—'],['Overshoot / undershoot',r.flick!=null?`${r.over} / ${r.under}`:`${r.trOver.toFixed(1)}s / ${r.trUnder.toFixed(1)}s`],['Tendency',biasTxt(r.bias)]]
+  .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join(''); }
+function addHist(drill,r){ store.history.unshift({at:Date.now(),drill,cm:r.cm,score:r.score,acc:r.acc,ttk:r.ttk,over:r.over,under:r.under,bias:r.bias}); store.history=store.history.slice(0,200); save(); }
+function renderHist(){ $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?'—':Math.round(h.acc*100)+'%'}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">No rounds yet.</td></tr>'; }
+$('#clearBtn').onclick=()=>{ if(confirm('Clear all saved results?')){store.history=[];store.finder=null;save();renderHist();} };
+
+/* ---------- finder ---------- */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const FSEG=()=>[{type:'flick',count:10},{type:'track',dur:8}];
+function recommend(results){ // results: [{cm,score,bias}]
+  const pts=results.map(r=>({x:Math.log(r.cm),y:r.score})); const xs=pts.map(p=>p.x);
+  const lo=Math.min(...xs),hi=Math.max(...xs); let best=results.reduce((a,b)=>b.score>a.score?b:a); let x=Math.log(best.cm), fit=false;
+  if(new Set(xs.map(v=>v.toFixed(4))).size>=3){ // least-squares y=a x^2+b x+c
+    const m=xs.reduce((a,b)=>a+b,0)/xs.length; const u=pts.map(p=>p.x-m);
+    let S=[[0,0,0],[0,0,0],[0,0,0]],T=[0,0,0]; pts.forEach((p,i)=>{const v=[u[i]*u[i],u[i],1];for(let r=0;r<3;r++){T[r]+=v[r]*p.y;for(let c=0;c<3;c++)S[r][c]+=v[r]*v[c];}});
+    const det=A=>A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1])-A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0])+A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]);
+    const D=det(S); if(Math.abs(D)>1e-12){ const col=(k)=>S.map((row,r)=>row.map((v,c)=>c===k?T[r]:v)); const a=det(col(0))/D,b=det(col(1))/D;
+      if(a<0){ x=Math.max(lo,Math.min(hi,m-b/(2*a))); fit=true; } } }
+  const bias=results.reduce((s,r)=>s+(r.bias||0),0)/results.length;
+  const adj=1+0.06*Math.max(-1,Math.min(1,bias));
+  const scores=results.map(r=>r.score), spread=(Math.max(...scores)-Math.min(...scores))/Math.max(1,Math.max(...scores));
+  return {cm:Math.exp(x)*adj,raw:Math.exp(x),bias,adj,fit,spread};
+}
+window.EZRecommend=recommend;
+$('#finderBtn').onclick=()=>{ if(!(S.dpi>0&&S.sens>0))return alert('Fill in your setup first.'); mountStage('#stageHost2');
+  const base=currentCm(); const plan=[{cm:base,warm:true},...shuffle([0.75,1,1.33]).map(m=>({cm:base*m}))]; const results=[]; let i=0;
+  $('#finderOut').innerHTML='';
+  const run=()=>{ const p=plan[i]; $('#fprog').style.width=(100*i/6)+'%';
+    newRound(FSEG(),p.cm,res=>{ if(!p.warm)results.push(res); i++;
+      if(i===4){ const best=results.reduce((a,b)=>b.score>a.score?b:a); shuffle([0.87,1.15]).forEach(m=>plan.push({cm:best.cm*m})); }
+      if(i<plan.length){ showOv(`<div class="big">${p.warm?'Warm-up done':'Round '+(i-1)+' / 5 done'}</div><div class="muted">Click to start the next round</div>`); setTimeout(run,0);} else done(); }, p.warm?'Warm-up':`Round ${i}/5`);
+    R.hideCm=true; };
+  const done=()=>{ $('#fprog').style.width='100%'; const rec=recommend(results); store.finder={at:Date.now(),dpi:S.dpi,base,rec,results:results.map(r=>({cm:r.cm,score:r.score,bias:r.bias}))}; save(); renderFinder(); showOv(`<div class="big">${fmt(rec.cm,1)} cm</div><div class="muted">recommended cm/360 — see below</div>`); };
+  run(); };
+function renderFinder(){ const f=store.finder; if(!f){$('#finderOut').innerHTML='';return;}
+  const rows=equivRows(f.rec.cm);
+  $('#finderOut').innerHTML=`<div class="grid g2"><div class="card"><div class="k muted small">RECOMMENDED</div><div class="rec">${fmt(f.rec.cm,1)} cm/360</div>
+   <div class="muted">${fmt(f.rec.cm/2.54,1)} in/360 · at ${f.dpi} DPI · you started at ${fmt(f.base,1)} cm</div>
+   <p class="small">Tendency: <b>${biasTxt(f.rec.bias)}</b>${Math.abs(f.rec.adj-1)>0.005?` → adjusted ${f.rec.adj>1?'slower':'faster'} by ${Math.abs(Math.round((f.rec.adj-1)*100))}%`:''}. ${f.rec.fit?'Curve fit found a peak.':'No clear peak — best round used.'}${f.rec.spread<0.06?' <span class="warn">Scores were very close: your current sens is already fine within noise.</span>':''}</p>
+   <table>${rows.map(({g,exact,r,cmR})=>`<tr><td>${g.name}</td><td><b style="color:var(--acc);font-size:20px">${r}</b></td><td class="small muted">exact ${fmt(exact,3)} · ${fmt(cmR,1)} cm</td><td>${TAG[g.status]}</td></tr>`).join('')}</table></div>
+   <div class="card"><div class="k muted small">SCORE BY 360° DISTANCE</div><canvas id="chart" width="900" height="440"></canvas></div></div>`;
+  drawChart(f); }
+function drawChart(f){ const c=$('#chart'),x=c.getContext('2d'),W=c.width,H=c.height,P=50; const rs=[...f.results].sort((a,b)=>a.cm-b.cm);
+  const cms=rs.map(r=>r.cm).concat(f.rec.cm),lo=Math.min(...cms)*0.95,hi=Math.max(...cms)*1.05,ys=rs.map(r=>r.score),ymax=Math.max(10,...ys)*1.15;
+  const X=v=>P+(W-2*P)*(Math.log(v)-Math.log(lo))/(Math.log(hi)-Math.log(lo)),Y=v=>H-P-(H-2*P)*v/ymax;
+  x.fillStyle='#18202c';x.fillRect(0,0,W,H);x.strokeStyle='#243042';x.lineWidth=2;x.strokeRect(P,P,W-2*P,H-2*P);
+  x.fillStyle='#8a9bb0';x.font='22px system-ui';x.fillText('faster ← cm/360 → slower',W/2-120,H-12);
+  x.strokeStyle='#36f1a6';x.setLineDash([8,8]);x.beginPath();x.moveTo(X(f.rec.cm),P);x.lineTo(X(f.rec.cm),H-P);x.stroke();x.setLineDash([]);
+  x.strokeStyle='#7c8cff';x.beginPath();rs.forEach((r,i)=>i?x.lineTo(X(r.cm),Y(r.score)):x.moveTo(X(r.cm),Y(r.score)));x.stroke();
+  rs.forEach(r=>{x.fillStyle='#7c8cff';x.beginPath();x.arc(X(r.cm),Y(r.score),8,0,7);x.fill();x.fillStyle='#e6edf5';x.fillText(r.cm.toFixed(1),X(r.cm)-20,Y(r.score)-16);}); }
+
+/* test hooks for headless checks */
+window.EZ={simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},state:()=>R,view};
+refresh(); renderHist(); renderFinder(); resize();
+</script>
+</body>
+</html>
