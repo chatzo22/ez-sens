@@ -1,0 +1,51 @@
+{
+  "name": "ez-sens",
+  "productName": "EZ Sens",
+  "version": "1.0.0",
+  "description": "EZ Sens — offline aim trainer, shooting range and sensitivity converter",
+  "main": "main.js",
+  "author": "chatzo22",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "copyweb": "node -e \"require('fs').mkdirSync('web',{recursive:true});require('fs').copyFileSync('../index.html','web/index.html')\"",
+    "start": "npm run copyweb && electron .",
+    "dist": "npm run copyweb && electron-builder --win nsis portable --x64 --publish never"
+  },
+  "build": {
+    "appId": "io.github.chatzo22.ezsens",
+    "productName": "EZ Sens",
+    "files": [
+      "main.js",
+      "preload.js",
+      "web/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EZ Sens",
+      "artifactName": "EZ-Sens-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "EZ-Sens-Portable-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.3.0",
+    "electron-builder": "^26.18.0"
+  }
+}
