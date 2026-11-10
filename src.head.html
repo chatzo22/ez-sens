@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EZ Sens — aim trainer &amp; sensitivity converter</title>
+<style>
+:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0f141c,#0a0d12);flex-wrap:wrap}
+.logo{font-weight:800;font-size:22px;letter-spacing:.5px}.logo b{color:var(--acc)}
+.logo small{display:block;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:1.5px;text-transform:uppercase}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button{background:transparent;border:1px solid transparent;color:var(--mute);padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-weight:600}
+nav button.on{color:var(--bg);background:var(--acc)}
+nav button:hover:not(.on){border-color:var(--line);color:var(--text)}
+main{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
+section.tab{display:none}section.tab.on{display:block}
+h2{margin:0 0 4px;font-size:22px}h3{margin:18px 0 8px;font-size:16px}
+p.sub{margin:0 0 18px;color:var(--mute)}
+.grid{display:grid;gap:16px}.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px}
+label.inl{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);margin:0}
+label.inl input{width:auto}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px 12px;font:inherit;font-size:16px}
+textarea{font-family:ui-monospace,monospace;font-size:12px;height:70px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc2);border-color:transparent}
+input.mini{width:70px;padding:4px 6px;font-size:13px;display:inline-block}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.stat .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;font-weight:600;white-space:nowrap}
+tr.me td{background:#36f1a60d}
+.tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+.tag.verified{background:#36f1a622;color:var(--acc)}.tag.consensus{background:#7c8cff22;color:var(--acc2)}
+.tag.community{background:#ffb54722;color:var(--warn)}.tag.disputed{background:#ff5d7322;color:var(--bad)}.tag.custom{background:#ffffff18;color:#cfd8e3}
+.star{background:none;border:0;cursor:pointer;font-size:18px;color:#3a4a60;padding:0 4px}.star.on{color:#ffd34d}
+.btn{background:var(--acc);color:#04120c;border:0;padding:10px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
+.btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.seg button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px}
+.seg button.on{border-color:var(--acc);color:var(--acc)}
+.drills{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.drills button{flex:1;min-width:160px;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:12px;cursor:pointer;font:inherit}
+.drills button b{display:block;font-size:15px}.drills button span{font-size:12px;color:var(--mute)}
+.drills button.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.opts{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.opts>div{min-width:120px}.opts label{margin-top:0}
+#stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
+#stage canvas{display:block;width:100%;height:100%}
+#stage:fullscreen{border-radius:0;border:0}
+.xh{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none}
+.xh:before,.xh:after{content:"";position:absolute;background:var(--acc);box-shadow:0 0 2px #000}
+.xh:before{left:8px;top:0;width:2px;height:18px}.xh:after{top:8px;left:0;height:2px;width:18px}
+.xh i{position:absolute;left:7px;top:7px;width:4px;height:4px;background:#05070a;z-index:2}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:12px 16px;font-weight:700;font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 3px #000}
+#hudFps{position:absolute;left:12px;bottom:10px;font:12px ui-monospace,monospace;color:#9fe;pointer-events:none;text-shadow:0 1px 2px #000}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05070acc;text-align:center;padding:20px;gap:10px}
+.overlay.hide{display:none}.overlay .big{font-size:52px;font-weight:900;color:var(--acc)}
+.muted{color:var(--mute)}.small{font-size:13px}.warn{color:var(--warn)}
+.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+canvas#chart{width:100%;height:220px;background:var(--panel2);border-radius:10px}
+.rec{font-size:40px;font-weight:900;color:var(--acc)}
+a{color:var(--acc2)}code{background:var(--panel2);padding:1px 6px;border-radius:5px}
+ul{padding-left:20px}li{margin:4px 0}
+.banner{background:#7c8cff22;border:1px solid var(--acc2);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.banner.hide,.hide{display:none!important}
+#pad{height:120px;border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;color:var(--mute);margin:8px 0;font-variant-numeric:tabular-nums}
+#pad.on{border-color:var(--acc);color:var(--acc)}
+.touchnote{display:none}
+@media (pointer:coarse){.touchnote{display:block}}
+@media (max-width:640px){header{padding:12px 14px;gap:10px}main{padding:16px 12px 40px}.stat .v{font-size:20px}th,td{padding:6px}.rec{font-size:30px}.overlay .big{font-size:36px}}
+footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">EZ<b>Sens</b><small>aim lab · sens converter</small></div>
+  <nav id="nav">
+    <button data-t="setup" class="on">Converter</button>
+    <button data-t="train">Train</button>
+    <button data-t="finder">Sens Finder</button>
+    <button data-t="custom">Custom game</button>
+    <button data-t="results">Results</button>
+    <button data-t="about">About</button>
+  </nav>
+</header>
+<main>
+<div class="banner hide" id="shareBanner"><span>This link contains shared EZ Sens settings.</span><button class="btn sm" id="shareLoad">Load them</button><button class="btn alt sm" id="shareIgnore">Ignore</button></div>
+
+<section class="tab on" id="t-setup">
+  <h2>Converter</h2>
+  <p class="sub">Enter your DPI and the sensitivity you use in one game. Every other game gets the setting that turns the same distance (cm/360). Works on phones and tablets too.</p>
+  <div class="grid g2">
+    <div class="card">
+      <label for="dpi">Mouse DPI</label><input id="dpi" type="number" min="50" max="32000" step="50" value="800">
+      <label for="gsearch">Your game</label>
+      <input id="gsearch" type="search" placeholder="Search games…" autocomplete="off" style="margin-bottom:6px">
+      <div style="display:flex;gap:6px"><select id="game"></select><button class="star" id="favBtn" title="Favorite">★</button></div>
+      <label for="sens">In-game sensitivity <span id="unit"></span></label><input id="sens" type="number" min="0" step="0.01" value="1">
+      <div id="params"></div>
+      <p class="small muted" id="gnote"></p>
+    </div>
+    <div class="grid g4" id="stats"></div>
+  </div>
+  <h3>Same 360° distance in every game</h3>
+  <div class="card">
+    <div class="row" style="align-items:center;margin-bottom:6px">
+      <input id="tsearch" type="search" placeholder="Filter table…" style="max-width:280px">
+      <label class="inl"><input type="checkbox" id="favOnly"> Favorites only</label>
+    </div>
+    <div class="tw"><table><thead><tr><th></th><th>Game</th><th>Set this</th><th>Exact</th><th>cm/360 after rounding</th><th>Turn model (°/count)</th><th>Data</th></tr></thead><tbody id="conv"></tbody></table></div>
+    <p class="small muted">Hip-fire only. Aim-down-sights / scope / zoom multipliers are separate in every game and aren't converted. Keep the same DPI, turn off acceleration and any in-game mouse smoothing. Stars pin games to the top and to the finder results.</p>
+  </div>
+  <h3>Share / back up</h3>
+  <div class="card">
+    <div class="row"><button class="btn alt" id="copyLink">Copy share link</button><button class="btn alt" id="copyCode">Copy settings code</button></div>
+    <label for="code">Import a settings code</label><textarea id="code" placeholder="Paste a code here…"></textarea>
+    <p><button class="btn sm" id="importBtn">Import</button> <span class="small muted" id="shareMsg"></span></p>
+  </div>
+</section>
+
+<section class="tab" id="t-train">
+  <h2>Train</h2>
+  <p class="sub">Pick a drill. Click the arena to lock the mouse; <b>Esc</b> pauses. Every raw mouse count turns the camera by exactly yaw × sens of your setup, applied the instant the event arrives — independent of frame rate.</p>
+  <p class="touchnote warn">The trainer needs a desktop mouse (Chrome or Edge). The converter works fine on this device.</p>
+  <div class="drills" id="drills">
+    <button data-d="flick" class="on"><b>Flick</b><span>20 static targets, 12–60° away</span></button>
+    <button data-d="track"><b>Tracking</b><span>25 s, keep the crosshair on a strafing target</span></button>
+    <button data-d="micro"><b>Micro-adjust</b><span>20 tiny targets, 2–8° away</span></button>
+  </div>
+  <div class="card opts" id="perf">
+    <div><label for="fps">Frame rate</label><select id="fps"><option value="auto">Uncapped (monitor)</option><option>60</option><option>100</option><option>144</option><option>240</option><option value="custom">Custom…</option></select></div>
+    <div id="fpsCustomWrap" class="hide"><label for="fpsCustom">Custom FPS</label><input id="fpsCustom" type="number" min="20" max="1000" step="1" value="165"></div>
+    <div><label for="scale">Render scale</label><select id="scale"><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="native">Native (HiDPI)</option></select></div>
+    <div><label for="afov">Arena FOV (horizontal °)</label><input id="afov" type="number" min="60" max="130" step="1" placeholder="auto"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <label class="inl"><input type="checkbox" id="lowq"> Low quality (faster)</label>
+      <label class="inl"><input type="checkbox" id="showFps" checked> FPS counter</label>
+      <label class="inl"><input type="checkbox" id="sound" checked> Sound cues</label>
+    </div>
+    <div class="small muted" id="perfInfo" style="flex:2"></div>
+  </div>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="trainInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn">Fullscreen</button><button class="btn" id="startBtn">Start drill</button></div>
+  </div>
+  <div id="stageHost"></div>
+  <div class="grid g4" id="lastRound" style="margin-top:16px"></div>
+</section>
+
+<section class="tab" id="t-finder">
+  <h2>Sensitivity finder</h2>
+  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Frame-rate and quality settings from the Train tab apply here too.</p>
+  <p class="touchnote warn">The finder needs a desktop mouse (Chrome or Edge).</p>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="finderInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn2">Fullscreen</button><button class="btn" id="finderBtn">Start finder</button></div>
+  </div>
+  <div id="stageHost2"></div>
+  <div class="bar" style="margin:12px 0"><i id="fprog" style="width:0"></i></div>
+  <div id="finderOut"></div>
+</section>
+
+<section class="tab" id="t-custom">
+  <h2>Custom game</h2>
+  <p class="sub">Game not listed? Add it. Enter a known degrees-per-count value, or measure it yourself — then it works everywhere in EZ Sens (converter, trainer, finder).</p>
+  <div class="grid g2">
+  <div class="card">
+    <label for="cname">Game name</label><input id="cname" placeholder="e.g. My Game">
+    <div class="seg" id="cmode"><button data-m="yaw" class="on">I know the yaw</button><button data-m="ruler">Measure with a ruler</button><button data-m="swipe">Count it with EZ Sens</button></div>
+    <div data-mode="yaw"><label for="cyaw">Degrees per count at sensitivity 1</label><input id="cyaw" type="number" step="any" placeholder="e.g. 0.022"></div>
+    <div data-mode="ruler" class="hide">
+      <ol class="small">
+        <li>In the game, set any sensitivity (write it below) and use your normal DPI (<span class="cdpi"></span>).</li>
+        <li>Face a landmark, put a ruler / tape next to the mouse and mark the start.</li>
+        <li>Slowly turn <b>N full circles</b> back to the landmark. More circles = more accurate. If you overshoot, start again.</li>
+        <li>Enter the distance the mouse moved.</li>
+      </ol>
+      <div class="row"><div><label>Game sens used</label><input id="rsens" type="number" step="any" value="1"></div><div><label>Full turns (N)</label><input id="rturns" type="number" min="1" step="1" value="3"></div></div>
+      <div class="row"><div><label>Distance moved</label><input id="rdist" type="number" step="any"></div><div><label>Unit</label><select id="runit"><option value="cm">cm</option><option value="in">inches</option></select></div></div>
+    </div>
+    <div data-mode="swipe" class="hide">
+      <ol class="small">
+        <li>In the game, set any sensitivity (write it below). Same DPI as here (<span class="cdpi"></span>).</li>
+        <li>Put the mouse against a fixed edge (keyboard, book) and mark where it starts. Turn <b>N full circles</b> exactly and mark where the mouse ended (tape or a sticky note).</li>
+        <li>Come back here, click the pad below (mouse locks), move the mouse from the start mark to the end mark the same way, then click again to stop. EZ Sens counts the raw mouse counts — no ruler needed.</li>
+      </ol>
+      <div class="row"><div><label>Game sens used</label><input id="ssens" type="number" step="any" value="1"></div><div><label>Full turns (N)</label><input id="sturns" type="number" min="1" step="1" value="3"></div></div>
+      <div id="pad">Click to start counting</div>
+    </div>
+    <p id="cres" class="small"></p>
+    <button class="btn" id="csave" disabled>Save custom game</button>
+  </div>
+  <div class="card"><h3 style="margin-top:0">Your custom games</h3><div class="tw"><table><thead><tr><th>Name</th><th>°/count</th><th>cm/360 @ sens 1</th><th></th></tr></thead><tbody id="clist"></tbody></table></div>
+  <p class="small muted">Tip: you can also check a built-in game with the counter — your current setup needs <b id="cpc"></b> counts for a 360°.</p></div>
+  </div>
+</section>
+
+<section class="tab" id="t-results">
+  <h2>Results</h2>
+  <p class="sub">Saved in this browser only (localStorage).</p>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Drill</th><th>cm/360</th><th>Score</th><th>Accuracy</th><th>Avg TTK</th><th>Over / under</th><th>FPS</th></tr></thead><tbody id="hist"></tbody></table>
+  <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
+</section>
+
+<section class="tab" id="t-about">
+  <h2>About EZ Sens</h2>
+  <p class="sub">An original, independent tool. Not affiliated with Valve, Embark Studios or any game publisher. Runs 100% in your browser: no server, no account, no network calls during play.</p>
+  <div class="card">
+    <h3>The math</h3>
+    <p><code>degrees per count = yaw × sens</code> · <code>cm/360 = 914.4 ÷ (DPI × degrees per count)</code> (914.4 = 360° × 2.54 cm/in) · <code>eDPI = DPI × sens</code>. Converting keeps cm/360 the same. A few games scale with FOV or use an offset; those use their own formula below.</p>
+    <h3>Status labels</h3>
+    <ul class="small">
+      <li><span class="tag verified">VERIFIED</span> engine default value that every source agrees on.</li>
+      <li><span class="tag consensus">CONSENSUS</span> not published by the developer, but every converter we checked uses the same value.</li>
+      <li><span class="tag community">COMMUNITY-MEASURED</span> measured by players / converter sites; sources agree within ~0.5%. Check with one 360° turn.</li>
+      <li><span class="tag disputed">DISPUTED</span> sources disagree; we use the best-supported value and show the alternative. Check with one 360° turn or calibrate it as a custom game.</li>
+    </ul>
+    <h3>Games, turn models and sources</h3>
+    <div class="tw"><table><thead><tr><th>Game</th><th>Model</th><th>Status</th><th>Notes</th><th>Sources</th></tr></thead><tbody id="yawTbl"></tbody></table></div>
+    <h3>Not included (couldn't verify a model)</h3>
+    <ul class="small">
+      <li><b>PUBG</b>: turn speed depends on FOV and a non-linear slider; converter sites flag it as needing a different method.</li>
+      <li><b>Minecraft (Java)</b>: sensitivity follows a curve, not a constant yaw.</li>
+      <li><b>Battlefield 2042</b>: not checked against enough sources this round (Battlefield 6 is included).</li>
+      <li><b>Delta Force</b>: only one source found.</li>
+      <li>Use <b>Custom game → Count it with EZ Sens</b> to measure any of these yourself.</li>
+    </ul>
+    <h3>Frame rate &amp; latency</h3>
+    <ul class="small">
+      <li>Everything — including the 3D engine (three.js r160, MIT, bundled in this file) — runs locally. Nothing is downloaded during play, so there is no "ping".</li>
+      <li>Rendering uses <code>requestAnimationFrame</code>, so it runs at your monitor's refresh rate (60/100/144/240 Hz+). The frame-rate setting can cap it lower; it can't go above the display's refresh rate (browsers sync to the display).</li>
+      <li>Mouse input uses pointer lock with <code>unadjustedMovement</code> (raw counts, no OS acceleration) and Chrome's <code>pointerrawupdate</code> events where available. Each event rotates the camera immediately; there is no smoothing or frame-time scaling, so sensitivity is identical at any FPS. Clicks are judged against the aim at the moment of the click.</li>
+      <li>Low-quality mode turns off antialiasing and fog; render scale lowers resolution for weaker PCs.</li>
+    </ul>
+    <h3>How scoring works</h3>
+    <ul class="small">
+      <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
+      <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
+      <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
+    </ul>
+    <h3>Limitations</h3>
+    <ul class="small">
+      <li>If the browser refuses <code>unadjustedMovement</code>, Windows pointer speed / "Enhance pointer precision" can affect the trainer (the HUD warns you). Set Windows to 6/11 with acceleration off.</li>
+      <li>Only hip-fire is converted. Vertical sens is treated as equal to horizontal. Rainbow Six Siege assumes the default MouseSensitivityMultiplierUnit 0.02; Battlefield 6 assumes Uniform Soldier Aiming on.</li>
+      <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
+      <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
+      <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer>EZ Sens · made from scratch · runs offline · settings stay in your browser</footer>

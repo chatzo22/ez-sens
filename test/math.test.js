@@ -1,22 +1,66 @@
-// Unit checks for EZ Sens conversion math. Run: node test/math.test.js
+// Unit checks for EZ Sens conversion math against published reference points. Run: node test/math.test.js
 const fs=require('fs'),assert=require('assert');
 const html=fs.readFileSync(__dirname+'/../index.html','utf8');
 eval(html.match(/<script id="ezmath">([\s\S]*?)<\/script>/)[1]);
-const M=globalThis.EZMath; const near=(a,b,t=1e-3,msg)=>assert(Math.abs(a-b)<=t,`${msg}: ${a} vs ${b}`);
-near(M.cm360(800,1,'cs2'),51.9545,1e-3,'CS2 800/1.0 cm360');
-near(M.in360(800,1,'cs2'),20.4545,1e-3,'CS2 in360');
-near(M.convert(1,'cs2','finals'),22,1e-9,'CS2->FINALS x22');
-near(M.convert(1,'cs2','arc'),16.16447,1e-4,'CS2->ARC x16.1645');
-near(M.convert(25,'arc','cs2'),1.5466,1e-3,'ARC 25 -> CS2 (sensswap)');
-near(M.cm360(800,25,'arc'),33.59,0.02,'ARC 25@800 = 33.6cm (sensswap)');
-near(M.cm360(800,50,'arc'),16.8,0.01,'ARC 50@800 = 16.8 (wiki/clip.dor.gg)');
-near(M.cm360(1600,16,'finals'),35.7,0.05,'FINALS 16@1600 = 35.7 (senslab Brutal Logic)');
-near(M.cm360(800,30,'finals'),38.1,0.01,'FINALS 30@800 = 38.1 (senslab)');
-near(M.convert(20,'arc','cs2',{fovFrom:80}),M.convert(20,'arc','cs2')*80/70,1e-9,'ARC FOV scaling out');
-near(M.convert(1,'cs2','arc',{fovTo:80}),16.16447*70/80,1e-4,'ARC FOV scaling in');
-near(M.convert(1,'cs2','cs2',{dpiFrom:800,dpiTo:1600}),0.5,1e-9,'DPI change');
-assert.strictEqual(M.edpi(800,1.25),1000);
-assert.strictEqual(M.menuRound('finals',21.6),22); assert.strictEqual(M.menuRound('cs2',1.2345),1.23);
-for(const g of ['cs2','finals','arc']){ const cm=M.cm360(800,M.sensForCm(40,800,g),g); near(cm,40,1e-9,'roundtrip '+g);
-  near(M.degPerCountFromCm(40,800),M.degPerCount(g,M.sensForCm(40,800,g)),1e-12,'dpc '+g); }
-console.log('all math checks passed');
+const M=globalThis.EZMath; let n=0;
+const near=(a,b,t,msg)=>{n++;assert(Math.abs(a-b)<=t,`${msg}: got ${a}, expected ${b}±${t}`);};
+const cm=(d,s,g,p)=>M.cm360(d,s,g,p), cv=(s,a,b,o)=>M.convert(s,a,b,o);
+// CS2 / Source
+near(cm(800,1,'cs2'),51.95,0.01,'CS2 1.0@800 = 52 cm (sensitivitymatch)');
+near(cm(800,1,'apex'),51.95,0.01,'Apex = CS2 scale');
+// Valorant
+near(cv(0.4,'valorant','cs2'),1.273,0.001,'Val 0.4 -> CS2 1.273 (sensitivitymatch)');
+near(cm(800,1,'valorant'),16.3,0.05,'Val 1@800 = 16.3 cm (sensitivitymatch table)');
+// OW2 / CoD / D2
+near(cv(5,'ow2','finals'),33,1e-9,'OW2 5 -> FINALS 33 (senslab)');
+near(cv(5,'cod','finals'),33,1e-9,'CoD 5 -> FINALS 33 (senslab)');
+near(cm(800,1,'d2'),173.2,0.05,'D2 1@800 = 173.2 cm (sensitivitymatch)');
+// Fortnite
+near(cv(8,'fortnite','valorant'),0.635,0.001,'Fortnite 8% -> Val 0.635 (senslab)');
+near(cv(7.5,'fortnite','finals'),41.7,0.05,'Fortnite 7.5 -> FINALS 41.7 (senslab)');
+// R6
+near(cv(7,'r6','finals'),40.1,0.05,'R6 7 -> FINALS 40.1 (senslab)');
+near(cm(800,1,'r6'),199.5,0.05,'R6 1@800 = 199.5 cm (sensitivitymatch)');
+// THE FINALS
+near(cv(1,'cs2','finals'),22,1e-9,'CS2 -> FINALS x22');
+near(cm(1600,16,'finals'),35.7,0.05,'FINALS 16@1600 = 35.7 (senslab)');
+near(cm(800,30,'finals'),38.1,0.01,'FINALS 30@800 = 38.1 (senslab)');
+// ARC Raiders
+near(cv(1,'cs2','arc'),16.1645,1e-3,'CS2 -> ARC x16.1645');
+near(cv(25,'arc','cs2'),1.547,1e-3,'ARC 25 -> CS2 1.547 (sensswap)');
+near(cm(800,50,'arc'),16.8,0.01,'ARC 50@800 = 16.8 (clip.dor.gg)');
+near(cv(1,'cs2','arc',{pTo:{fov:80}}),16.1645*70/80,1e-3,'ARC FOV 80 x0.875 (sens-converter)');
+// Marvel Rivals
+near(cv(1.5,'marvel','finals'),26.25,0.06,'Marvel 1.5 -> FINALS ~26.3 (senslab)');
+near(cm(800,1,'marvel'),65.3,0.05,'Marvel 1@800 = 65.3 (sensitivitymatch)');
+// Rust
+near(cm(800,0.25,'rust'),40.6,0.05,'Rust 0.25@800 FOV75 = 40.6 (sensconverters)');
+near(cv(0.4,'valorant','rust'),0.249,0.002,'Val 0.4 -> Rust 0.25 (sensconverters)');
+near(M.dpc('rust',1,{fov:90}),0.135,1e-9,'Rust FOV90 = 0.135 (rustfront)');
+near(cv(0.3,'rust','cs2'),1.534,0.001,'Rust 0.3 -> CS2 1.534 (sensitivitymatch)');
+// Tarkov
+near(cm(800,0.3,'tarkov'),30.5,0.05,'Tarkov 0.3@800 = 30.5 (aimhub)');
+near(cv(0.5,'tarkov','cs2'),2.841,0.001,'Tarkov 0.5 -> CS2 2.841 (sensitivitymatch)');
+near(cv(2,'cs2','tarkov'),0.352,0.001,'CS2 2 -> Tarkov 0.352 (aimhub)');
+// Battlefield 6 (non-linear)
+near(cm(800,20,'bf6'),30.9,0.05,'BF6 20@800 = 30.9 (sensitivitymatch)');
+near(cm(800,25,'bf6'),25.0,0.05,'BF6 25@800 = 25 (senslab)');
+near(cm(800,15,'bf6'),40.3,0.05,'BF6 15@800 = 40.3 (sensitivitymatch)');
+near(cv(20,'bf6','cs2'),1.684,0.001,'BF6 20 -> CS2 1.684 (sensitivitymatch)');
+near(M.sensForCm(30,800,'bf6'),20.61,0.01,'30 cm -> BF6 20.61 (senslab)');
+assert(Number.isNaN(M.sensForCm(600,800,'bf6')),'BF6 below slider minimum -> NaN'); n++;
+// Deadlock / Halo (disputed, majority values)
+near(cv(2,'cs2','deadlock'),1.0,1e-9,'CS2 2 -> Deadlock 1 (senslab/mouse-sensitivity.com)');
+near(cm(800,0.8,'deadlock'),32.5,0.05,'Deadlock 0.8@800 = 32.5 (aimbetween)');
+near(cm(800,1,'halo'),50.8,0.05,'Halo 1@800 = 50.8 (toolmarble)');
+near(cv(2,'cs2','halo'),1.956,0.001,'CS2 2 -> Halo 1.956 (toolmarble)');
+// generic
+near(cv(1,'cs2','cs2',{dpiFrom:800,dpiTo:1600}),0.5,1e-9,'DPI change');
+assert.strictEqual(M.edpi(800,1.25),1000); assert.strictEqual(M.menuRound('finals',21.6),22); assert.strictEqual(M.menuRound('cs2',1.2345),1.23); n+=3;
+for(const g of M.GAMES){ const s=M.sensForCm(40,800,g.id); near(cm(800,s,g.id),40,1e-9,'roundtrip '+g.id); near(M.degPerCountFromCm(40,800),M.dpc(g.id,s),1e-12,'dpc '+g.id); }
+// calibration
+near(M.yawFromRuler({sens:1,dpi:800,dist:3*51.9545,unit:'cm',turns:3}),0.022,1e-6,'ruler calibration');
+near(M.yawFromRuler({sens:2,dpi:400,dist:20.4545,unit:'in',turns:1}),0.022,1e-6,'ruler calibration inches');
+near(M.yawFromCounts({sens:1,counts:-3*16363.636,turns:3}),0.022,1e-6,'count calibration');
+M.setCustom([{id:'c1',name:'X',yaw:0.05}]); near(cv(1,'cs2','c1'),0.44,1e-9,'custom game conversion');
+console.log(`all ${n} math checks passed (${M.GAMES.length} built-in games)`);
