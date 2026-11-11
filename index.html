@@ -287,7 +287,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 
 <section class="tab" id="t-flash">
   <h2>Flash dodge</h2>
-  <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) appear in realistic peek spots — shoot them before they disappear. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
+  <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) push out from cover — some strafe, shoulder-peek or crouch — and you shoot them before they retreat. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
   <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
   <div class="drills" id="flashScn">
     <button data-scn="hall" class="on"><b>Long-doors-style hallway</b><span>Auto-walk a corridor. A flash comes around the far corner or off the wall.</span><em class="best" data-sbest="hall"></em></button>
@@ -320,6 +320,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <label class="inl"><input type="checkbox" id="flashAudio" checked> Audio cues</label>
       <label class="inl"><input type="checkbox" id="flashReduced"> Reduced flash intensity</label>
       <label class="inl"><input type="checkbox" id="flashWasd"> WASD move (otherwise aim only; some scenarios auto-walk)</label>
+      <label class="inl"><input type="checkbox" id="flashRand" checked> Random throws &amp; timing</label>
     </div>
     <div data-botopts="flash" class="opts botopts" style="flex-basis:100%;margin:0">
       <div><label for="flashDmg">Damage model</label>
@@ -446,7 +447,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
-      <li><b>Flash dodge:</b> play a situation (hallway walk, choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots appear at realistic peek spots; a blind makes them harder to see. Recap tracks dodge %, bots killed, time to first hit, accuracy, headshot %, average shots-to-kill and TTK. A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
+      <li><b>Flash dodge:</b> play a situation (hallway walk, choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe, shoulder-peek or crouch; hitboxes follow the crouch). A blind makes them harder to see. Recap tracks dodge %, bots killed, moving and crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
     </ul>
     <h3>Bots and damage models</h3>
     <ul class="small">
@@ -464,7 +465,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
       <li><b>Appearance:</b> Dark (default) and Light themes the whole UI. The 3D arenas are unchanged. The Sensitivity Finder also has its own Sunrise, Day and Night environments (sky, fog, light and ground tint; Night is the original dark arena). Train and Flash share that arena. The Range look is unchanged. Both choices are remembered in this browser.</li>
-      <li><b>Flash dodge:</b> situational blockout maps with scripted throws, wall bounces, line-of-sight occlusion and post-flash peek bots. Some scenarios auto-walk you down a path (aim only); optional WASD movement is in the Flash options. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is a fixed full-screen dialog shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A short on-screen toast reports Dodged, Partial, Flashed or Covered after each pop. Shots are blocked by map geometry (no wall-bangs). A tinnitus-style ring can be muted or turned down. Maps use simple original trim, frames, crates and fixtures; peek bots stand in cover with a visible head.</li>
+      <li><b>Flash dodge:</b> situational blockout maps with scripted throws, wall bounces, line-of-sight occlusion and post-flash peek bots. Some scenarios auto-walk you down a path (aim only); optional WASD movement is in the Flash options. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is a fixed full-screen dialog shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A short on-screen toast reports Dodged, Partial, Flashed or Covered after each pop. Shots are blocked by map geometry (no wall-bangs). A tinnitus-style ring can be muted or turned down. Maps use simple original trim, frames, crates and fixtures; peek bots start in cover with a visible head and push into the open, and some crouch.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>
@@ -743,7 +744,7 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'night',theme:'dark',flash:{preset:'val',diff:'normal',count:8,audio:true,tVol:0.4,reduced:false,warned:false,safe:90,scn:'hall',wasd:false},afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'night',theme:'dark',flash:{preset:'val',diff:'normal',count:8,audio:true,tVol:0.4,reduced:false,warned:false,safe:90,scn:'hall',wasd:false,rand:true},afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
 S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh);
@@ -760,6 +761,7 @@ S.flash.count=Math.max(1,Math.min(15,+S.flash.count||8));
 S.flash.tVol=Math.max(0,Math.min(1,S.flash.tVol==null?0.4:+S.flash.tVol));
 if(!['hall','hold','anchor','entry','retake','overwall','mid','ramp','mix'].includes(S.flash.scn)) S.flash.scn='hall';
 S.flash.wasd=!!S.flash.wasd;
+S.flash.rand=S.flash.rand!==false;
 S.bot=Object.assign({shape:'dot',dmg:'hs',body:'#f4f6f8',head:'#00e8ff'},S.bot||{});
 if(S.bot.shape!=='bot') S.bot.shape='dot';
 if(!M.DMG_IDS.includes(S.bot.dmg)) S.bot.dmg='hs';
@@ -1009,6 +1011,7 @@ const BOT_BODY_R=0.18, BOT_BODY_LEN=1.05, BOT_HEAD_R=0.14;
 const BOT_BODY_H=BOT_BODY_LEN+BOT_BODY_R*2;
 const BOT_HEAD_Y=BOT_BODY_H+BOT_HEAD_R*0.85;
 const BOT_LEG_FROM_FEET=0.62;
+const CROUCH_BODY_SY=0.58, CROUCH_HEAD_Y=0.90;
 let botBodyGeo=null, botHeadGeo=null, trainBot=null, peekBots=[];
 function botGeos(){
   if(!botBodyGeo){ botBodyGeo=new THREE.CapsuleGeometry(BOT_BODY_R,BOT_BODY_LEN,3,8); botHeadGeo=new THREE.SphereGeometry(BOT_HEAD_R,10,8); }
@@ -1042,7 +1045,19 @@ function paintBot(bot,dim){
 function armBot(bot,now){ if(!bot)return; bot.dead=false; bot.state=M.newBotState(currentDmg()); bot.shots=0; bot.t0=now||performance.now(); bot.firstHit=null; bot.group.visible=true; paintBot(bot,bot.dim||0); }
 function scaleBot(bot,s){ bot.scale=s; bot.group.scale.setScalar(s); }
 function placeBotFeet(bot,x,y,z){ bot.group.position.set(x,y,z); }
-function placeBotHead(bot,x,y,z){ bot.group.position.set(x,y-BOT_HEAD_Y*bot.scale,z); }
+function placeBotHead(bot,x,y,z){ bot.group.position.set(x,y-(botCrouchHeadY(bot))*bot.scale,z); }
+function botCrouchHeadY(bot){ const t=bot&&bot.crouch||0; return BOT_HEAD_Y+(CROUCH_HEAD_Y-BOT_HEAD_Y)*t; }
+function applyCrouch(bot,t){
+  if(!bot) return;
+  t=Math.max(0,Math.min(1,+t||0));
+  bot.crouch=t;
+  const sy=1+(CROUCH_BODY_SY-1)*t;
+  bot.body.scale.set(1,sy,1);
+  bot.body.position.y=(BOT_BODY_H/2)*sy;
+  bot.head.position.y=BOT_HEAD_Y+(CROUCH_HEAD_Y-BOT_HEAD_Y)*t;
+  bot.legLocalY=-BOT_BODY_H/2+BOT_LEG_FROM_FEET;
+  bot.group.updateMatrixWorld(true);
+}
 function hideBot(bot){ if(bot){ bot.group.visible=false; bot.dead=true; } }
 function disposeBot(bot){ if(!bot)return; bot.scene.remove(bot.group); bot.bodyMat.dispose(); bot.headMat.dispose(); }
 const _ndc=new THREE.Vector2(0,0), _rc=new THREE.Raycaster();
@@ -1617,7 +1632,20 @@ function paintHint(now){
 
 /* ---------- flash dodge ---------- */
 let FL=null, grenade=null, _flashPeak=0, _flashUntil=0, _ringOsc=null;
-const FDIFF={easy:{val:0.55,cs2:2.0,spread:80},normal:{val:0.42,cs2:1.5,spread:120},hard:{val:0.3,cs2:1.1,spread:160}};
+const FDIFF={
+  easy:{val:0.55,cs2:2.0,spread:80,gap:[0.45,1.40],valRange:[0.45,0.60],cs2Range:[1.60,2.00]},
+  normal:{val:0.42,cs2:1.5,spread:120,gap:[0.28,1.05],valRange:[0.32,0.50],cs2Range:[1.35,1.80]},
+  hard:{val:0.30,cs2:1.1,spread:160,gap:[0.16,0.70],valRange:[0.25,0.38],cs2Range:[1.20,1.50]}
+};
+function useFlashRand(){ return !FL||FL.rand==null ? S.flash.rand!==false : !!FL.rand; }
+function makeRng(seed){ let a=((+seed||1)>>>0)||1; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function flashSeed(seed){ const s=(seed==null?((Math.random()*0xffffffff)|0):(+seed>>>0))||1; if(FL){ FL.seed=s; FL.rng=makeRng(s); } return s; }
+function frand(){ if(FL&&!FL.rng) flashSeed(FL.seed); return (FL&&FL.rng)?FL.rng():Math.random(); }
+function frange(a,b){ return a+(b-a)*frand(); }
+function fint(a,b){ return a+Math.floor(frand()*(b-a+1)); }
+function fshuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(frand()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((preset==='cs2'?d.cs2Range:d.valRange)[0])*1000; }
+
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
   hall:{id:'hall',name:'Long-doors-style hallway',auto:true,pathDur:2.8},
@@ -1650,7 +1678,7 @@ function flashAngle(pos){ const dir=dirFrom(view.yaw,view.pitch); const to=pos.c
 function flashFactor(ang){ const safe=+S.flash.safe||90; if(ang>=safe)return 0; if(ang<=20)return 1; const t=(ang-20)/(safe-20); return Math.max(0,1-t*t); }
 function flashIdleOv(){
   const sc=SCN[S.flash.scn]||SCN.hall;
-  showOv(`<div class="big">Flash dodge</div><div class="muted">${esc(sc.name)} · ${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'} timing</div><div class="small muted">Press Start, then click the arena to lock and begin. Turn away past 90° before the pop, then shoot the peek bots.</div>`);
+  showOv(`<div class="big">Flash dodge</div><div class="muted">${esc(sc.name)} · ${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'} timing</div><div class="small muted">Press Start, then click the arena to lock and begin. Turn away past 90° before the pop, then shoot the bots as they push out.</div>`);
 }
 function syncFlashUI(){
   const f=S.flash;
@@ -1663,6 +1691,7 @@ function syncFlashUI(){
   const v=$('#flashTvol'); if(v)v.value=f.tVol;
   const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(f.tVol*100)+'%';
   const w=$('#flashWasd'); if(w)w.checked=!!f.wasd;
+  const rnd=$('#flashRand'); if(rnd)rnd.checked=f.rand!==false;
   renderFlashBests();
 }
 function persistFlash(){ save(); syncFlashUI(); }
@@ -1677,6 +1706,7 @@ $('#flashCount').onchange=()=>{S.flash.count=Math.max(1,Math.min(15,+$('#flashCo
 $('#flashAudio').onchange=()=>{S.flash.audio=$('#flashAudio').checked;persistFlash();};
 $('#flashReduced').onchange=()=>{S.flash.reduced=$('#flashReduced').checked;persistFlash();};
 $('#flashWasd').onchange=()=>{S.flash.wasd=$('#flashWasd').checked;persistFlash();};
+const _fr=$('#flashRand'); if(_fr)_fr.onchange=()=>{S.flash.rand=_fr.checked;persistFlash();};
 $('#flashTvol').oninput=()=>{S.flash.tVol=Math.max(0,Math.min(1,+$('#flashTvol').value||0)); const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(S.flash.tVol*100)+'%'; save();};
 
 function flashCue(kind,factor,pos){
@@ -2270,6 +2300,150 @@ function peekVisibilityReport(meta){
   }
   return out;
 }
+
+function bodyClearFeet(x,y,z){
+  const r=BOT_BODY_R+0.02;
+  if(pointInSolid(x,y+0.22,z,r)) return false;
+  if(pointInSolid(x,y+0.70,z,r)) return false;
+  if(pointInSolid(x,y+BOT_HEAD_Y,z,BOT_HEAD_R+0.015)) return false;
+  return true;
+}
+function pathClear(ax,ay,az,bx,by,bz,steps){
+  steps=steps||8;
+  if(Math.hypot(bx-ax,by-ay,bz-az)<1e-5) return true;
+  for(let i=1;i<=steps;i++){
+    const t=i/steps;
+    if(!bodyClearFeet(ax+(bx-ax)*t, ay+(by-ay)*t, az+(bz-az)*t)) return false;
+  }
+  return true;
+}
+function headVisibleAt(x,y,z,eyes,crouch){
+  const hy=y+(crouch?CROUCH_HEAD_Y:BOT_HEAD_Y);
+  const head=new THREE.Vector3(x,hy,z);
+  let best={visible:false,frac:0,center:false,eye:null};
+  for(const e of eyes||[]){
+    const r=headVisibleFrom(e,head,BOT_HEAD_R);
+    if(r.frac>(best.frac||0) || (r.visible&&!best.visible)) best={...r,eye:e};
+    if(r.visible) return {...r,eye:e};
+  }
+  return best;
+}
+function findOpenPoint(from,eyes){
+  const fx=+from[0], fy=+from[1], fz=+from[2];
+  const eye=(eyes&&eyes[0])||{x:0,y:0,z:0};
+  let tdx=eye.x-fx, tdz=eye.z-fz; const L=Math.hypot(tdx,tdz)||1; tdx/=L; tdz/=L;
+  let ox=fx, oz=fz;
+  if(!bodyClearFeet(ox,fy,oz)){
+    for(const d of [0.08,0.16,0.24,0.36,0.5]){
+      let done=false;
+      for(const [dx,dz] of [[tdx,tdz],[1,0],[-1,0],[0,1],[0,-1]]){
+        const x=fx+dx*d, z=fz+dz*d;
+        if(bodyClearFeet(x,fy,z)){ ox=x; oz=z; done=true; break; }
+      }
+      if(done) break;
+    }
+  }
+  const angs=[0,22,-22,45,-45,70,-70,90,-90,120,-120,150,-150,180];
+  let best=null, bestScore=-1;
+  for(const a of angs){
+    const rad=Math.atan2(tdz,tdx)+a*Math.PI/180;
+    const dx=Math.cos(rad), dz=Math.sin(rad);
+    let lx=ox, lz=oz;
+    for(let s=1;s<=16;s++){
+      const x=ox+dx*s*0.13, z=oz+dz*s*0.13;
+      if(!bodyClearFeet(x,fy,z) || !pathClear(lx,fy,lz,x,fy,z,3)) break;
+      lx=x; lz=z;
+      const dist=Math.hypot(x-fx,z-fz);
+      if(dist<0.32) continue;
+      const vis=headVisibleAt(x,fy,z,eyes,false);
+      const score=dist*(vis.visible?2.2:0.35)+vis.frac+(Math.abs(a)<40?0.15:0);
+      if(score>bestScore){ bestScore=score; best={pos:[x,fy,z],visible:!!vis.visible,frac:vis.frac,dist}; }
+    }
+  }
+  if(best && best.dist>=0.32) return best;
+  if(Math.hypot(ox-fx,oz-fz)>=0.24 && bodyClearFeet(ox,fy,oz)){
+    const vis=headVisibleAt(ox,fy,oz,eyes,false);
+    return {pos:[ox,fy,oz],visible:!!vis.visible,frac:vis.frac,dist:Math.hypot(ox-fx,oz-fz)};
+  }
+  return {pos:[fx,fy,fz],visible:!!headVisibleAt(fx,fy,fz,eyes,false).visible,frac:0,dist:0};
+}
+function pushPathReport(meta){
+  meta=meta||scnMeta;
+  if(!meta) return [];
+  const eyes=peekEyes(meta);
+  const out=[];
+  for(const v of meta.variants||[]){
+    for(const p of v.peeks||[]){
+      const open=findOpenPoint(p,eyes);
+      const to=open.pos;
+      const clear=pathClear(p[0],p[1],p[2],to[0],to[1],to[2],10);
+      const fromVis=headVisibleAt(p[0],p[1],p[2],eyes,false);
+      const toVis=headVisibleAt(to[0],to[1],to[2],eyes,false);
+      const mid=[(p[0]+to[0])/2,p[1],(p[2]+to[2])/2];
+      const midVis=headVisibleAt(mid[0],mid[1],mid[2],eyes,false);
+      const some=!!(fromVis.visible||toVis.visible||midVis.visible);
+      const stuck=bodyStuck(to[0],to[1],to[2])||bodyStuck(p[0],p[1],p[2]);
+      out.push({scn:meta.id,variant:v.id,from:p,to,dist:open.dist,clear,stuck,fromVis:!!fromVis.visible,toVis:!!toVis.visible,midVis:!!midVis.visible,visible:some,frac:Math.max(fromVis.frac||0,toVis.frac||0,midVis.frac||0)});
+    }
+  }
+  return out;
+}
+function stepPeekBots(dt,now){
+  if(!peekBots.length) return;
+  const remain=FL&&FL.peekUntil?FL.peekUntil-now:0;
+  for(const bot of peekBots){
+    if(!bot||bot.dead||!bot.group.visible) continue;
+    const mv=bot.move;
+    if(bot.crouchWant!=null){
+      const cur=bot.crouch||0, want=+bot.crouchWant;
+      if(Math.abs(want-cur)>0.001){ applyCrouch(bot, cur+(want-cur)*Math.min(1,dt*8)); }
+      else if(cur!==want) applyCrouch(bot,want);
+    }
+    if(!mv) continue;
+    if(remain<240 && mv.phase!=='retreat' && mv.phase!=='gone'){ mv.phase='retreat'; }
+    if(now<mv.goAt && mv.phase==='wait') continue;
+    if(mv.phase==='wait') mv.phase='go';
+    if(mv.phase==='gone') continue;
+    const from=mv.from, to=mv.to;
+    const dist=Math.hypot(to.x-from.x,to.z-from.z)||0.001;
+    let targetU=mv.u||0;
+    if(mv.phase==='retreat'){
+      targetU=Math.max(0,(mv.u||0)-(mv.speed*dt)/dist);
+      if(targetU<=0.02){ mv.u=0; placeBotFeet(bot,from.x,from.y,from.z); bot.moving=false; continue; }
+    }else if(mv.style==='shoulder'){
+      const cycle=mv.cyc=(mv.cyc||0)+dt;
+      const per=mv.period||0.85;
+      const t=(cycle%per)/per;
+      targetU=(t<0.5?t*2:(1-t)*2)* (mv.ampU||0.55);
+    }else if(mv.style==='stop' && (mv.u||0)>=(mv.stopAt||0.62)){
+      mv.u=mv.stopAt||0.62; bot.moving=false;
+      if(mv.crouchOnStop) bot.crouchWant=1;
+      targetU=mv.u;
+    }else{
+      targetU=(mv.u||0)+(mv.speed*dt)/dist;
+      if(targetU>1) targetU=1;
+    }
+    let u=targetU;
+    const x=from.x+(to.x-from.x)*u, z=from.z+(to.z-from.z)*u, y=from.y+(to.y-from.y)*u;
+    let px=x, pz=z;
+    if(mv.style==='strafe' || mv.strafe){
+      const sx=-(to.z-from.z)/dist, sz=(to.x-from.x)/dist;
+      const amp=(mv.amp||0.35)*Math.sin(u*Math.PI*(mv.sway||1.4));
+      px=x+sx*amp; pz=z+sz*amp;
+    }
+    if(!bodyClearFeet(px,y,pz)){
+      if(bodyClearFeet(x,y,z)){ px=x; pz=z; }
+      else { bot.moving=false; continue; }
+    }
+    placeBotFeet(bot,px,y,pz);
+    bot.group.updateMatrixWorld(true);
+    mv.u=u;
+    bot.moving=mv.phase!=='stop' && Math.abs((targetU)-(mv._lu||0))>0.0005;
+    mv._lu=targetU;
+    if(mv.phase==='go' && mv.style!=='shoulder' && u>=1){ mv.phase='hold'; bot.moving=false; if(mv.crouchOnStop) bot.crouchWant=1; }
+  }
+}
+
 function clearFlashToast(){ const el=$('#flashToast'); if(el){ el.className=''; el.textContent=''; } clearTimeout(flashToast._t); }
 function flashToast(kind){
   const el=$('#flashToast'); if(!el) return;
@@ -2289,8 +2463,9 @@ function flashRunTitle(res,fl){
 }
 
 function bounceBomb(pos,vel,r,dt){
+  let bounced=false;
   vel.y-=18*dt; pos.addScaledVector(vel,dt);
-  if(pos.y<FLOOR_Y+r){ pos.y=FLOOR_Y+r; if(vel.y<0) vel.y*=-0.38; vel.x*=0.72; vel.z*=0.72; if(Math.abs(vel.y)<0.9) vel.y=0; }
+  if(pos.y<FLOOR_Y+r){ pos.y=FLOOR_Y+r; if(vel.y<0){ vel.y*=-0.38; bounced=true; } vel.x*=0.72; vel.z*=0.72; if(Math.abs(vel.y)<0.9) vel.y=0; }
   for(const w of scnWalls){
     const cx=Math.max(w.min.x,Math.min(pos.x,w.max.x)), cy=Math.max(w.min.y,Math.min(pos.y,w.max.y)), cz=Math.max(w.min.z,Math.min(pos.z,w.max.z));
     const dx=pos.x-cx, dy=pos.y-cy, dz=pos.z-cz, d2=dx*dx+dy*dy+dz*dz;
@@ -2305,9 +2480,10 @@ function bounceBomb(pos,vel,r,dt){
       const d=Math.sqrt(d2); nx=dx/d; ny=dy/d; nz=dz/d; const pen=r-d; pos.x+=nx*pen; pos.y+=ny*pen; pos.z+=nz*pen;
     }
     const vn=vel.x*nx+vel.y*ny+vel.z*nz;
-    if(vn<0){ vel.x-=1.38*vn*nx; vel.y-=1.38*vn*ny; vel.z-=1.38*vn*nz; vel.x*=0.78; vel.y*=0.85; vel.z*=0.78; }
+    if(vn<0){ vel.x-=1.38*vn*nx; vel.y-=1.38*vn*ny; vel.z-=1.38*vn*nz; vel.x*=0.78; vel.y*=0.85; vel.z*=0.78; bounced=true; }
   }
   if(pos.y<FLOOR_Y-2) pos.y=FLOOR_Y+r;
+  return bounced;
 }
 function blockedAt(x,y,z,rad){
   for(const py of [y,y-0.7]){
@@ -2362,9 +2538,25 @@ document.addEventListener('keyup',e=>{ keysHeld[e.code]=false; });
 function peekWindowMs(){ const d=FL&&FL.diff||S.flash.diff; return d==='hard'?850:d==='easy'?1400:1100; }
 function spawnPeekBots(factor,peeks,now){
   clearPeekBots();
-  const list=peeks&&peeks.length?peeks:[[0,FY(),-6]];
-  for(const p of list){
+  const list=peeks&&peeks.length?peeks.slice():[[0,FY(),-6]];
+  const eyes=peekEyes(scnMeta);
+  const rand=useFlashRand();
+  const n=rand?fint(1,Math.min(3,list.length)):list.length;
+  const picks=rand?fshuffle(list).slice(0,n):list;
+  const styles=rand?null:['run','strafe','stop'];
+  for(let i=0;i<picks.length;i++){
+    const p=picks[i];
     const bot=makeBot(scene); scaleBot(bot,1); placeBotFeet(bot,p[0],p[1],p[2]); bot.dim=factor; armBot(bot,now); paintBot(bot,factor);
+    const open=findOpenPoint(p,eyes);
+    const to=open.pos;
+    const style=rand?(frand()<0.28?'shoulder':frand()<0.34?'stop':frand()<0.5?'strafe':'run'):(styles[i%styles.length]);
+    const delay=rand?frange(0,400):80;
+    const speed=rand?frange(2.5,5.1):3.4;
+    const crouchWalk=rand?frand()<0.28:false;
+    const crouchOnStop=rand?frand()<0.4:(style==='stop');
+    bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},u:0,speed,style,goAt:now+delay,phase:'wait',amp:rand?frange(0.22,0.48):0.32,ampU:rand?frange(0.4,0.7):0.55,period:rand?frange(0.7,1.05):0.85,stopAt:rand?frange(0.52,0.78):0.65,crouchOnStop,strafe:style==='strafe'};
+    bot.crouch=0; bot.crouchWant=crouchWalk?1:0; bot.moving=false;
+    applyCrouch(bot,0);
     peekBots.push(bot);
   }
   if(FL){ FL.peekUntil=now+peekWindowMs(); FL.peekT0=now; FL.st.dots=(FL.st.dots||0)+peekBots.length; }
@@ -2386,7 +2578,12 @@ function flashShoot(){
   if(res.killed){
     FL.st.botKills=(FL.st.botKills||0)+1;
     FL.st.stk.push(pick.bot.shots);
-    if(FL.peekT0!=null) FL.st.ttkArr.push(now-FL.peekT0);
+    const ttk=FL.peekT0!=null?now-FL.peekT0:NaN;
+    if(Number.isFinite(ttk)) FL.st.ttkArr.push(ttk);
+    if((pick.bot.crouch||0)>0.45) FL.st.crouchKills=(FL.st.crouchKills||0)+1;
+    const moving=!!(pick.bot.moving || (pick.bot.move && pick.bot.move.phase==='go' && (pick.bot.move.u||0)>0.04 && pick.bot.move.style!=='stop'));
+    if(moving) FL.st.moveKills=(FL.st.moveKills||0)+1;
+    if(Number.isFinite(ttk)) FL.st.pushTtk.push(ttk);
     hideBot(pick.bot); hitFx('hit'); beep(1320,0.05,'triangle');
   }else{ hitFx('hit'); beep(880,0.04,'triangle',0.04); }
 }
@@ -2399,11 +2596,12 @@ function newFlashRound(){
   const n=S.flash.count, scn0=S.flash.scn||'hall';
   const id=scn0==='mix'?'hall':scn0;
   loadScn(id); placeStart();
-  FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,scn:scn0,mix:scn0==='mix',
-    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],by:{}}};
+  FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,scn:scn0,mix:scn0==='mix',rand:S.flash.rand!==false,
+    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,crouchKills:0,pushTtk:[],by:{}}};
+  flashSeed();
   flashHud();
   const scn=SCN[scn0]||SCN.hall;
-  showOv(`<div class="big">${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'}</div><div class="muted">${esc(scn.name)} · click here to lock your mouse and start</div><div class="small muted">${n} flashes · ${S.flash.diff} · Esc to pause</div>`);
+  showOv(`<div class="big">${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'}</div><div class="muted">${esc(scn.name)} · click here to lock your mouse and start</div><div class="small muted">${n} flashes · ${S.flash.diff}${(S.flash.rand!==false)?' · random':''} · Esc to pause</div>`);
 }
 $('#flashBtn').onclick=()=>flashWarnThen(newFlashRound);
 
@@ -2411,31 +2609,71 @@ function flashCountdown(){ FL.phase='count'; let n=3; const tick=()=>{ if(!FL||F
 
 function pickVariant(){
   const meta=scnMeta; if(!meta||!meta.variants||!meta.variants.length) return {id:'basic',pop:{pos:[0,1.4,-8]},throw:{pos:[0,1.2,-10],vel:[0,4,6]},peeks:[[0,FY(),-8]]};
-  return meta.variants[Math.floor(Math.random()*meta.variants.length)];
+  return meta.variants[Math.floor(frand()*meta.variants.length)];
+}
+function rotateYaw(vx,vy,vz,deg){ const r=deg*Math.PI/180, c=Math.cos(r), s=Math.sin(r); return [vx*c-vz*s, vy, vx*s+vz*c]; }
+function pickValPop(v){
+  const base=((v.pop||v.throw||{}).pos)||[0,1.4,-8];
+  const eye=camEye;
+  const tries=[];
+  for(let i=0;i<10;i++){
+    const over=frand()<0.45;
+    const p=new THREE.Vector3(
+      base[0]+frange(-1.8,1.8),
+      Math.max(FLOOR_Y+0.28, (over?Math.max(base[1],1.1)+frange(0.2,1.5):base[1]+frange(-0.25,0.9))),
+      base[2]+frange(-1.8,1.8)
+    );
+    nudgeOutOfSolid(p,0.22);
+    const dist=Math.hypot(p.x-eye.x,p.y-eye.y,p.z-eye.z);
+    if(dist<1.6) continue;
+    tries.push(p);
+  }
+  return tries.length?tries[Math.floor(frand()*tries.length)]:null;
 }
 function spawnFlash(now){
   const d=FDIFF[FL.diff]||FDIFF.normal, g=ensureGrenade();
-  if(FL.mix){ const id=SCN_IDS[Math.floor(Math.random()*SCN_IDS.length)]; loadScn(id); }
+  const rand=useFlashRand();
+  if(!FL.rng) flashSeed(FL.seed);
+  if(FL.mix){ const id=SCN_IDS[Math.floor(frand()*SCN_IDS.length)]; loadScn(id); }
   else if(!scnMeta) loadScn(FL.scn==='mix'?'hall':(FL.scn||'hall'));
   const v=pickVariant(); FL.variant=v; FL.scnNow=scnId;
   const auto=!!(scnMeta&&scnMeta.path&&scnMeta.auto)&&!S.flash.wasd;
   if(auto){ FL.path=scnMeta.path; FL.pathDur=scnMeta.pathDur||2.4; FL.pathT=0; placeStart(scnMeta); }
   else { FL.path=null; FL.pathT=null; if(!S.flash.wasd) placeStart(scnMeta); }
-  const bomb={kind:FL.preset,t0:now,appeared:now,safeAt:null,firstSafe:null,detonated:false,factor:null,fuse:0,pos:new THREE.Vector3(),vel:new THREE.Vector3(),peeks:v.peeks||[],variant:v.id};
-  const jitter=a=>a+(Math.random()-0.5)*0.2;
+  const bomb={kind:FL.preset,t0:now,appeared:now,safeAt:null,firstSafe:null,detonated:false,factor:null,fuse:0,pos:new THREE.Vector3(),vel:new THREE.Vector3(),peeks:v.peeks||[],variant:v.id,bounces:0,early:false,minFuse:0};
+  const jitter=(a,w)=>a+(rand?frange(-w,w):(frand()-0.5)*0.2);
   if(FL.preset==='cs2'){
-    bomb.fuse=d.cs2*1000;
-    const th=v.throw||{pos:v.pop.pos,vel:[0,5,4]};
-    bomb.pos.set(jitter(th.pos[0]),th.pos[1],jitter(th.pos[2]));
+    const th=v.throw||{pos:(v.pop||{}).pos||[0,1.2,-10],vel:[0,5,4]};
+    const range=d.cs2Range;
+    bomb.minFuse=range[0]*1000;
+    bomb.fuse=rand?frange(range[0],range[1])*1000:d.cs2*1000;
+    bomb.early=rand&&frand()<0.3;
+    bomb.pos.set(jitter(th.pos[0],rand?0.45:0.1), th.pos[1], jitter(th.pos[2],rand?0.45:0.1));
     nudgeOutOfSolid(bomb.pos,0.2);
-    bomb.vel.set(th.vel[0]*(0.94+Math.random()*0.12),th.vel[1]*(0.94+Math.random()*0.12),th.vel[2]*(0.94+Math.random()*0.12));
+    let vel=th.vel.slice();
+    if(rand){
+      const sc=frange(0.82,1.22);
+      vel=rotateYaw(vel[0]*sc, vel[1]*sc+frange(-0.7,1.3), vel[2]*sc, frange(-14,14));
+    }else{
+      vel=[vel[0]*(0.94+frand()*0.12),vel[1]*(0.94+frand()*0.12),vel[2]*(0.94+frand()*0.12)];
+    }
+    bomb.vel.set(vel[0],vel[1],vel[2]);
     flashCue('throw',1,bomb.pos);
   }else{
-    bomb.fuse=d.val*1000;
+    const range=d.valRange;
+    bomb.minFuse=range[0]*1000;
+    bomb.fuse=rand?frange(range[0],range[1])*1000:d.val*1000;
     const p=(v.pop||v.throw).pos;
-    bomb.pos.set(jitter(p[0]),p[1],jitter(p[2]));
-    if(bomb.pos.y<FLOOR_Y+0.2) bomb.pos.y=FLOOR_Y+0.2;
-    nudgeOutOfSolid(bomb.pos,0.22);
+    if(rand){
+      const rp=pickValPop(v);
+      if(rp) bomb.pos.copy(rp);
+      else { bomb.pos.set(jitter(p[0],0.35), Math.max(FLOOR_Y+0.28,p[1]+frange(-0.2,0.9)), jitter(p[2],0.35)); nudgeOutOfSolid(bomb.pos,0.22); }
+    }else{
+      bomb.pos.set(jitter(p[0],0.1),p[1],jitter(p[2],0.1));
+      if(bomb.pos.y<FLOOR_Y+0.2) bomb.pos.y=FLOOR_Y+0.2;
+      nudgeOutOfSolid(bomb.pos,0.22);
+    }
+    if(bomb.pos.y<FLOOR_Y+0.25) bomb.pos.y=FLOOR_Y+0.25;
     flashCue('pop',1,bomb.pos);
   }
   g.position.copy(bomb.pos); g.visible=true; g.scale.setScalar(FL.preset==='val'?0.3:1);
@@ -2445,6 +2683,7 @@ function flashStep(now){
   if(!FL||FL.phase!=='run')return;
   const dt=Math.min(0.05,(now-(FL.last||now))/1000); FL.last=now;
   stepMove(dt);
+  stepPeekBots(dt,now);
   if(FL.peekUntil&&now>FL.peekUntil) clearPeekBots();
   const bomb=FL.bomb;
   if(!bomb){
@@ -2452,8 +2691,10 @@ function flashStep(now){
     if(now>=FL.busyUntil&&!(FL.peekUntil&&now<FL.peekUntil)) spawnFlash(now);
     flashHud(); return;
   }
-  if(FL.preset==='cs2') bounceBomb(bomb.pos,bomb.vel,0.18,dt);
-  else if(grenade&&grenade.scale.x<1){ const s=Math.min(1,grenade.scale.x+dt*6); grenade.scale.setScalar(s); }
+  if(FL.preset==='cs2'){
+    if(bounceBomb(bomb.pos,bomb.vel,0.18,dt)) bomb.bounces=(bomb.bounces||0)+1;
+    if(bomb.early && bomb.bounces>0 && (now-bomb.t0)>=(bomb.minFuse||bomb.fuse)) { detonateFlash(now); flashHud(); return; }
+  }else if(grenade&&grenade.scale.x<1){ const s=Math.min(1,grenade.scale.x+dt*6); grenade.scale.setScalar(s); }
   if(grenade){ grenade.position.copy(bomb.pos); grenade.rotation.y+=dt*2.2; grenade.rotation.z+=dt*0.7;
     const fu=grenade.userData.fuse; if(fu){ const blink=0.5+0.5*Math.sin(now*0.03+(1-Math.max(0,(bomb.fuse-(now-bomb.t0))/bomb.fuse))*20); fu.material.emissiveIntensity=0.6+1.6*blink; } }
   const ang=flashAngle(bomb.pos);
@@ -2483,7 +2724,10 @@ function detonateFlash(now){
   if(kind==='dodged') FL.st.react.push((bomb.firstSafe!=null?bomb.firstSafe:now)-bomb.appeared);
   noteScn(kind);
   spawnPeekBots(factor,bomb.peeks,now);
-  FL.i++; FL.bomb=null; FL.busyUntil=Math.max(now+dur+200, (FL.peekUntil||now)+150);
+  FL.i++; FL.bomb=null;
+  const dd=FDIFF[FL.diff]||FDIFF.normal;
+  const gap=useFlashRand()?frange(dd.gap[0],dd.gap[1])*1000:150;
+  FL.busyUntil=Math.max(now+dur+200, (FL.peekUntil||now)+gap);
 }
 function avg(arr){ return arr&&arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN; }
 function flashScore(st,n){
@@ -2497,7 +2741,8 @@ function flashScore(st,n){
   const hsPct=st.dotHits?100*st.hs/st.dotHits:NaN;
   const stk=avg(st.stk), ttk=avg(st.ttkArr), firstHit=avg(st.dotFirst);
   const acc=st.dotShots?st.dotHits/st.dotShots:NaN;
-  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc};
+  const moveKills=st.moveKills||0, crouchKills=st.crouchKills||0, pushTtk=avg(st.pushTtk);
+  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,crouchKills,pushTtk};
 }
 function flashHud(){
   if(!FL)return;
@@ -2511,20 +2756,20 @@ function flashHud(){
 function flashFinish(){
   const res=flashScore(FL.st,FL.n); res.cm=FL.cm; res.preset=FL.preset; res.diff=FL.diff; res.scn=FL.mix?'mix':(FL.scn||S.flash.scn);
   const prev=bestFlash(res.scn,'scn'); res.isBest=res.score>prev&&res.score>0;
-  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,dmg:S.bot.dmg});
+  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,dmg:S.bot.dmg,rand:!!FL.rand});
   store.flashHistory=store.flashHistory.slice(0,200); save();
   FL.phase='done'; hideGrenade(); clearPeekBots(); clearHud();
   if(document.pointerLockElement===stage)document.exitPointerLock();
   const pct=v=>Number.isFinite(v)?Math.round(v)+'%':'—';
   const ms=v=>Number.isFinite(v)?Math.round(v)+' ms':'—';
-  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('First hit',ms(res.firstHit)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg dodge reaction',ms(res.react))];
+  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
   let mixLine='';
   if(FL.mix&&FL.st.by){ const parts=Object.keys(FL.st.by).map(id=>{ const b=FL.st.by[id]; return `${(SCN[id]||{}).name||id}: ${b.dodged+b.covered}/${b.n} safe`; }); if(parts.length) mixLine=`<div class="small muted" style="margin-top:8px">${parts.join(' · ')}</div>`; }
   const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
   const title=flashRunTitle(res,FL);
   showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div>${mixLine}<div class="small muted">Click Start to go again</div>`);
   const last=$('#lastFlash');
-  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
+  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
     .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('');
   renderFlashBests(); renderFlashHist();
   FL=null;
@@ -2545,7 +2790,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
