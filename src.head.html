@@ -57,6 +57,7 @@ tr.me td{background:#36f1a60d}
 #stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
 #stage canvas{display:block;width:100%;height:100%}
 #stage:fullscreen{border-radius:0;border:0}
+#edgeHint{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 #xh{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
 #xh i{position:absolute;display:block}
 #rhud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:28px;padding:8px 22px;border-radius:12px;background:#0b0f16b0;font-weight:800;font-variant-numeric:tabular-nums;pointer-events:none;color:#fff;letter-spacing:.5px}
@@ -163,6 +164,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <label class="inl"><input type="checkbox" id="lowq"> Low quality (faster)</label>
       <label class="inl"><input type="checkbox" id="showFps" checked> FPS counter</label>
       <label class="inl"><input type="checkbox" id="sound" checked> Sound cues</label>
+      <label class="inl"><input type="checkbox" id="hintOpt" checked> Off-screen target hint</label>
     </div>
     <div class="small muted" id="perfInfo" style="flex:2"></div>
   </div>
@@ -274,6 +276,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
+      <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor.</li>
     </ul>
   </div>
 </section>

@@ -88,5 +88,49 @@
   // calibration: yaw at sens 1 (linear assumption)
   function yawFromRuler(o){ const cm=o.unit==='in'?o.dist*2.54:o.dist; return K*o.turns/(o.dpi*o.sens*cm); }
   function yawFromCounts(o){ return 360*o.turns/(Math.abs(o.counts)*o.sens); }
-  root.EZMath = {K,SOURCES:S,GAMES:B,get,all,setCustom,defaults,dpc,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm,countsPer360,yawFromRuler,yawFromCounts};
+  // Arena target placement: camera at the origin, target lives at `dist` along (yaw, pitch).
+  // Angles are degrees. Sphere radius comes from its angular size (radDeg).
+  const D2R=Math.PI/180, R2D=180/Math.PI;
+  const ARENA={dist:20,floorY:-1.7,ceilY:12};
+  function targetRadius(dist,radDeg){ return dist*Math.tan(radDeg*D2R); }
+  function yFromPitch(pitch,dist){ return dist*Math.sin(pitch*D2R); }
+  function pitchFromY(y,dist){ return Math.asin(Math.max(-1,Math.min(1,y/dist)))*R2D; }
+  function pitchLimits(dist,radDeg,floorY,ceilY){
+    const r=targetRadius(dist,radDeg), minY=floorY+r, maxY=ceilY-r;
+    return {min:pitchFromY(minY,dist),max:pitchFromY(maxY,dist),r,minY,maxY};
+  }
+  function clampPitch(pitch,dist,radDeg,floorY,ceilY){
+    const lim=pitchLimits(dist,radDeg,floorY,ceilY);
+    return Math.max(lim.min,Math.min(lim.max,pitch));
+  }
+  // Clamp pitch and bounce vertical speed off the floor / ceiling.
+  function bouncePitch(pitch,vp,dist,radDeg,floorY,ceilY){
+    const lim=pitchLimits(dist,radDeg,floorY,ceilY); let p=pitch,v=vp;
+    if(p<=lim.min){ p=lim.min; if(v<0)v=Math.abs(v); }
+    if(p>=lim.max){ p=lim.max; if(v>0)v=-Math.abs(v); }
+    return {pitch:p,vp:v,lim};
+  }
+  // Map a projected point (NDC, y-up) to a screen-edge hint. behind = target is behind the camera.
+  // Returns edge position in NDC, angle (radians, y-up), and alpha (0 on-screen → 1 fully off-screen).
+  function offscreenHint(ndcX,ndcY,behind,opts){
+    const inset=(opts&&opts.inset!=null)?opts.inset:0.78, pad=(opts&&opts.pad!=null)?opts.pad:0.04;
+    let x=+ndcX||0, y=+ndcY||0;
+    if(behind){ const len=Math.hypot(x,y); if(len<1e-8){x=1;y=0;} else {x=x/len*2;y=y/len*2;} }
+    const ax=Math.abs(x), ay=Math.abs(y);
+    const inside=!behind&&ax<=1&&ay<=1;
+    let alpha;
+    if(behind) alpha=1;
+    else {
+      const t=Math.max(0,ax-inset,ay-inset)/Math.max(1e-6,1-inset);
+      alpha=Math.max(0,Math.min(1,t));
+    }
+    const len=Math.hypot(x,y)||1, sx=x/len, sy=y/len;
+    const lx=1-pad, ly=1-pad;
+    const tx=Math.abs(sx)<1e-8?Infinity:lx/Math.abs(sx);
+    const ty=Math.abs(sy)<1e-8?Infinity:ly/Math.abs(sy);
+    const t=Math.min(tx,ty);
+    return {x:sx*t,y:sy*t,ang:Math.atan2(sy,sx),alpha,inside};
+  }
+  root.EZMath = {K,SOURCES:S,GAMES:B,get,all,setCustom,defaults,dpc,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm,countsPer360,yawFromRuler,yawFromCounts,
+    ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint};
 })(typeof window!=='undefined'?window:globalThis);

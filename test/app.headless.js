@@ -32,6 +32,32 @@ const fl=await pg.evaluate(async()=>{ EZ.forceRun(); const dpc=0.022; for(let k=
   EZ.simShoot(); } return EZ.state()?'still running':'finished'; });
 console.log('flick', fl, await pg.$eval('#lastRound',e=>e.innerText.replace(/\s+/g,' ')));
 await pg.screenshot({path:'/tmp/pw/train.png'});
+// tracking must stay above the floor even with a strong downward velocity;
+// off-screen hint must follow the target live as the view turns
+await pg.click('#drills button[data-d=track]'); await pg.click('#startBtn');
+const trackHint=await pg.evaluate(()=>{
+  EZ.forceRun();
+  const T=EZ.state().tr; T.pitch=-80; T.vp=-120; T.tp=-120;
+  const ys=[]; for(let i=0;i<180;i++){ EZ.tick(16); ys.push(EZ.targetPos().y-EZ.targetRad()); }
+  const minClear=Math.min(...ys);
+  T.vy=0; T.vp=0; T.ty=0; T.tp=0; T.yaw=0; T.pitch=0;
+  EZ.view.pitch=0;
+  EZ.view.yaw=90; const right=EZ.hintSample()[0];
+  EZ.view.yaw=70; const stillRight=EZ.hintSample()[0];
+  EZ.view.yaw=-90; const left=EZ.hintSample()[0];
+  EZ.view.yaw=0; const on=EZ.hintSample()[0];
+  return {minClear,floor:EZ.FLOOR_Y,endPitch:EZ.state().tr.pitch,
+    right:{alpha:right&&right.alpha,x:right&&right.x,ang:right&&right.ang},
+    stillRight:{alpha:stillRight&&stillRight.alpha,x:stillRight&&stillRight.x,ang:stillRight&&stillRight.ang},
+    left:{alpha:left&&left.alpha,x:left&&left.x,ang:left&&left.ang},
+    onAlpha:on&&on.alpha, hintOn:EZ.S.hint};
+});
+console.log('track floor + hint', JSON.stringify(trackHint));
+if(trackHint.minClear<trackHint.floor-1e-3) throw new Error('tracking target went through the floor: clearance '+trackHint.minClear);
+if(!(trackHint.right.alpha>0.5 && trackHint.right.x>0)) throw new Error('hint should sit on the right edge when the target is 90° off to the right');
+if(!(trackHint.stillRight.alpha>0.5 && trackHint.stillRight.x>0)) throw new Error('hint should keep pointing right as the view turns toward the target');
+if(!(trackHint.left.alpha>0.5 && trackHint.left.x<0)) throw new Error('hint should move to the left edge when the view turns the other way');
+if(!(trackHint.onAlpha<0.05)) throw new Error('hint should fade out when the target is on-screen');
 // custom tab
 await pg.click('nav button[data-t=custom]'); await pg.type('#cname','My Game'); await pg.type('#cyaw','0.05');
 await pg.click('#csave'); console.log('custom saved', await pg.$eval('#clist',e=>e.innerText.replace(/\s+/g,' ')));

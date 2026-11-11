@@ -63,4 +63,30 @@ near(M.yawFromRuler({sens:1,dpi:800,dist:3*51.9545,unit:'cm',turns:3}),0.022,1e-
 near(M.yawFromRuler({sens:2,dpi:400,dist:20.4545,unit:'in',turns:1}),0.022,1e-6,'ruler calibration inches');
 near(M.yawFromCounts({sens:1,counts:-3*16363.636,turns:3}),0.022,1e-6,'count calibration');
 M.setCustom([{id:'c1',name:'X',yaw:0.05}]); near(cv(1,'cs2','c1'),0.44,1e-9,'custom game conversion');
+// floor / ceiling pitch clamp (targets stay fully above the floor)
+const A=M.ARENA, rad=1.3, r=M.targetRadius(A.dist,rad);
+near(r, A.dist*Math.tan(rad*Math.PI/180), 1e-12, 'target radius from angular size');
+const lim=M.pitchLimits(A.dist,rad,A.floorY,A.ceilY);
+near(M.yFromPitch(lim.min,A.dist), A.floorY+r, 1e-9, 'min pitch sits on the floor plus radius');
+near(M.yFromPitch(lim.max,A.dist), A.ceilY-r, 1e-9, 'max pitch sits on the ceiling minus radius');
+assert(M.yFromPitch(lim.min,A.dist)-r>=A.floorY-1e-9, 'clamped min is fully above the floor'); n++;
+assert(M.clampPitch(-80,A.dist,rad,A.floorY,A.ceilY)===lim.min, 'clamp low pitch to floor'); n++;
+assert(M.clampPitch(80,A.dist,rad,A.floorY,A.ceilY)===lim.max, 'clamp high pitch to ceiling'); n++;
+const b=M.bouncePitch(lim.min-5,-40,A.dist,rad,A.floorY,A.ceilY);
+assert(b.pitch===lim.min && b.vp>0, 'bounce off the floor flips velocity up'); n++;
+const b2=M.bouncePitch(lim.max+5,40,A.dist,rad,A.floorY,A.ceilY);
+assert(b2.pitch===lim.max && b2.vp<0, 'bounce off the ceiling flips velocity down'); n++;
+// off-screen hint: center is hidden, right-of-screen points right, follows the sample
+const mid=M.offscreenHint(0,0,false);
+assert(mid.alpha===0 && mid.inside, 'on-screen center has no hint'); n++;
+const right=M.offscreenHint(1.4,0,false);
+assert(right.alpha===1 && right.x>0 && Math.abs(right.y)<0.05, 'off-screen right hint sits on the right edge'); n++;
+const up=M.offscreenHint(0,1.5,false);
+assert(up.alpha===1 && up.y>0 && Math.abs(up.x)<0.05, 'off-screen up hint sits on the top edge'); n++;
+const behind=M.offscreenHint(-0.2,0.1,true);
+assert(behind.alpha===1 && behind.x<0, 'behind-camera hint uses the view-space direction'); n++;
+const fade=M.offscreenHint(0.9,0,false,{inset:0.78});
+assert(fade.alpha>0 && fade.alpha<1, 'near the edge the hint fades in'); n++;
+const a1=M.offscreenHint(1.2,0.3,false), a2=M.offscreenHint(0.4,0.9,false);
+assert(a1.ang!==a2.ang, 'hint angle tracks the sample direction'); n++;
 console.log(`all ${n} math checks passed (${M.GAMES.length} built-in games)`);

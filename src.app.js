@@ -2,7 +2,7 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
 S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh); store.rangeHistory=store.rangeHistory||[];
@@ -123,7 +123,7 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div id="hudFps"></div><div id="xh"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
 $('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
@@ -146,9 +146,9 @@ for(let a=0;a<360;a+=10){const r=Math.PI*a/180, major=a%90===0;
   p.position.set(Math.sin(r)*48,(major?14:8)/2-1.7,-Math.cos(r)*48); scene.add(p);}
 const tgtMat=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0d6b47,roughness:.4});
 const tgt=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),tgtMat); tgt.visible=false; scene.add(tgt);
-const DIST=20;
+const DIST=M.ARENA.dist, FLOOR_Y=M.ARENA.floorY, CEIL_Y=M.ARENA.ceilY;
 function scaleRatio(){ return S.scale==='native'?Math.min(2,devicePixelRatio):(+S.scale||1)*(S.lowq?Math.min(1,devicePixelRatio):1); }
-function resize(){ if(!renderer)return; const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setPixelRatio(scaleRatio()); renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); if(typeof rangeCam!=='undefined'){rangeCam.aspect=w/h; setRangeFov();} }
+function resize(){ if(!renderer)return; const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setPixelRatio(scaleRatio()); renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); if(typeof rangeCam!=='undefined'){rangeCam.aspect=w/h; setRangeFov();} const hc=$('#edgeHint'); if(hc){ hc.width=w; hc.height=h; } }
 addEventListener('resize',resize); document.addEventListener('fullscreenchange',()=>setTimeout(resize,50));
 function arenaHFov(){ if(+S.afov>=60)return +S.afov; const g=M.get(S.game); if(g.hfovFn)return g.hfovFn(P(g.id)); return g.hfov||103; }
 function setFov(){const h=arenaHFov()*Math.PI/180; camera.fov=2*Math.atan(Math.tan(h/2)/camera.aspect)*180/Math.PI; camera.updateProjectionMatrix();}
@@ -158,7 +158,7 @@ function dirFrom(yaw,pitch){const y=yaw*D2R,p=pitch*D2R;return new THREE.Vector3
 const wrap=a=>((a+540)%360)-180;
 function angErr(ty,tp){ const a=dirFrom(view.yaw,view.pitch),b=dirFrom(ty,tp); const ang=Math.acos(Math.min(1,a.dot(b)))/D2R;
   return {ang,dx:wrap(ty-view.yaw)*Math.cos(tp*D2R),dy:tp-view.pitch};}
-function placeTarget(ty,tp,radDeg){const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(DIST*Math.tan(radDeg*D2R)); tgt.visible=true;}
+function placeTarget(ty,tp,radDeg){ tp=M.clampPitch(tp,DIST,radDeg,FLOOR_Y,CEIL_Y); const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(M.targetRadius(DIST,radDeg)); tgt.visible=true; return tp;}
 
 /* ---------- sound ---------- */
 let actx=null;
@@ -193,7 +193,7 @@ function shouldDraw(now){ const cap=capFps(); if(cap>=F.hz-0.5)return true; cons
 const DESK={on:!!window.ezsensDesktop,unlock:false};
 function perfInfo(){ const cap=capFps(); const want=S.fps==='custom'?+S.fpsCustom:+S.fps;
   $('#perfInfo').innerHTML=`${DESK.unlock?'<b>Desktop app · FPS unlocked</b> — max render rate ≈ <b>'+F.hz+' fps</b>':'Display ≈ <b>'+F.hz+' Hz</b>'} · cap ${S.fps==='auto'?'= display':Math.round(cap)+' fps'}${(S.fps!=='auto'&&want>F.hz)?` <span class="warn">(${want} is above ${DESK.unlock?'what your PC can render':'your display\'s refresh rate'}, so it runs at ${F.hz}${DESK.on&&!DESK.unlock?' — turn on Unlock FPS to go higher':''})</span>`:''}<br>Input: ${RAW_EVT==='pointerrawupdate'?'pointerrawupdate (lowest latency)':'mousemove'} · raw ${rawOK===null?'(lock to check)':rawOK?'ON':'<span class="warn">OFF</span>'}`; }
-function syncPerf(){ $('#fps').value=S.fps; $('#fpsCustom').value=S.fpsCustom; $('#fpsCustomWrap').classList.toggle('hide',S.fps!=='custom'); $('#scale').value=S.scale; $('#lowq').checked=S.lowq; $('#showFps').checked=S.showFps; $('#sound').checked=S.sound; $('#afov').value=S.afov; $('#hudFps').classList.toggle('hide',!S.showFps); perfInfo(); }
+function syncPerf(){ $('#fps').value=S.fps; $('#fpsCustom').value=S.fpsCustom; $('#fpsCustomWrap').classList.toggle('hide',S.fps!=='custom'); $('#scale').value=S.scale; $('#lowq').checked=S.lowq; $('#showFps').checked=S.showFps; $('#sound').checked=S.sound; const ho=$('#hintOpt'); if(ho)ho.checked=!!S.hint; $('#afov').value=S.afov; $('#hudFps').classList.toggle('hide',!S.showFps); perfInfo(); }
 if(DESK.on){ const w=document.createElement('label'); w.className='inl'; w.innerHTML='<input type="checkbox" id="unlockFps"> Unlock FPS (app restart)'; $('#lowq').closest('div').appendChild(w);
   window.ezsensDesktop.get().then(c=>{ DESK.unlock=!!c.unlockFps; $('#unlockFps').checked=DESK.unlock; perfInfo(); });
   $('#unlockFps').onchange=()=>window.ezsensDesktop.setUnlock($('#unlockFps').checked);
@@ -204,6 +204,7 @@ $('#scale').onchange=()=>{S.scale=$('#scale').value;save();resize();};
 $('#lowq').onchange=()=>{S.lowq=$('#lowq').checked;save();makeRenderer();};
 $('#showFps').onchange=()=>{S.showFps=$('#showFps').checked;save();syncPerf();};
 $('#sound').onchange=()=>{S.sound=$('#sound').checked;save();};
+$('#hintOpt').onchange=()=>{S.hint=$('#hintOpt').checked;save(); if(!S.hint)clearHint();};
 $('#afov').oninput=()=>{S.afov=$('#afov').value;save();setFov();};
 
 /* ---------- rounds ---------- */
@@ -219,9 +220,10 @@ function newRound(segments,cm,onDone,label){
 }
 function beginCountdown(){ R.phase='count'; let n=3; const tick=()=>{ if(!R||R.phase!=='count')return; if(n===0){hideOv();R.phase='run';R.last=performance.now();startSeg();beep(880,0.08);return;} showOv(`<div class="big">${n}</div>`); beep(440,0.06); n--; setTimeout(tick,450);}; tick(); }
 function startSeg(){const s=R.segments[R.si]; s.done=0; s.t0=performance.now();
-  if(s.type==='track'){R.tr={yaw:view.yaw-3,pitch:view.pitch,vy:0,vp:0,ty:0,tp:0,next:0,el:0}; placeTarget(R.tr.yaw,R.tr.pitch,1.3);} else spawn();}
+  if(s.type==='track'){ const p0=M.clampPitch(view.pitch,DIST,1.3,FLOOR_Y,CEIL_Y); R.tr={yaw:view.yaw-3,pitch:p0,vy:0,vp:0,ty:0,tp:0,next:0,el:0}; placeTarget(R.tr.yaw,R.tr.pitch,1.3);} else spawn();}
 function spawn(){const s=R.segments[R.si],c=SEG[s.type]; const mag=rnd(c.min,c.max),th=rnd(0,Math.PI*2);
-  let ty=view.yaw+Math.cos(th)*mag, tp=view.pitch+Math.sin(th)*mag*0.55; tp=Math.max(-18,Math.min(32,tp));
+  let ty=view.yaw+Math.cos(th)*mag, tp=view.pitch+Math.sin(th)*mag*0.55;
+  tp=M.clampPitch(tp,DIST,c.rad,FLOOR_Y,CEIL_Y);
   R.t={ty,tp,rad:c.rad,t0:performance.now(),landed:false,peak:0}; const e=angErr(ty,tp); R.t.d0=[e.dx,e.dy]; R.t.n0=Math.hypot(e.dx,e.dy)||1; placeTarget(ty,tp,c.rad);}
 function along(){const e=angErr(R.t.ty,R.t.tp);return (e.dx*R.t.d0[0]+e.dy*R.t.d0[1])/R.t.n0;}
 function recordLanding(){ if(R.t.landed)return; R.t.landed=true; const a=along(), e=angErr(R.t.ty,R.t.tp);
@@ -235,8 +237,10 @@ function nextSeg(){ R.si++; tgt.visible=false; if(R.si>=R.segments.length) retur
 function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const s=R.segments[R.si]; if(!s)return;
   if(s.type==='track'){ const T=R.tr; T.el+=dt;
     if(T.el>=T.next){T.next=T.el+rnd(0.5,1.4); const sp=rnd(22,62), th=Math.random()<0.75?(Math.random()<0.5?0:Math.PI)+rnd(-0.35,0.35):rnd(0,Math.PI*2); T.ty=Math.cos(th)*sp; T.tp=Math.sin(th)*sp*0.5;}
-    if(T.pitch>22)T.tp=-Math.abs(T.tp); if(T.pitch<-8)T.tp=Math.abs(T.tp);
-    const k=1-Math.exp(-dt*6); T.vy+=(T.ty-T.vy)*k; T.vp+=(T.tp-T.vp)*k; T.yaw+=T.vy*dt; T.pitch+=T.vp*dt; placeTarget(T.yaw,T.pitch,1.3);
+    const k=1-Math.exp(-dt*6); T.vy+=(T.ty-T.vy)*k; T.vp+=(T.tp-T.vp)*k; T.yaw+=T.vy*dt; T.pitch+=T.vp*dt;
+    const b=M.bouncePitch(T.pitch,T.vp,DIST,1.3,FLOOR_Y,CEIL_Y); T.pitch=b.pitch; T.vp=b.vp;
+    if(T.pitch<=b.lim.min+0.15) T.tp=Math.abs(T.tp); if(T.pitch>=b.lim.max-0.15) T.tp=-Math.abs(T.tp);
+    placeTarget(T.yaw,T.pitch,1.3);
     if(T.el>0.6){ R.st.trackT+=dt; const e=angErr(T.yaw,T.pitch); if(e.ang<=1.3)R.st.on+=dt;
       const v=Math.hypot(T.vy,T.vp); if(v>8&&e.ang<6){ const lead=-(e.dx*T.vy+e.dy*T.vp)/v; R.st.lead+=lead;R.st.leadN++; if(e.ang>1.3){ if(lead>0)R.st.trOver+=dt; else R.st.trUnder+=dt; } } }
     if(T.el>=s.dur+0.6) nextSeg();
@@ -265,6 +269,7 @@ function loop(now){ requestAnimationFrame(loop); measure(now);
   if(MODE==='range'){ if(RG&&RG.phase==='run')rangeStep(now); rangeCam.rotation.set(rview.pitch*D2R,rview.yaw*D2R,0); vmAnim(now); renderer.render(rscene,rangeCam); }
   else { if(R&&R.phase==='run'){ step(now); if(R){R.fpsAcc+=ft;R.fpsN++;} }
   camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); }
+  paintHint(now);
   if(S.showFps&&(F.dc=(F.dc||0)+1)%8===0) $('#hudFps').textContent=`${F.ft?Math.round(1000/F.ft):0} fps · ${F.ft.toFixed(2)} ms · ${F.hz} Hz${capFps()<F.hz?' · cap '+Math.round(capFps()):''}`; }
 const biasTxt=b=>Math.abs(b)<0.15?'balanced':(b>0?`overshoots (${Math.round(b*100)}%)`:`undershoots (${Math.round(-b*100)}%)`);
 
@@ -414,6 +419,7 @@ function renderPanel(){ const r=S.range,x=r.xh, top=[...store.rangeHistory].sort
   <label class="inl" style="margin-top:8px"><input data-r="moving" type="checkbox" ${r.moving?'checked':''}> Moving targets</label>
   <label>Speed <span class="muted" id="spv">${r.speed} m/s</span></label><input data-r="speed" type="range" min="0.3" max="5" step="0.1" value="${r.speed}">
   <div class="rowx" style="margin-top:8px"><label class="inl"><input data-r="viewmodel" type="checkbox" ${r.viewmodel?'checked':''}> Viewmodel</label><label class="inl"><input data-g="sound" type="checkbox" ${S.sound?'checked':''}> Hit sounds</label></div>
+  <label class="inl" style="margin-top:6px"><input data-g="hint" type="checkbox" ${S.hint?'checked':''}> Off-screen target hint</label>
   <label>Crosshair</label><div class="rowx"><select data-x="style">${[['dot','Dot'],['cross','Cross'],['crossdot','Cross + dot'],['circle','Circle']].map(([v,t])=>`<option ${v===x.style?'selected':''} value="${v}">${t}</option>`).join('')}</select><input data-x="color" type="color" value="${x.color}" style="height:30px;padding:2px"></div>
   <div class="rowx"><div><label>Size</label><input data-x="size" type="range" min="2" max="24" step="1" value="${x.size}"></div><div><label>Gap</label><input data-x="gap" type="range" min="0" max="10" step="1" value="${x.gap}"></div></div>
   <label class="inl" style="margin-top:6px"><input data-x="outline" type="checkbox" ${x.outline?'checked':''}> Outline</label>
@@ -424,13 +430,73 @@ function onPanel(e){ const el=e.target, v=el.type==='checkbox'?el.checked:(el.ty
     if(RG&&(RG.phase==='pause')&&['size','count','moving','speed'].includes(k)) layoutTargets(); if(k==='dur'&&(!RG||RG.phase!=='pause'))rhud(); }
   if(el.dataset.x){ S.range.xh[el.dataset.x]=v; drawXH(S.range.xh); }
   if(el.dataset.g==='sound'){ S.sound=v; const sb=$('#sound'); if(sb)sb.checked=v; }
+  if(el.dataset.g==='hint'){ S.hint=v; const ho=$('#hintOpt'); if(ho)ho.checked=v; if(!S.hint)clearHint(); }
   save(); }
 function RANGE_INIT(){ buildRange(); $('#rpanelBody').addEventListener('input',onPanel); $('#rpanelBody').addEventListener('change',onPanel);
   ['mousedown','click'].forEach(t=>$('#rpanel').addEventListener(t,e=>e.stopPropagation()));
   $('#rangeReset').onclick=()=>{ if(document.pointerLockElement===stage)document.exitPointerLock(); RG=null; clearTargets(); rhud(); rangeOverlay(); };
   renderPanel(); RG=null; rhud(); setMode('range'); }
 
+/* ---------- off-screen target hint (original edge glow, updated every frame) ---------- */
+const _hintV=new THREE.Vector3(), _hintCv=$('#edgeHint');
+let _hintHad=false, _lastHints=[];
+function clearHint(){ if(!_hintCv)return; const c=_hintCv.getContext('2d'); c.clearRect(0,0,_hintCv.width,_hintCv.height); _hintHad=false; _lastHints=[]; }
+function worldToHint(pos,cam){
+  _hintV.copy(pos).applyMatrix4(cam.matrixWorldInverse);
+  const behind=_hintV.z>=0; let x=_hintV.x,y=_hintV.y;
+  if(behind){ const len=Math.hypot(x,y); if(len<1e-8){x=1;y=0;} else {x=x/len*2;y=y/len*2;} return {x,y,behind:true}; }
+  _hintV.copy(pos).project(cam); return {x:_hintV.x,y:_hintV.y,behind:false};
+}
+function applyCams(){
+  camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); camera.updateMatrixWorld();
+  rangeCam.rotation.set(rview.pitch*D2R,rview.yaw*D2R,0); rangeCam.updateMatrixWorld();
+}
+function sampleHints(){
+  applyCams();
+  const out=[];
+  if(MODE==='range'){
+    if(RG&&RG.phase==='run') for(const t of rTargets){ if(t.mesh&&t.mesh.visible) out.push(Object.assign(worldToHint(t.mesh.position,rangeCam),{r:S.range.size})); }
+  } else if(R&&R.phase==='run'&&tgt.visible){
+    out.push(Object.assign(worldToHint(tgt.position,camera),{r:tgt.scale.x}));
+  }
+  return out.map(s=>{ const h=M.offscreenHint(s.x,s.y,s.behind); return Object.assign(s,h); });
+}
+function drawHintArc(ctx,W,H,h,now){
+  if(h.alpha<=0.01)return;
+  const px=(h.x*0.5+0.5)*W, py=(0.5-h.y*0.5)*H, cx=W/2, cy=H/2;
+  const ang=Math.atan2(py-cy,px-cx), reach=Math.hypot(px-cx,py-cy);
+  const A=h.alpha*(0.78+0.22*Math.sin(now*0.007));
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.translate(cx,cy); ctx.rotate(ang);
+  let g=ctx.createRadialGradient(reach-8,0,2,reach-8,0,210);
+  g.addColorStop(0,`rgba(255,64,100,${0.58*A})`);
+  g.addColorStop(0.18,`rgba(255,36,140,${0.34*A})`);
+  g.addColorStop(0.48,`rgba(150,24,210,${0.14*A})`);
+  g.addColorStop(1,'rgba(50,0,80,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(reach-10,0,74,180,0,0,Math.PI*2); ctx.fill();
+  g=ctx.createLinearGradient(reach-36,-100,reach-36,100);
+  g.addColorStop(0,'rgba(255,40,160,0)');
+  g.addColorStop(0.32,`rgba(255,70,120,${0.75*A})`);
+  g.addColorStop(0.5,`rgba(255,220,230,${0.95*A})`);
+  g.addColorStop(0.68,`rgba(190,40,230,${0.75*A})`);
+  g.addColorStop(1,'rgba(110,0,180,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(reach-6,0,18,118,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle=`rgba(255,190,220,${0.9*A})`; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.ellipse(reach+2,0,5,86,0,-1.15,1.15); ctx.stroke();
+  ctx.restore();
+}
+function paintHint(now){
+  if(!_hintCv)return;
+  if(!S.hint){ if(_hintHad)clearHint(); return; }
+  const W=_hintCv.width,H=_hintCv.height; if(!W||!H)return;
+  const hints=sampleHints(); _lastHints=hints;
+  const vis=hints.filter(h=>h.alpha>0.01);
+  if(!vis.length){ if(_hintHad)clearHint(); return; }
+  const ctx=_hintCv.getContext('2d'); ctx.clearRect(0,0,W,H);
+  for(const h of vis) drawHintArc(ctx,W,H,h,now); _hintHad=true;
+}
+
 /* test hooks for headless checks */
-window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:m=>setMode(m),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S};
+window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:m=>setMode(m),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},tick:(ms)=>{if(!R)return; if(R.phase!=='run'){R.phase='run';hideOv();} step((R.last||performance.now())+ms);},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S,
+  FLOOR_Y,CEIL_Y,DIST,targetPos:()=>tgt.position.clone(),targetRad:()=>tgt.scale.x,targetVisible:()=>tgt.visible,hintSample:()=>sampleHints(),paintHint};
 RANGE_INIT(); makeRenderer(); syncInputs(); syncPerf(); renderHist(); renderFinder(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

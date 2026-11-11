@@ -23,7 +23,9 @@ console.log('after end:', await pg.$eval('#ov',e=>e.innerText.replace(/\s+/g,' '
 // crosshair customizer + panel changes
 await pg.select('#rpanelBody select[data-x=style]','crossdot'); console.log('crosshair parts', await pg.$$eval('#xh i',e=>e.length));
 await pg.click('#rpanelBody input[data-r=moving]'); console.log('moving saved', await pg.evaluate(()=>EZ.S.range.moving));
-await pg.evaluate(()=>EZ.rangeBegin()); const p0=await pg.evaluate(()=>EZ.rangeTargets()[0].x); await new Promise(r=>setTimeout(r,500)); const p1=await pg.evaluate(()=>EZ.rangeTargets()[0].x); console.log('moving target dx', (p1-p0).toFixed(3));
+await pg.evaluate(()=>EZ.rangeBegin()); const p0=await pg.evaluate(()=>EZ.rangeTargets()[0].x); await new Promise(r=>setTimeout(r,500)); const move=await pg.evaluate(()=>{ const ts=EZ.rangeTargets(); return {p1:ts[0].x, ys:ts.map(t=>t.y), minY:0.8, size:EZ.S.range.size}; });
+console.log('moving target dx', (move.p1-p0).toFixed(3), 'ys', move.ys);
+if(move.ys.some(y=>y<move.minY+move.size-1e-6)) throw new Error('range target went through the floor');
 await pg.screenshot({path:'/tmp/pw/range2.png'});
 // arena still fine
 await pg.click('nav button[data-t=train]'); console.log('train mode', await pg.evaluate(()=>EZ.mode()), await pg.$eval('#ov',e=>e.innerText.replace(/\s+/g,' ')));
