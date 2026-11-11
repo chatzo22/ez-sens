@@ -175,6 +175,159 @@ fs.mkdirSync(OUT,{recursive:true});
   if(!(cs2.fuse>=1400 && cs2.fuse<=1600)) fail('CS2-style fuse should be ~1.5s, got '+cs2.fuse);
   if(!cs2.hasVel) fail('CS2-style bomb should have throw velocity');
 
+  // --- v1.4.0 situational maps, peek bots, damage ---
+  const scnUi=await pg.evaluate(()=>({ids:[...document.querySelectorAll('#flashScn [data-scn]')].map(b=>b.dataset.scn)}));
+  console.log('scenarios', scnUi);
+  for(const id of ['hall','hold','anchor','entry','retake','overwall','mid','ramp','mix']) if(!scnUi.ids.includes(id)) fail('missing scenario '+id);
+
+  const hall=await pg.evaluate(()=>{
+    EZ.setScn('hall');
+    return {walls:(EZ.scnWalls()||[]).length, id:EZ.scnId(), eye:EZ.camEye.toArray()};
+  });
+  console.log('hall map', hall);
+  if(hall.id!=='hall') fail('loadScn hall failed');
+  if(hall.walls<4) fail('hallway should have solid walls, got '+hall.walls);
+  if(Math.hypot(hall.eye[0],hall.eye[2])<1) fail('camera should start inside the hallway, not at the origin');
+
+  const los=await pg.evaluate(()=>{
+    EZ.setScn('hold');
+    EZ.camEye.set(0,0,3.2);
+    const V=EZ.camEye.constructor;
+    const blocked=EZ.flashVisible(new V(3,1,-8));
+    const openDoor=EZ.flashVisible(new V(0,1.2,-8));
+    return {blocked,openDoor,walls:EZ.scnWalls().length};
+  });
+  console.log('los', los);
+  if(los.blocked!==false) fail('flash behind the choke wall should be occluded');
+  if(los.openDoor!==true) fail('flash visible through the open doorway should not be occluded');
+
+  const covered=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hold';
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    const bomb=EZ.flash().bomb;
+    EZ.camEye.set(0,0,3.2); EZ.view.yaw=0; EZ.view.pitch=0;
+    bomb.pos.set(3,1,-8);
+    const vis=EZ.flashVisible(bomb.pos);
+    EZ.lookAtBomb();
+    EZ.detonateFlash(performance.now());
+    const st={...EZ.flash().st};
+    EZ.abandonFlash();
+    return {vis,st};
+  });
+  console.log('covered', covered);
+  if(covered.vis!==false) fail('planted test bomb should be behind a wall');
+  if(!(covered.st.covered>=1 && (covered.st.full||0)===0)) fail('occluded flash should score covered, not a full blind: '+JSON.stringify(covered.st));
+
+  const walk=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.wasd=false; EZ.S.flash.scn='hall'; EZ.S.flash.preset='cs2';
+    EZ.startFlash(); EZ.forceFlashRun();
+    const zBefore=EZ.camEye.z;
+    EZ.spawnFlash(performance.now());
+    const fl=EZ.flash();
+    const t0=performance.now();
+    for(let i=1;i<=45;i++){ fl.last=t0+(i-1)*20; EZ.flashStep(t0+i*20); }
+    const zAfter=EZ.camEye.z;
+    EZ.abandonFlash();
+    return {zBefore,zAfter,delta:zAfter-zBefore};
+  });
+  console.log('auto-walk', walk);
+  if(!(walk.delta< -0.4)) fail('hallway auto-walk should move the camera down the corridor, dz='+walk.delta);
+
+  const bounce=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.preset='cs2'; EZ.S.flash.diff='normal'; EZ.S.flash.scn='hall';
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    const b=EZ.flash().bomb;
+    const fuse=b.fuse, p0=b.pos.toArray(), v0=[b.vel.x,b.vel.y,b.vel.z];
+    const t0=performance.now();
+    for(let i=1;i<=24;i++){ EZ.flash().last=t0+(i-1)*20; EZ.flashStep(t0+i*20); if(!EZ.flash().bomb) break; }
+    const b2=EZ.flash().bomb;
+    const moved=b2?Math.hypot(b2.pos.x-p0[0],b2.pos.y-p0[1],b2.pos.z-p0[2]):0;
+    EZ.abandonFlash();
+    return {fuse,kind:b.kind,moved,hasVel:v0.some(v=>Math.abs(v)>0)};
+  });
+  console.log('bounce', bounce);
+  if(bounce.kind!=='cs2') fail('expected a CS2 bomb for bounce');
+  if(!(bounce.fuse>=1400 && bounce.fuse<=1600)) fail('CS2 fuse should stay ~1.5s');
+  if(!(bounce.moved>0.05)) fail('CS2 bomb should travel / bounce, moved='+bounce.moved);
+
+  const peek=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hold';
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs'; EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    EZ.detonateFlash(performance.now());
+    const dodged=(EZ.peekBots()||[]).map(b=>({dim:b.dim,visible:b.group.visible,hp:b.state&&b.state.hp,op:b.headMat.opacity}));
+    EZ.spawnFlash(performance.now());
+    const bomb=EZ.flash().bomb;
+    EZ.camEye.set(0,0,3.2); EZ.view.yaw=0; EZ.view.pitch=0;
+    bomb.pos.set(0,0.55,-3.0); // through the open doorway, clearly visible
+    EZ.lookAtBomb();
+    const vis=EZ.flashVisible(bomb.pos), ang=EZ.flashAngle(bomb.pos), fac=EZ.flashFactor(ang);
+    EZ.detonateFlash(performance.now());
+    const flashed=(EZ.peekBots()||[]).map(b=>({dim:b.dim,op:b.headMat.opacity,em:b.headMat.emissiveIntensity}));
+    const visInfo={vis,ang,fac,covered:EZ.flash()&&EZ.flash().st.covered};
+    const fl=EZ.flash();
+    if(fl.bomb){ EZ.lookAway(); EZ.detonateFlash(performance.now()); }
+    fl.n=fl.i; fl.busyUntil=0; fl.peekUntil=0;
+    EZ.flashFinish();
+    return {dodged,flashed,visInfo,ov:document.querySelector('#ov').innerText.replace(/\s+/g,' ')};
+  });
+  console.log('peek bots', {dodged:peek.dodged, flashed:peek.flashed, vis:peek.visInfo, ov:peek.ov});
+  if(!peek.dodged.length) fail('peek bots should spawn after a detonation');
+  if(!(peek.dodged[0].visible && peek.dodged[0].hp===100)) fail('dodged peek bot should be visible at full HP');
+  if(!peek.flashed.length) fail('peek bots should spawn after a full flash too');
+  if(!(peek.flashed[0].dim>0.5 && peek.flashed[0].op<0.95)) fail('flashed peek bots should be dimmed / harder to see: '+JSON.stringify(peek.flashed[0]));
+  if(!/Bots killed|Headshot|STK|TTK|Dodge/i.test(peek.ov)) fail('recap should include bot and dodge stats: '+peek.ov);
+
+  await pg.evaluate(()=>{ EZ.setTheme('dark'); EZ.setEnv('night'); EZ.abandonFlash(); });
+  for(const id of ['hall','hold','anchor','entry','retake','overwall','mid','ramp']){
+    await pg.evaluate(id=>{ EZ.S.flash.scn=id; EZ.setMode('flash','flash'); EZ.previewScn(); }, id);
+    await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    await stage.screenshot({path:path.join(OUT,'flash-scn-'+id+'.png')});
+    console.log('shot', path.join(OUT,'flash-scn-'+id+'.png'));
+  }
+
+  await pg.evaluate(()=>{
+    EZ.setTheme('dark'); EZ.setEnv('night');
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs'; EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+    EZ.setMode('train','train');
+    EZ.view.yaw=0; EZ.view.pitch=0;
+    EZ.placeTarget(0,0,1.6);
+    if(EZ.syncTrainBot) EZ.syncTrainBot();
+    const b=EZ.trainBot(); if(b) b.group.visible=true;
+  });
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await pg.evaluate(()=>document.querySelector('#stage').scrollIntoView({block:'center'}));
+  await new Promise(r=>setTimeout(r,200));
+  await stage.screenshot({path:path.join(OUT,'bot-train.png')});
+  console.log('shot', path.join(OUT,'bot-train.png'));
+
+  await pg.evaluate(()=>{
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='valarm';
+    EZ.setMode('range','range');
+    EZ.rangeBegin();
+  });
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await stage.screenshot({path:path.join(OUT,'bot-range.png')});
+  console.log('shot', path.join(OUT,'bot-range.png'));
+
+  await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.scn='hold'; EZ.S.flash.preset='val';
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    EZ.detonateFlash(performance.now());
+  });
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await stage.screenshot({path:path.join(OUT,'bot-flash.png')});
+  console.log('shot', path.join(OUT,'bot-flash.png'));
+  await pg.evaluate(()=>EZ.abandonFlash());
+
   if(net.length) fail('unexpected network: '+net.join(', '));
   if(errs.length) fail('console errors: '+errs.join(' | '));
   console.log('flash+theme tests ok');

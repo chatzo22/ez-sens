@@ -28,7 +28,7 @@ fs.mkdirSync(OUT,{recursive:true});
   if(boot.info.floor!==0x0f141b) fail('night floor should match the original, got 0x'+boot.info.floor.toString(16));
   if(boot.info.tgt!==0x36f1a6) fail('night target should stay the original green');
   if(!boot.info.sky) fail('sky dome missing');
-  if(boot.on.length!==2 || boot.on.some(x=>x!=='night')) fail('both time-of-day selectors should show Night on: '+JSON.stringify(boot.on));
+  if(boot.on.length<2 || boot.on.some(x=>x!=='night')) fail('all time-of-day selectors should show Night on: '+JSON.stringify(boot.on));
   const rangeCount0=await pg.evaluate(()=>document.querySelectorAll('#t-range canvas, #stage canvas').length);
 
   const switched=await pg.evaluate(()=>{
@@ -58,7 +58,7 @@ fs.mkdirSync(OUT,{recursive:true});
   const clicked=await pg.evaluate(()=>({env:EZ.env(), saved:JSON.parse(localStorage.getItem('ezsens.v1')).settings.env, on:[...document.querySelectorAll('[data-envseg] button.on')].map(b=>b.dataset.env), info:EZ.envInfo()}));
   console.log('clicked day', clicked);
   if(clicked.env!=='day'||clicked.saved!=='day') fail('clicking Day did not apply/persist');
-  if(clicked.on.some(x=>x!=='day')||clicked.on.length!==2) fail('Train and Finder selectors should stay in sync');
+  if(clicked.on.some(x=>x!=='day')||clicked.on.length<2) fail('all time-of-day selectors should stay in sync');
   if(!clicked.info.sunDisc) fail('day sun missing after click');
 
   // Range look must stay put while the arena env changes

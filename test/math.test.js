@@ -101,5 +101,33 @@ assert(cs.fields.r===175&&cs.fields.g===81&&cs.fields.b===213&&cs.fields.alpha==
 assert(cs.xh.style==='t'&&cs.xh.color==='#af51d5'&&cs.xh.dot&&cs.xh.dynamic, 'CSGO maps to a T-dot profile'); n++;
 assert(M.decodeCsgoXH('CSGO-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA').error, 'junk CSGO code rejected'); n++;
 assert.strictEqual(M.parseXHCode('CSvbPubOq37zTGqtsPTP5QTrp5CB4xFXiKRLfzJsm49ZRe').error,'cs2-new'); n++;
+
+// rifle damage models (Vandal / AK-47, close range)
+const vand=M.dmgModel('val'), vArm=M.dmgModel('valarm'), ak=M.dmgModel('cs2'), akArm=M.dmgModel('cs2arm'), hs=M.dmgModel('hs');
+assert.strictEqual(M.zoneDamage(vand,'head'),160); n++;
+assert.strictEqual(M.zoneDamage(vand,'body'),40); n++;
+assert.strictEqual(M.zoneDamage(vand,'legs'),34); n++;
+assert.strictEqual(M.shotsToKill(vand,'head'),1); n++;
+assert.strictEqual(M.shotsToKill(vand,'body'),3); n++;
+assert.strictEqual(M.shotsToKill(vand,'legs'),3); n++;
+assert.strictEqual(M.shotsToKill(vArm,'head'),1); n++;
+assert.strictEqual(M.shotsToKill(vArm,'body'),4); n++;
+assert.strictEqual(M.shotsToKill(vArm,'legs'),5); n++;
+assert.strictEqual(vArm.armor,50); n++;
+assert.strictEqual(M.zoneDamage(ak,'head'),144); n++;
+assert.strictEqual(M.zoneDamage(ak,'body'),36); n++;
+assert.strictEqual(M.zoneDamage(ak,'legs'),27); n++;
+assert.strictEqual(M.shotsToKill(ak,'head'),1); n++;
+assert.strictEqual(M.shotsToKill(ak,'body'),3); n++;
+assert.strictEqual(M.shotsToKill(ak,'legs'),4); n++;
+assert.strictEqual(M.shotsToKill(akArm,'head'),1); n++;
+assert.strictEqual(M.shotsToKill(akArm,'body'),4); n++;
+assert.strictEqual(M.shotsToKill(akArm,'legs'),4); n++;
+const hsBody=M.applyHit(hs,M.newBotState(hs),'body');
+assert(hsBody.miss&&!hsBody.killed, 'headshots-only body is a miss'); n++;
+const hsHead=M.applyHit(hs,M.newBotState(hs),'head');
+assert(hsHead.killed&&hsHead.hp===0, 'headshots-only head kills'); n++;
+const helmet=M.applyHit(akArm,M.newBotState(akArm),'head');
+assert(helmet.killed&&helmet.hpDmg>=111&&helmet.hpDmg<144, 'AK helmet head still one-taps'); n++;
 console.log(`all ${n} math checks passed (${M.GAMES.length} built-in games)`);
 

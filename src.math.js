@@ -193,7 +193,63 @@
     if(/^CSGO-/i.test(s)||/^CS(?!GO)/i.test(s)) return Object.assign({src:'csgo'}, decodeCsgoXH(s));
     return {error:'bad'}; }
 
+
+  // Close-range rifle damage. Vandal: wiki.playvalorant.com/en-us/Vandal (160/40/34, no falloff).
+  // Heavy shields add 50 HP absorbed 1-for-1 (official TTK columns 100/125/150; valdb.gg).
+  // AK-47: 36 base, x4 head, x1 chest, x0.75 legs, 77.5% armor pen (armor ratio 1.55).
+  // Helmeted head 111, kevlar chest 27, legs never armored. Point-blank; trainer has no distance falloff.
+  const DMG_IDS=['hs','val','valarm','cs2','cs2arm'];
+  function dmgModel(id){
+    if(id==='val') return {id:'val',name:'Valorant, no armor',hp:100,armor:0,game:'val',weapon:'Vandal',headOnly:false,helmet:false,kevlar:false};
+    if(id==='valarm') return {id:'valarm',name:'Valorant, armor',hp:100,armor:50,game:'val',weapon:'Vandal',headOnly:false,helmet:false,kevlar:false};
+    if(id==='cs2') return {id:'cs2',name:'CS2, no armor',hp:100,armor:0,game:'cs2',weapon:'AK-47',headOnly:false,helmet:false,kevlar:false};
+    if(id==='cs2arm') return {id:'cs2arm',name:'CS2, armor',hp:100,armor:100,game:'cs2',weapon:'AK-47',headOnly:false,helmet:true,kevlar:true};
+    return {id:'hs',name:'Headshots only',hp:100,armor:0,game:null,weapon:null,headOnly:true,helmet:false,kevlar:false};
+  }
+  function zoneDamage(model,zone){
+    if(!model||model.headOnly) return zone==='head'?100:0;
+    if(model.game==='val') return zone==='head'?160:zone==='legs'?34:40;
+    if(model.game==='cs2') return zone==='head'?144:zone==='legs'?27:36;
+    return 0;
+  }
+  function newBotState(model){ model=model&&model.hp!=null?model:dmgModel(model); return {hp:model.hp,armor:model.armor}; }
+  function applyHit(model,state,zone){
+    model=model&&model.hp!=null?model:dmgModel(model);
+    if(!state) state=newBotState(model);
+    if(model.headOnly && zone!=='head'){
+      return {miss:true,zone,raw:0,hpDmg:0,armorDmg:0,hp:state.hp,armor:state.armor,killed:false};
+    }
+    if(model.headOnly){
+      state.hp=0; state.armor=0;
+      return {miss:false,zone:'head',raw:100,hpDmg:100,armorDmg:0,hp:0,armor:0,killed:true};
+    }
+    const raw=zoneDamage(model,zone);
+    let hpDmg=raw, armorDmg=0;
+    if(model.game==='val'){
+      armorDmg=Math.min(state.armor,raw);
+      hpDmg=raw-armorDmg;
+    }else if(model.game==='cs2'){
+      const armored=state.armor>0&&((zone==='head'&&model.helmet)||(zone!=='head'&&zone!=='legs'&&model.kevlar));
+      if(armored){
+        const pen=0.775, thru=raw*pen, soak=raw-thru;
+        if(soak<=state.armor){ hpDmg=thru; armorDmg=soak; }
+        else { const frac=state.armor/soak; hpDmg=thru*frac+raw*(1-frac); armorDmg=state.armor; }
+        hpDmg=Math.floor(hpDmg+1e-9);
+      }
+    }
+    state.armor=Math.max(0,state.armor-armorDmg);
+    state.hp=Math.max(0,state.hp-hpDmg);
+    return {miss:false,zone,raw,hpDmg,armorDmg,hp:state.hp,armor:state.armor,killed:state.hp<=0};
+  }
+  function shotsToKill(model,zone){
+    model=model&&model.hp!=null?model:dmgModel(model);
+    if(model.headOnly&&zone!=='head') return Infinity;
+    const s=newBotState(model);
+    let n=0; while(s.hp>0&&n<30){ applyHit(model,s,zone); n++; } return n;
+  }
+
   root.EZMath = {K,SOURCES:S,GAMES:B,get,all,setCustom,defaults,dpc,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm,countsPer360,yawFromRuler,yawFromCounts,
     ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint,
-    XH_DEF,XH_STYLES,normXH,xhCode,parseEZX,parseXHCode,decodeCsgoXH,csgoBytes};
+    XH_DEF,XH_STYLES,normXH,xhCode,parseEZX,parseXHCode,decodeCsgoXH,csgoBytes,
+    DMG_IDS,dmgModel,zoneDamage,newBotState,applyHit,shotsToKill};
 })(typeof window!=='undefined'?window:globalThis);
