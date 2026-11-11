@@ -15,7 +15,7 @@ if(S.theme!=='light'&&S.theme!=='dark') S.theme='dark';
 S.flash=Object.assign({},DEF.flash,S.flash||{});
 if(S.flash.preset!=='cs2') S.flash.preset='val';
 if(!['easy','normal','hard'].includes(S.flash.diff)) S.flash.diff='normal';
-S.flash.count=Math.max(5,Math.min(15,+S.flash.count||8));
+S.flash.count=Math.max(1,Math.min(15,+S.flash.count||8));
 S.flash.tVol=Math.max(0,Math.min(1,S.flash.tVol==null?0.4:+S.flash.tVol));
 if(!['hall','hold','anchor','entry','retake','overwall','mid','ramp','mix'].includes(S.flash.scn)) S.flash.scn='hall';
 S.flash.wasd=!!S.flash.wasd;
@@ -144,7 +144,7 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="flashFx"></div><div id="dmgFx"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+stage.innerHTML=`<div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="flashFx"></div><div id="dmgFx"></div><div id="flashToast"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
 $('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
@@ -170,6 +170,16 @@ for(let a=0;a<360;a+=10){const r=Math.PI*a/180, major=a%90===0;
   const p=new THREE.Mesh(new THREE.BoxGeometry(major?1.4:0.8,major?14:8+(a%30===0?3:0),major?1.4:0.8),
     new THREE.MeshStandardMaterial({color:major?0x2b3a55:0x18212e,emissive:major?0x0d1630:0x000000}));
   p.position.set(Math.sin(r)*48,(major?14:8)/2-1.7,-Math.cos(r)*48); scene.add(p); pillars.push({mesh:p,major});}
+const arenaWalls=[];
+(function collectArenaWalls(){
+  // floor disc approximated as a wide thin box so downward shots can clip
+  arenaWalls.push({min:new THREE.Vector3(-90,-1.85,-90),max:new THREE.Vector3(90,-1.55,90),role:'floor'});
+  pillars.forEach(p=>{
+    const m=p.mesh, pos=m.position, geo=m.geometry, par=geo.parameters||{};
+    const sx=par.width||1, sy=par.height||8, sz=par.depth||1;
+    arenaWalls.push({min:new THREE.Vector3(pos.x-sx/2,pos.y-sy/2,pos.z-sz/2),max:new THREE.Vector3(pos.x+sx/2,pos.y+sy/2,pos.z+sz/2),role:'wall'});
+  });
+})();
 const SKY_R=220;
 const skyGeo=new THREE.SphereGeometry(SKY_R,48,24);
 const skyMesh=new THREE.Mesh(skyGeo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,depthWrite:false,fog:false}));
@@ -297,13 +307,17 @@ function disposeBot(bot){ if(!bot)return; bot.scene.remove(bot.group); bot.bodyM
 const _ndc=new THREE.Vector2(0,0), _rc=new THREE.Raycaster();
 function pickBots(list,cam){
   if(!cam||!list||!list.length)return null;
+  if(typeof applyCams==='function') applyCams();
   cam.updateMatrixWorld(); _rc.setFromCamera(_ndc,cam);
   const meshes=[]; for(const b of list){ if(b&&!b.dead&&b.group.visible){ meshes.push(b.head,b.body); } }
   if(!meshes.length)return null;
   const hits=_rc.intersectObjects(meshes,false); if(!hits.length)return null;
-  const h=hits[0], bot=h.object.userData.bot; let zone=h.object.userData.zone||'body';
+  const h=hits[0];
+  const blocked=firstSolidHit(_rc.ray.origin,_rc.ray.direction,h.distance-0.01,cam);
+  if(blocked) return null;
+  const bot=h.object.userData.bot; let zone=h.object.userData.zone||'body';
   if(zone==='body'){ const loc=bot.body.worldToLocal(h.point.clone()); if(loc.y<bot.legLocalY) zone='legs'; }
-  return {bot,zone,dist:h.distance,point:h.point};
+  return {bot,zone,dist:h.distance,point:h.point,blocked:false};
 }
 function showDmg(res){
   const el=$('#dmgFx'); if(!el)return;
@@ -691,6 +705,7 @@ const RB={x:5.8,yMin:0.8,yMax:4.4,z:-15.6}; // target area on the back wall
 const rTargets=[]; const rTgtGeo=new THREE.SphereGeometry(1,28,18);
 const rTgtMat=()=>new THREE.MeshStandardMaterial({color:0x1d222b,roughness:.55,metalness:.1,emissive:0x000000});
 let vm=null, vmKick=0;
+const rangeWalls=[];
 function buildRange(){
   // sky dome with a vertical gradient
   const sg=new THREE.SphereGeometry(300,32,16), cols=[], top=new THREE.Color(0x4f8fd8), hor=new THREE.Color(0xdbe9f6), c=new THREE.Color();
@@ -708,6 +723,11 @@ function buildRange(){
   [-1,1].forEach(s=>{ const w=new THREE.Mesh(new THREE.BoxGeometry(0.4,4.2,L+6),wallM); w.position.set(s*(W/2+0.2),2.1,-L/2+3); rscene.add(w); });
   const back=new THREE.Mesh(new THREE.BoxGeometry(W+0.8,6,0.4),backM); back.position.set(0,3,-L+0.2); rscene.add(back);
   const behind=new THREE.Mesh(new THREE.BoxGeometry(W+0.8,4.2,0.4),wallM); behind.position.set(0,2.1,3.2); rscene.add(behind);
+  rangeWalls.length=0;
+  const addRS=(x,y,z,sx,sy,sz,role)=>{ rangeWalls.push({min:new THREE.Vector3(x-sx/2,y-sy/2,z-sz/2),max:new THREE.Vector3(x+sx/2,y+sy/2,z+sz/2),role:role||'wall'}); };
+  [-1,1].forEach(s=>addRS(s*(W/2+0.2),2.1,-L/2+3,0.4,4.2,L+6));
+  addRS(0,3,-L+0.2,W+0.8,6,0.4); addRS(0,2.1,3.2,W+0.8,4.2,0.4);
+  addRS(0,-0.06,-L/2+3,W,0.12,L+6,'floor');
   // low-poly viewmodel: an original blocky "marker" blaster
   vm=new THREE.Group(); const dark=std(0x2a2f38,0.6), mid=std(0x434a56,0.6), accent=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0f6b48,roughness:.4});
   const body=new THREE.Mesh(new THREE.BoxGeometry(0.075,0.085,0.30),mid); vm.add(body);
@@ -912,7 +932,7 @@ $('#flashScn').addEventListener('click',e=>{
   if(MODE==='flash'&&(!FL||FL.phase==='done'||FL.phase==='ready'||!FL)) previewScn();
 });
 $('#flashDiff').onchange=()=>{S.flash.diff=$('#flashDiff').value;persistFlash();};
-$('#flashCount').onchange=()=>{S.flash.count=Math.max(5,Math.min(15,+$('#flashCount').value||8));persistFlash();};
+$('#flashCount').onchange=()=>{S.flash.count=Math.max(1,Math.min(15,+$('#flashCount').value||8));persistFlash();};
 $('#flashAudio').onchange=()=>{S.flash.audio=$('#flashAudio').checked;persistFlash();};
 $('#flashReduced').onchange=()=>{S.flash.reduced=$('#flashReduced').checked;persistFlash();};
 $('#flashWasd').onchange=()=>{S.flash.wasd=$('#flashWasd').checked;persistFlash();};
@@ -982,39 +1002,121 @@ function clearWhiteOut(){
 
 function flashWarnThen(go){
   if(S.flash.warned){ go(); return; }
-  showOv(`<div class="big" style="font-size:34px">Photosensitivity notice</div>
-    <p class="notice small">This drill uses a full-screen flash. If you are sensitive to flashing lights, choose <b>reduced intensity</b>. There is never more than one flash at a time, and every fade lasts at least 300 milliseconds. You can change this later in the Flash options.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-      <button type="button" class="btn sm" id="flashWarnReduced">I understand — use reduced intensity</button>
-      <button type="button" class="btn alt sm" id="flashWarnFull">I understand — full intensity</button>
-    </div>`);
-  const bind=(id,reduced)=>{ const b=$(id); if(!b)return; b.onclick=ev=>{ ev.stopPropagation(); S.flash.warned=true; S.flash.reduced=reduced; persistFlash(); go(); }; };
+  const modal=$('#flashWarnModal');
+  if(!modal){ S.flash.warned=true; go(); return; }
+  modal.classList.remove('hide');
+  const bind=(id,reduced)=>{ const b=$(id); if(!b)return; b.onclick=ev=>{ ev.stopPropagation(); S.flash.warned=true; S.flash.reduced=reduced; persistFlash(); modal.classList.add('hide'); go(); }; };
   bind('#flashWarnReduced',true); bind('#flashWarnFull',false);
 }
 
 function scnCols(){
   const e=S.env;
-  if(e==='day') return {wall:0x6a7684,wall2:0x5a6570,floor:0x4a5360,crate:0x6a5a48,trim:0x3a424c,ceil:0x7a8690};
-  if(e==='sunrise') return {wall:0x5a4840,wall2:0x4a3a32,floor:0x3a2e28,crate:0x5a4030,trim:0x2a221c,ceil:0x6a5048};
-  return {wall:0x2a3340,wall2:0x1e2732,floor:0x161c24,crate:0x3a322c,trim:0x12181f,ceil:0x1a222c};
+  if(e==='day') return {wall:0x6a7684,wall2:0x5a6570,wall3:0x748090,floor:0x4a5360,crate:0x6a5a48,crate2:0x5a4a3a,trim:0x3a424c,ceil:0x7a8690,beam:0x4a5460,barrel:0x3e4a56,light:0xf2e6c0,line:0x3a424c,plate:0xc9c4b0,accent:0x4a6a5a};
+  if(e==='sunrise') return {wall:0x5a4840,wall2:0x4a3a32,wall3:0x6a5048,floor:0x3a2e28,crate:0x5a4030,crate2:0x4a3024,trim:0x2a221c,ceil:0x6a5048,beam:0x3a2a22,barrel:0x4a3830,light:0xffd9a0,line:0x2a2018,plate:0xc4b49a,accent:0x6a4a38};
+  return {wall:0x2a3340,wall2:0x1e2732,wall3:0x323c48,floor:0x161c24,crate:0x3a322c,crate2:0x2e2622,trim:0x12181f,ceil:0x1a222c,beam:0x151c24,barrel:0x2a323c,light:0xe8dcb0,line:0x0e141c,plate:0x8a8470,accent:0x2a3a38};
 }
 function setArenaDecor(on){
   pillars.forEach(p=>{ p.mesh.visible=!!on; });
   if(grid) grid.visible=!!on;
   floor.visible=!!on;
 }
-function addBox(x,y,z,sx,sy,sz,hex,role){
-  const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),new THREE.MeshStandardMaterial({color:hex,roughness:role==='floor'?1:0.85,metalness:0}));
-  m.position.set(x,y,z); scnGroup.add(m);
-  scnWalls.push({min:new THREE.Vector3(x-sx/2,y-sy/2,z-sz/2),max:new THREE.Vector3(x+sx/2,y+sy/2,z+sz/2),role:role||'wall'});
+const _geoCache=new Map(), _matCache=new Map();
+function boxGeo(sx,sy,sz){ const k='b'+sx.toFixed(3)+','+sy.toFixed(3)+','+sz.toFixed(3); if(!_geoCache.has(k)) _geoCache.set(k,new THREE.BoxGeometry(sx,sy,sz)); return _geoCache.get(k); }
+function cylGeo(rt,rb,h,seg){ const k='c'+rt.toFixed(3)+','+rb.toFixed(3)+','+h.toFixed(3)+','+(seg||10); if(!_geoCache.has(k)) _geoCache.set(k,new THREE.CylinderGeometry(rt,rb,h,seg||10)); return _geoCache.get(k); }
+function matOf(hex,opts){
+  const o=opts||{}, em=o.em||0, rough=o.rough!=null?o.rough:(o.role==='floor'?1:0.85), metal=o.metal||0;
+  const k=hex+','+em+','+rough+','+metal;
+  if(!_matCache.has(k)){ const m=new THREE.MeshStandardMaterial({color:hex,roughness:rough,metalness:metal}); if(em){ m.emissive.setHex(hex); m.emissiveIntensity=em; } _matCache.set(k,m); }
+  return _matCache.get(k);
+}
+function pushWall(x,y,z,sx,sy,sz,role){ scnWalls.push({min:new THREE.Vector3(x-sx/2,y-sy/2,z-sz/2),max:new THREE.Vector3(x+sx/2,y+sy/2,z+sz/2),role:role||'wall'}); }
+function addBox(x,y,z,sx,sy,sz,hex,role,opts){
+  const o=opts||{};
+  const m=new THREE.Mesh(boxGeo(sx,sy,sz), matOf(hex,{rough:o.rough,em:o.em,metal:o.metal,role:role}));
+  m.position.set(x,y,z); if(o.rotY) m.rotation.y=o.rotY; m.userData.shared=true; scnGroup.add(m);
+  if(role!=='decal') pushWall(x,y,z,sx,sy,sz,role||'wall');
   return m;
 }
 function addFloor(x,z,sx,sz,hex){ const fy=FY(); return addBox(x,fy-0.06,z,sx,0.12,sz,hex,'floor'); }
+function addBaseboard(x,z,sx,sz,C){ const fy=FY(); return addBox(x,fy+0.07,z,sx,0.14,sz,C.trim,'trim'); }
+function addDoorFrame(x,z,w,h,depth,C,axis){
+  const fy=FY(), jamb=0.14, lint=0.18;
+  if(axis==='x'){
+    addBox(x,fy+h/2,z-w/2-jamb/2,depth,h,jamb,C.trim,'wall');
+    addBox(x,fy+h/2,z+w/2+jamb/2,depth,h,jamb,C.trim,'wall');
+    addBox(x,fy+h+lint/2,z,depth,lint,w+jamb*2,C.trim,'wall');
+  }else{
+    addBox(x-w/2-jamb/2,fy+h/2,z,jamb,h,depth,C.trim,'wall');
+    addBox(x+w/2+jamb/2,fy+h/2,z,jamb,h,depth,C.trim,'wall');
+    addBox(x,fy+h+lint/2,z,w+jamb*2,lint,depth,C.trim,'wall');
+  }
+}
+function addWindowFrame(x,y,z,w,h,depth,C,axis){
+  const t=0.1;
+  if(axis==='x'){
+    addBox(x,y,z-w/2-t/2,depth,h+t*2,t,C.trim,'wall');
+    addBox(x,y,z+w/2+t/2,depth,h+t*2,t,C.trim,'wall');
+    addBox(x,y+h/2+t/2,z,depth,t,w,C.trim,'wall');
+    addBox(x,y-h/2-t/2,z,depth,t,w,C.trim,'wall');
+  }else{
+    addBox(x-w/2-t/2,y,z,t,h+t*2,depth,C.trim,'wall');
+    addBox(x+w/2+t/2,y,z,t,h+t*2,depth,C.trim,'wall');
+    addBox(x,y+h/2+t/2,z,w,t,depth,C.trim,'wall');
+    addBox(x,y-h/2-t/2,z,w,t,depth,C.trim,'wall');
+  }
+}
+function addCrate(x,fyOff,z,s,C,hex){ const fy=FY(); return addBox(x,fy+fyOff+s/2,z,s,s,s,hex||C.crate,'crate'); }
+function addCrateStack(x,z,C){ addCrate(x,0,z,0.8,C); addCrate(x+0.12,0.8,z+0.05,0.62,C,C.crate2); }
+function addBarrel(x,z,C){
+  const fy=FY(), r=0.26, h=0.74, y=fy+h/2;
+  const m=new THREE.Mesh(cylGeo(r,r*0.96,h,12), matOf(C.barrel,{rough:0.45,metal:0.25}));
+  m.position.set(x,y,z); m.userData.shared=true; scnGroup.add(m);
+  const hoop=new THREE.Mesh(cylGeo(r+0.01,r+0.01,0.05,12), matOf(C.trim,{rough:0.4,metal:0.35}));
+  hoop.position.set(x,y+h*0.28,z); hoop.userData.shared=true; scnGroup.add(hoop);
+  pushWall(x,y,z,r*2,h,r*2,'crate');
+  return m;
+}
+function addBeam(x,y,z,sx,sz,C){ return addBox(x,y,z,sx,0.14,sz,C.beam,'wall'); }
+function addLightFix(x,y,z,sx,sz,C){ return addBox(x,y,z,sx,0.07,sz,C.light,'wall',{em:1.15,rough:0.35}); }
+function addRail(x,y,z,len,axis,C){
+  const post=0.07, h=0.55, n=Math.max(2,Math.round(len/1.1));
+  if(axis==='x'){
+    addBox(x,y+h,z,len,0.05,0.05,C.trim,'wall');
+    for(let i=0;i<n;i++){ const px=x-len/2+(i+0.5)*(len/n); addBox(px,y+h/2,z,post,h,post,C.trim,'wall'); }
+  }else{
+    addBox(x,y+h,z,0.05,0.05,len,C.trim,'wall');
+    for(let i=0;i<n;i++){ const pz=z-len/2+(i+0.5)*(len/n); addBox(x,y+h/2,pz,post,h,post,C.trim,'wall'); }
+  }
+}
+function addFloorLines(cx,cz,sx,sz,step,C){
+  const fy=FY()+0.008;
+  for(let x=cx-sx/2+step;x<cx+sx/2;x+=step) addBox(x,fy,cz,0.025,0.006,sz,C.line,'decal');
+  for(let z=cz-sz/2+step;z<cz+sz/2;z+=step) addBox(cx,fy,z,sx,0.006,0.025,C.line,'decal');
+}
+function addSitePlate(x,z,letter,C){
+  const fy=FY()+0.02;
+  addBox(x,fy,z,1.3,0.03,1.3,C.plate,'decal');
+  const hex=C.trim, y=fy+0.03;
+  if(letter==='B'){
+    addBox(x-0.22,y,z,0.14,0.04,0.7,hex,'decal');
+    addBox(x+0.05,y,z+0.28,0.4,0.04,0.14,hex,'decal');
+    addBox(x+0.05,y,z,0.32,0.04,0.12,hex,'decal');
+    addBox(x+0.05,y,z-0.28,0.4,0.04,0.14,hex,'decal');
+    addBox(x+0.22,y,z+0.14,0.14,0.04,0.28,hex,'decal');
+    addBox(x+0.22,y,z-0.14,0.14,0.04,0.28,hex,'decal');
+  }else{
+    addBox(x,y,z+0.05,0.16,0.04,0.7,hex,'decal');
+    addBox(x-0.22,y,z-0.12,0.14,0.04,0.46,hex,'decal');
+    addBox(x+0.22,y,z-0.12,0.14,0.04,0.46,hex,'decal');
+    addBox(x,y,z-0.18,0.5,0.04,0.12,hex,'decal');
+  }
+}
 
 function unloadScn(){
   clearPeekBots(); hideGrenade();
   if(scnGroup){
     scnGroup.traverse(o=>{
+      if(o.userData&&o.userData.shared) return;
       if(o.geometry&&o.geometry!==botBodyGeo&&o.geometry!==botHeadGeo) o.geometry.dispose();
       if(o.material){ const mats=Array.isArray(o.material)?o.material:[o.material]; mats.forEach(m=>{ if(m&&m.dispose)m.dispose(); }); }
     });
@@ -1030,7 +1132,7 @@ function placeStart(meta){
 }
 function previewScn(){
   const id=S.flash.scn==='mix'?'hall':(SCN[S.flash.scn]?S.flash.scn:'hall');
-  loadScn(id); placeStart(); flashIdleOv();
+  loadScn(id); placeStart(); clearFlashToast(); flashIdleOv();
 }
 function loadScn(id){
   if(!SCN[id]||id==='mix') id='hall';
@@ -1041,8 +1143,86 @@ function loadScn(id){
   scnMeta=(builders[id]||buildHall)();
   scnMeta.id=id; scnMeta.name=(SCN[id]||{}).name||id; scnMeta.auto=!!(SCN[id]&&SCN[id].auto);
   if(scnMeta.pathDur==null) scnMeta.pathDur=(SCN[id]&&SCN[id].pathDur)||2.4;
+  fixPeekVisibility(scnMeta);
   placeStart(scnMeta);
   return scnMeta;
+}
+
+
+function dressHall(C,fy){
+  addBaseboard(-1.72,-6,0.08,24,C); addBaseboard(1.72,-5,0.08,16,C);
+  addDoorFrame(0,-6,3.0,2.55-fy,0.28,C,'z');
+  for(let z=4;z>=-16;z-=4){ addBeam(0,3.05,z,4.4,0.22,C); if(z>-14) addLightFix(0,3.12,z-1.2,0.9,0.28,C); }
+  addFloorLines(0,-6,3.2,20,2.0,C);
+  addBarrel(-1.35,0.4,C); addCrateStack(1.25,3.0,C);
+  addCrate(8.6,0,-18.9,0.85,C); addBarrel(5.6,-19.6,C);
+  addBox(6,1.2,-18.3,0.08,5.2,4.6,C.wall3,'decal');
+  addSitePlate(0,3.6,'A',C);
+}
+function dressHold(C,fy){
+  addBaseboard(-4.0,-7,0.1,9,C); addBaseboard(4.0,-7,0.1,9,C);
+  for(let z=2;z>=-10;z-=4) addLightFix(0,3.08,z,1.0,0.28,C);
+  addBeam(0,3.05,-2,8,0.2,C); addBeam(0,3.05,-8,8,0.2,C);
+  addFloorLines(0,-3,8,12,2.2,C);
+  addCrateStack(-3.3,-8.6,C); addBarrel(3.4,-10.4,C);
+  addSitePlate(0,-9.4,'B',C);
+}
+function dressAnchor(C,fy){
+  addWindowFrame(0,1.4,-8.4,3.8,2.4,0.2,C,'z');
+  addWindowFrame(-7.4,1.4,-0.2,2.2,2.4,0.2,C,'x');
+  addWindowFrame(7.4,1.4,-0.2,2.2,2.4,0.2,C,'x');
+  addBaseboard(0,6.0,14,0.1,C);
+  for(const z of [-4,0,4]) addLightFix(0,3.12,z,1.1,0.3,C);
+  addBeam(0,3.1,0,12,0.2,C); addBeam(-4,3.1,-1,0.2,10,C); addBeam(4,3.1,-1,0.2,10,C);
+  addFloorLines(0,-1,10,10,2.4,C);
+  addBarrel(5.6,2.2,C); addCrate(-5.6,0,2.4,0.9,C,C.crate2);
+  addSitePlate(0,-3.2,'A',C);
+}
+function dressEntry(C,fy){
+  addDoorFrame(0,-4.1,2.0,2.9-fy,0.28,C,'z');
+  addBaseboard(-1.42,3,0.08,9,C); addBaseboard(1.42,3,0.08,9,C);
+  for(let z=6;z>=-10;z-=4) addLightFix(0,3.1,z,0.9,0.26,C);
+  addBeam(0,3.05,-4.1,10,0.2,C); addBeam(0,3.05,2,3.2,0.2,C);
+  addFloorLines(0,3,3.0,8,2.0,C); addFloorLines(0,-7,10,10,2.4,C);
+  addBarrel(-4.4,-11.5,C); addCrate(4.4,0,-11.6,0.9,C);
+  addSitePlate(0,-11.2,'B',C);
+}
+function dressRetake(C,fy){
+  addDoorFrame(0,-9.2,3.2,2.9-fy,0.28,C,'z');
+  addDoorFrame(0,5.6,3.2,2.9-fy,0.28,C,'z');
+  addLightFix(0,3.08,-3,1.0,0.28,C); addLightFix(0,3.08,2,1.0,0.28,C);
+  addBeam(0,3.05,-3,10,0.2,C);
+  addFloorLines(0,0,10,12,2.4,C);
+  addCrateStack(-3.4,-2.6,C); addBarrel(2.6,2.4,C);
+  addSitePlate(-1.6,2.2,'A',C);
+}
+function dressOverwall(C,fy){
+  addWindowFrame(0,fy+1.5,-5,1.7,1.0,0.18,C,'z');
+  addBaseboard(0,6.0,10,0.1,C);
+  addLightFix(0,3.1,1.2,1.1,0.3,C); addLightFix(0,3.1,-7.2,1.1,0.3,C);
+  addBeam(0,3.05,-5,10,0.2,C);
+  addFloorLines(0,-1,8,12,2.2,C);
+  addCrateStack(-4.4,2.4,C); addBarrel(4.4,2.6,C); addBarrel(-4.6,-8.2,C);
+  addSitePlate(0,4.4,'A',C);
+}
+function dressMid(C,fy){
+  addWindowFrame(0,1.4,3.55,1.7,1.5,0.18,C,'z');
+  addWindowFrame(0,1.3,-12.2,1.6,1.4,0.18,C,'z');
+  addLightFix(0,3.2,5.0,0.8,0.24,C); addLightFix(0,3.18,-4,1.2,0.3,C);
+  addBeam(0,3.18,3.55,12,0.2,C); addBeam(0,3.18,-6,12,0.2,C);
+  addFloorLines(0,-2,10,14,2.4,C);
+  addBarrel(4.6,-6.2,C); addCrate(4.8,0,-3.4,0.85,C);
+  addRail(-2.4,fy+1.1,5.2,3.0,'z',C); addRail(2.4,fy+1.1,5.2,3.0,'z',C);
+  addSitePlate(0,-6.8,'B',C);
+}
+function dressRamp(C,fy){
+  addRail(-1.58,fy+0.2,0.2,10.5,'z',C); addRail(1.58,fy+0.2,0.2,10.5,'z',C);
+  addDoorFrame(0,-7.7,1.4,2.6-fy,0.24,C,'z');
+  addLightFix(0,3.25,2,0.8,0.24,C); addLightFix(0,3.25,-4,0.8,0.24,C);
+  addBeam(0,3.25,-2,4,0.2,C);
+  addFloorLines(0,5.2,3.2,4,1.6,C);
+  addBarrel(1.15,4.6,C);
+  addSitePlate(0,-10.4,'A',C);
 }
 
 function buildHall(){
@@ -1059,10 +1239,11 @@ function buildHall(){
   addBox(0,3.2,-6,5.2,0.3,26,C.ceil,'wall'); addBox(6,3.2,-18.3,9,0.3,5.2,C.ceil,'wall');
   addBox(-1.1,fy+0.45,2.2,0.9,0.9,1.1,C.crate,'crate');
   addBox(4.5,fy+0.45,-19.2,1.0,0.9,1.0,C.crate,'crate');
+  dressHall(C,fy);
   return {start:{x:0,y:0,z:4.5,yaw:0,pitch:2},path:[{x:0,y:0,z:4.5},{x:0,y:0,z:-8}],pathDur:2.8,variants:[
-    {id:'corner-bounce',throw:{pos:[5.5,1.4,-18.5],vel:[-6.5,4.5,5.5]},pop:{pos:[0.4,1.6,-14]},peeks:[[1.35,fy,-16.1],[4.3,fy,-18.3],[-1.2,fy,-15.4]]},
-    {id:'ceiling-pop',throw:{pos:[0.8,1.6,-11],vel:[-0.4,5.5,3.2]},pop:{pos:[0.2,2.4,-8.2]},peeks:[[0,fy,-11.5],[1.2,fy,-6.2],[-1.2,fy,-6.2]]},
-    {id:'close-pop',throw:{pos:[2.2,1.2,-10.5],vel:[-4,3.5,2]},pop:{pos:[0.3,1.1,-10.2]},peeks:[[1.5,fy,-12],[-1.3,fy,-9.5],[0.2,fy,-16]]}
+    {id:'corner-bounce',throw:{pos:[5.5,1.4,-18.5],vel:[-6.5,4.5,5.5]},pop:{pos:[0.4,1.6,-14]},peeks:[[1.48,fy,-14.2],[1.55,fy,-16.5],[-1.48,fy,-15.2]]},
+    {id:'ceiling-pop',throw:{pos:[0.8,1.6,-11],vel:[-0.4,5.5,3.2]},pop:{pos:[0.2,2.4,-8.2]},peeks:[[0,fy,-11.6],[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
+    {id:'close-pop',throw:{pos:[2.2,1.2,-10.5],vel:[-4,3.5,2]},pop:{pos:[0.3,1.1,-10.2]},peeks:[[1.48,fy,-12.2],[-1.48,fy,-9.6],[0,fy,-15.8]]}
   ]};
 }
 function buildHold(){
@@ -1075,10 +1256,11 @@ function buildHold(){
   addBox(0,3.2,-6,9,0.3,14,C.ceil,'wall');
   addBox(-1.15,fy+0.4,2.6,1.1,0.8,0.9,C.crate,'crate');
   addBox(3.3,1.2,-6.8,2.2,5.5,2.2,C.wall2,'wall');
+  dressHold(C,fy);
   return {start:{x:0,y:0,z:3.2,yaw:0,pitch:2},variants:[
-    {id:'over-wall',throw:{pos:[0,1.4,-8],vel:[0,8.2,6.2]},pop:{pos:[0,1.4,-1.7]},peeks:[[0,fy,-2.15],[1.15,fy,-2.15],[-1.15,fy,-2.15],[0,fy,-7.5]]},
-    {id:'through-door',throw:{pos:[0,1.15,-10],vel:[0,3.2,8]},pop:{pos:[0,0.6,-3.2]},peeks:[[0,fy,-2.15],[0.9,fy,-4.5],[-0.9,fy,-4.5]]},
-    {id:'side-cubby',throw:{pos:[3.2,1.2,-6.2],vel:[-5,3.4,3]},pop:{pos:[0.3,0.7,-3.0]},peeks:[[2.2,fy,-5.4],[0,fy,-2.15],[-1.1,fy,-2.2]]}
+    {id:'over-wall',throw:{pos:[0,1.4,-8],vel:[0,8.2,6.2]},pop:{pos:[0,1.4,-1.7]},peeks:[[0,fy,-2.62],[1.05,fy,-2.62],[-1.05,fy,-2.62],[0,fy,-7.5]]},
+    {id:'through-door',throw:{pos:[0,1.15,-10],vel:[0,3.2,8]},pop:{pos:[0,0.6,-3.2]},peeks:[[0,fy,-2.62],[0.95,fy,-4.5],[-0.95,fy,-4.5]]},
+    {id:'side-cubby',throw:{pos:[3.2,1.2,-6.2],vel:[-5,3.4,3]},pop:{pos:[0.3,0.7,-3.0]},peeks:[[2.15,fy,-4.6],[0,fy,-2.62],[-1.05,fy,-2.62]]}
   ]};
 }
 function buildAnchor(){
@@ -1090,10 +1272,11 @@ function buildAnchor(){
   addBox(7.4,1.3,-5.3,0.6,5.6,6.4,C.wall,'wall'); addBox(7.4,1.3,3.2,0.6,5.6,6.2,C.wall,'wall'); addBox(7.4,3.15,-0.2,0.6,1.3,2.4,C.trim,'wall');
   addBox(0,3.25,-1,16,0.3,16,C.ceil,'wall');
   addBox(-1.4,fy+0.5,-1.6,1.4,1.0,1.4,C.crate,'crate'); addBox(1.6,fy+0.45,1.2,1.2,0.9,1.2,C.crate,'crate');
+  dressAnchor(C,fy);
   return {start:{x:0,y:0,z:0.4,yaw:0,pitch:2},variants:[
-    {id:'mid-entry',throw:{pos:[0,1.3,-11],vel:[0,4,7]},pop:{pos:[0,1.5,-7.2]},peeks:[[0,fy,-8.1],[-1.3,fy,-7.6],[1.3,fy,-7.6]]},
-    {id:'left-entry',throw:{pos:[-11,1.3,-0.2],vel:[7,4,0.4]},pop:{pos:[-6.6,1.4,-0.2]},peeks:[[-7.05,fy,-0.2],[-6.2,fy,1.1],[-6.2,fy,-1.3]]},
-    {id:'right-entry',throw:{pos:[11,1.3,-0.2],vel:[-7,4,0.4]},pop:{pos:[6.6,1.4,-0.2]},peeks:[[7.05,fy,-0.2],[6.2,fy,1.1],[6.2,fy,-1.3]]}
+    {id:'mid-entry',throw:{pos:[0,1.3,-11],vel:[0,4,7]},pop:{pos:[0,1.5,-7.2]},peeks:[[0,fy,-8.85],[-1.35,fy,-8.85],[1.35,fy,-8.85]]},
+    {id:'left-entry',throw:{pos:[-11,1.3,-0.2],vel:[7,4,0.4]},pop:{pos:[-6.6,1.4,-0.2]},peeks:[[-7.85,fy,-0.2],[-7.85,fy,1.0],[-7.85,fy,-1.15]]},
+    {id:'right-entry',throw:{pos:[11,1.3,-0.2],vel:[-7,4,0.4]},pop:{pos:[6.6,1.4,-0.2]},peeks:[[7.85,fy,-0.2],[7.85,fy,1.0],[7.85,fy,-1.15]]}
   ]};
 }
 function buildEntry(){
@@ -1107,10 +1290,11 @@ function buildEntry(){
   addBox(3.6,fy+1.35,-8.4,2.2,0.25,2.4,C.trim,'floor'); addBox(3.6,fy+0.7,-8.4,2.0,1.4,2.2,C.crate,'crate');
   addBox(-1.6,fy+0.45,-9.2,1.3,0.9,1.3,C.crate,'crate');
   addBox(0,3.2,-3,16,0.3,20,C.ceil,'wall');
+  dressEntry(C,fy);
   return {start:{x:0,y:0,z:5.2,yaw:0,pitch:2},path:[{x:0,y:0,z:5.2},{x:0,y:0,z:-1.2}],pathDur:2.4,variants:[
-    {id:'over-front',throw:{pos:[0,1.6,-8],vel:[0,6.5,5]},pop:{pos:[0,2.7,-3.6]},peeks:[[0,fy,-9.0],[-1.6,fy,-9.0],[3.4,fy+1.5,-8.4],[-3.4,fy,-7.2]]},
-    {id:'rafter',throw:{pos:[3.6,2.6,-8.2],vel:[-3,2,4]},pop:{pos:[1.2,2.4,-5]},peeks:[[3.5,fy+1.5,-8.2],[-1.6,fy,-9],[1.6,fy,-11]]},
-    {id:'site-box',throw:{pos:[-2,1.4,-11],vel:[2,5,4]},pop:{pos:[-0.4,2.1,-6.4]},peeks:[[-1.5,fy,-9.1],[1.4,fy,-9.1],[0,fy,-12]]}
+    {id:'over-front',throw:{pos:[0,1.6,-8],vel:[0,6.5,5]},pop:{pos:[0,2.7,-3.6]},peeks:[[0,fy,-9.0],[-1.2,fy,-4.55],[1.2,fy,-4.55],[-1.5,fy,-9.0]]},
+    {id:'rafter',throw:{pos:[3.6,2.6,-8.2],vel:[-3,2,4]},pop:{pos:[1.2,2.4,-5]},peeks:[[1.2,fy,-4.55],[-1.2,fy,-4.55],[0,fy,-11]]},
+    {id:'site-box',throw:{pos:[-2,1.4,-11],vel:[2,5,4]},pop:{pos:[-0.4,2.1,-6.4]},peeks:[[-1.2,fy,-4.55],[1.2,fy,-4.55],[0,fy,-11.5]]}
   ]};
 }
 function buildRetake(){
@@ -1122,10 +1306,11 @@ function buildRetake(){
   addBox(6.6,1.25,-1,6,5.5,0.55,C.wall,'wall'); addBox(9.4,1.25,-3,0.55,5.5,5,C.wall,'wall');
   addBox(0,3.2,-1,16,0.3,16,C.ceil,'wall');
   addBox(1.3,fy+0.4,-2.2,1.0,0.8,1.0,C.crate,'crate');
+  dressRetake(C,fy);
   return {start:{x:0,y:0,z:0,yaw:0,pitch:2},variants:[
-    {id:'side-alley',throw:{pos:[6.2,1.3,-2.4],vel:[-5.5,3.2,1.5]},pop:{pos:[3.2,1.4,-1.6]},peeks:[[4.2,fy,-2.0],[5.6,fy,-3.2],[3.6,fy,0.4]]},
-    {id:'rear-hall',throw:{pos:[0,1.3,8],vel:[0,3.5,-6]},pop:{pos:[0.3,1.4,4.6]},peeks:[[0,fy,5.3],[1.2,fy,5.3],[-1.2,fy,5.3]]},
-    {id:'front-swing',throw:{pos:[0,1.3,-12],vel:[0,4,6]},pop:{pos:[0,1.5,-7.6]},peeks:[[0,fy,-8.9],[-1.3,fy,-8.6],[1.3,fy,-8.6]]}
+    {id:'side-alley',throw:{pos:[6.2,1.3,-2.4],vel:[-5.5,3.2,1.5]},pop:{pos:[3.2,1.4,-1.6]},peeks:[[3.85,fy,-2.0],[5.5,fy,-2.6],[3.85,fy,0.35]]},
+    {id:'rear-hall',throw:{pos:[0,1.3,8],vel:[0,3.5,-6]},pop:{pos:[0.3,1.4,4.6]},peeks:[[0,fy,6.0],[1.15,fy,6.0],[-1.15,fy,6.0]]},
+    {id:'front-swing',throw:{pos:[0,1.3,-12],vel:[0,4,6]},pop:{pos:[0,1.5,-7.6]},peeks:[[0,fy,-9.55],[-1.2,fy,-9.55],[1.2,fy,-9.55]]}
   ]};
 }
 function buildOverwall(){
@@ -1136,10 +1321,11 @@ function buildOverwall(){
   addBox(-6.2,1.3,-1,0.55,5.5,14,C.wall,'wall'); addBox(6.2,1.3,-1,0.55,5.5,14,C.wall,'wall');
   addBox(0,1.3,6.2,13,5.5,0.55,C.wall,'wall'); addBox(0,1.3,-10.6,13,5.5,0.55,C.wall,'wall');
   addBox(0,3.2,-1,13,0.3,16,C.ceil,'wall');
+  dressOverwall(C,fy);
   return {start:{x:0,y:0,z:2.2,yaw:0,pitch:4},variants:[
-    {id:'over-top',throw:{pos:[0,1.6,-8],vel:[0,8,5]},pop:{pos:[0,3.35,-4.9]},peeks:[[0,fy+1.05,-5],[1.6,fy,-5.2],[-1.6,fy,-5.2]]},
-    {id:'through-window',throw:{pos:[0,1.5,-8],vel:[0,2.2,6]},pop:{pos:[0,fy+1.45,-5]},peeks:[[0,fy+1.05,-5],[1.55,fy,-4.85],[-1.55,fy,-4.85]]},
-    {id:'drop-over',throw:{pos:[0.8,2.4,-6.2],vel:[-0.6,3,4]},pop:{pos:[0.2,2.5,-4.6]},peeks:[[1.7,fy,-5.1],[-1.7,fy,-5.1],[0,fy+1.05,-5]]}
+    {id:'over-top',throw:{pos:[0,1.6,-8],vel:[0,8,5]},pop:{pos:[0,3.35,-4.9]},peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
+    {id:'through-window',throw:{pos:[0,1.5,-8],vel:[0,2.2,6]},pop:{pos:[0,fy+1.45,-5]},peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
+    {id:'drop-over',throw:{pos:[0.8,2.4,-6.2],vel:[-0.6,3,4]},pop:{pos:[0.2,2.5,-4.6]},peeks:[[1.25,fy,-5.6],[-1.25,fy,-5.6],[0,fy,-5.6]]}
   ]};
 }
 function buildMid(){
@@ -1154,11 +1340,12 @@ function buildMid(){
   addBox(0,2.7,-12.2,1.8,2.0,0.55,C.trim,'wall'); addBox(0,fy+0.4,-12.2,1.8,0.8,0.55,C.trim,'wall');
   addBox(-3.2,fy+0.35,-4.2,1.8,0.7,1.6,C.crate,'crate');
   addBox(0,3.3,-2,16,0.3,20,C.ceil,'wall');
+  dressMid(C,fy);
   const eye=1.1;
   return {start:{x:0,y:eye,z:5.4,yaw:0,pitch:-4},variants:[
-    {id:'mid-air',throw:{pos:[0,1.6,-11],vel:[0,6,6]},pop:{pos:[0,2.2,-3]},peeks:[[0,fy,-12.0],[-3.1,fy,-4.2],[3.0,fy,-8.4]]},
-    {id:'far-window',throw:{pos:[0,1.8,-13.5],vel:[0,4,7]},pop:{pos:[0,1.8,-7]},peeks:[[0,fy,-12.0],[1.4,fy,-11.5],[-1.4,fy,-11.5]]},
-    {id:'side-connector',throw:{pos:[6,1.4,-2],vel:[-7,4,0.5]},pop:{pos:[2.4,1.8,-1.5]},peeks:[[6.2,fy,-2],[-3.1,fy,-4.2],[0,fy,-12]]}
+    {id:'mid-air',throw:{pos:[0,1.6,-11],vel:[0,6,6]},pop:{pos:[0,2.2,-3]},peeks:[[0,fy,-12.7],[-4.15,fy,-5.2],[3.0,fy,-8.4]]},
+    {id:'far-window',throw:{pos:[0,1.8,-13.5],vel:[0,4,7]},pop:{pos:[0,1.8,-7]},peeks:[[0,fy,-12.7],[1.15,fy,-12.7],[-1.15,fy,-12.7]]},
+    {id:'side-connector',throw:{pos:[6,1.4,-2],vel:[-7,4,0.5]},pop:{pos:[2.4,1.8,-1.5]},peeks:[[5.5,fy,-2.2],[-4.15,fy,-5.2],[0,fy,-12.7]]}
   ]};
 }
 function buildRamp(){
@@ -1176,31 +1363,190 @@ function buildRamp(){
   addBox(0,1.4,-13.2,5,5.2,0.5,C.wall,'wall');
   addBox(-1.0,fy+1.45,-6.0,0.9,0.9,1.1,C.crate,'crate');
   addBox(0,3.4,-2,6,0.3,18,C.ceil,'wall');
+  dressRamp(C,fy);
   const y1=0.4,y2=0.6,y3=0.8,y4=1.0,y5=1.2;
   // step tops: fy+0.4, +0.6, +0.8, +1.0, landing fy+1.125 → eyes 0.4,0.6,0.8,1.0,1.125
   return {start:{x:0,y:0,z:5.4,yaw:0,pitch:6},path:[{x:0,y:0,z:5.4},{x:0,y:0.4,z:2.2},{x:0,y:0.6,z:0.2},{x:0,y:0.8,z:-1.8},{x:0,y:1.0,z:-3.8},{x:0,y:1.125,z:-5.6}],pathDur:2.6,variants:[
-    {id:'bounce-down',throw:{pos:[0,2.4,-10.5],vel:[0,2,7]},pop:{pos:[0,1.8,-5.2]},peeks:[[0,fy+1.125,-7.5],[-1.0,fy+1.125,-6.0],[0.9,fy+1.125,-6.4]]},
-    {id:'lip-pop',throw:{pos:[0,2.2,-9.5],vel:[0,3,5]},pop:{pos:[0,2.3,-6.6]},peeks:[[0,fy+1.125,-7.5],[1.0,fy+1.125,-6.2],[-1.0,fy+1.125,-6.2]]},
-    {id:'frame-bounce',throw:{pos:[1.1,2.3,-9],vel:[-2.2,3.5,4]},pop:{pos:[0.2,2.1,-7.2]},peeks:[[0,fy+1.125,-7.5],[-0.9,fy+1.125,-6.0],[0,fy+1.125,-10]]}
+    {id:'bounce-down',throw:{pos:[0,2.4,-10.5],vel:[0,2,7]},pop:{pos:[0,1.8,-5.2]},peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[1.05,fy+1.125,-6.2]]},
+    {id:'lip-pop',throw:{pos:[0,2.2,-9.5],vel:[0,3,5]},pop:{pos:[0,2.3,-6.6]},peeks:[[0,fy+1.125,-8.05],[1.05,fy+1.125,-6.2],[-1.05,fy+1.125,-6.2]]},
+    {id:'frame-bounce',throw:{pos:[1.1,2.3,-9],vel:[-2.2,3.5,4]},pop:{pos:[0.2,2.1,-7.2]},peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[0,fy+1.125,-8.9]]}
   ]};
 }
 
-function rayAABB(orig,dir,box,maxT){
+function rayAABBt(orig,dir,box,maxT){
   let tmin=0,tmax=maxT;
   for(const axis of ['x','y','z']){
     const o=orig[axis], d=dir[axis], mn=box.min[axis], mx=box.max[axis];
-    if(Math.abs(d)<1e-8){ if(o<mn||o>mx) return false; }
-    else { let t1=(mn-o)/d, t2=(mx-o)/d; if(t1>t2){ const k=t1; t1=t2; t2=k; } tmin=Math.max(tmin,t1); tmax=Math.min(tmax,t2); if(tmin>tmax) return false; }
+    if(Math.abs(d)<1e-8){ if(o<mn||o>mx) return null; }
+    else { let t1=(mn-o)/d, t2=(mx-o)/d; if(t1>t2){ const k=t1; t1=t2; t2=k; } tmin=Math.max(tmin,t1); tmax=Math.min(tmax,t2); if(tmin>tmax) return null; }
   }
-  return tmax>=tmin && tmin<=maxT;
+  return (tmax>=tmin && tmin<=maxT) ? tmin : null;
+}
+function rayAABB(orig,dir,box,maxT){ return rayAABBt(orig,dir,box,maxT)!=null; }
+function worldSolids(cam){
+  if(cam&&cam===rangeCam) return rangeWalls;
+  if(MODE==='range') return rangeWalls;
+  if(MODE==='flash') return scnWalls;
+  return arenaWalls;
+}
+function firstSolidHit(orig,dir,maxT,cam,skip){
+  let best=maxT, hit=null;
+  const walls=cam?worldSolids(cam):(MODE==='flash'?scnWalls:worldSolids());
+  for(const w of walls){
+    if(w.role==='decal') continue;
+    if(skip&&skip.has(w.role)) continue;
+    const t=rayAABBt(orig,dir,w,best);
+    if(t!=null && t>=0 && t<best){ best=t; hit=w; }
+  }
+  return hit?{t:best,wall:hit}:null;
+}
+function losOpen(a,b,slack){
+  const dir=b.clone?b.clone().sub(a):new THREE.Vector3(b.x-a.x,b.y-a.y,b.z-a.z);
+  const dist=dir.length();
+  if(dist<(slack||0.08)) return true;
+  dir.multiplyScalar(1/dist);
+  const hit=firstSolidHit(a,dir,dist-(slack||0.04),null,new Set(['decal','floor']));
+  return !hit;
 }
 function flashVisible(pos){
-  const orig=camEye.clone(), dir=pos.clone().sub(orig), dist=dir.length();
-  if(dist<0.08) return true;
-  dir.multiplyScalar(1/dist);
-  for(const w of scnWalls){ if(w.role==='floor') continue; if(rayAABB(orig,dir,w,dist-0.12)) return false; }
-  return true;
+  const orig=camEye.clone(), tgt=pos.clone?pos.clone():new THREE.Vector3(pos.x,pos.y,pos.z);
+  return losOpen(orig,tgt,0.12);
 }
+function pointInSolid(x,y,z,r){
+  for(const w of scnWalls){
+    if(w.role==='decal'||w.role==='floor') continue;
+    const cx=Math.max(w.min.x,Math.min(x,w.max.x)), cy=Math.max(w.min.y,Math.min(y,w.max.y)), cz=Math.max(w.min.z,Math.min(z,w.max.z));
+    const dx=x-cx, dy=y-cy, dz=z-cz;
+    if(dx*dx+dy*dy+dz*dz<(r*r)) return w;
+  }
+  return null;
+}
+function nudgeOutOfSolid(pos,r){
+  r=r||0.2;
+  for(let i=0;i<8;i++){
+    let moved=false;
+    for(const w of scnWalls){
+      if(w.role==='decal') continue;
+      const cx=Math.max(w.min.x,Math.min(pos.x,w.max.x)), cy=Math.max(w.min.y,Math.min(pos.y,w.max.y)), cz=Math.max(w.min.z,Math.min(pos.z,w.max.z));
+      const dx=pos.x-cx, dy=pos.y-cy, dz=pos.z-cz, d2=dx*dx+dy*dy+dz*dz;
+      if(d2>=r*r) continue;
+      let nx,ny,nz;
+      if(d2<1e-10){
+        const penX=Math.min(pos.x-w.min.x,w.max.x-pos.x), penY=Math.min(pos.y-w.min.y,w.max.y-pos.y), penZ=Math.min(pos.z-w.min.z,w.max.z-pos.z);
+        if(penX<=penY&&penX<=penZ){ nx=pos.x<(w.min.x+w.max.x)/2?-1:1; ny=0; nz=0; pos.x+=nx*(penX+r); }
+        else if(penY<=penZ){ ny=pos.y<(w.min.y+w.max.y)/2?-1:1; nx=0; nz=0; pos.y+=ny*(penY+r); }
+        else { nz=pos.z<(w.min.z+w.max.z)/2?-1:1; nx=0; ny=0; pos.z+=nz*(penZ+r); }
+      }else{
+        const d=Math.sqrt(d2); nx=dx/d; ny=dy/d; nz=dz/d; const pen=r-d; pos.x+=nx*pen; pos.y+=ny*pen; pos.z+=nz*pen;
+      }
+      moved=true;
+    }
+    if(!moved) break;
+  }
+  if(pos.y<FLOOR_Y+r) pos.y=FLOOR_Y+r;
+  return pos;
+}
+const HEAD_SAMPLES=[[0,0,0],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1],[0.7,0.7,0],[-0.7,0.7,0],[0.7,0,0.7],[-0.7,0,0.7]];
+function headVisibleFrom(eye,head,rad){
+  const V=eye.constructor||THREE.Vector3;
+  let ok=0, center=false;
+  const n=HEAD_SAMPLES.length;
+  for(let i=0;i<n;i++){
+    const s=HEAD_SAMPLES[i];
+    const p=new V(head.x+s[0]*rad, head.y+s[1]*rad, head.z+s[2]*rad);
+    const vis=losOpen(eye,p,0.03);
+    if(vis) ok++;
+    if(i===0) center=vis;
+  }
+  return {center, ok, n, frac:ok/n, visible:!!(center && ok>=Math.ceil(n*0.6))};
+}
+function peekEyes(meta){
+  const V=THREE.Vector3, list=[];
+  const s=(meta&&meta.start)||{x:0,y:0,z:0};
+  list.push(new V(s.x,s.y,s.z));
+  if(meta&&meta.path&&meta.path.length){
+    for(let u=0;u<=1.001;u+=0.12){ const p=pathAt(meta.path,Math.min(1,u)); list.push(new V(p.x,p.y,p.z)); }
+  }
+  return list;
+}
+function bodyStuck(x,y,z){
+  return !!(pointInSolid(x,y+0.55,z,BOT_BODY_R+0.03) || pointInSolid(x,y+BOT_HEAD_Y,z,BOT_HEAD_R+0.02));
+}
+function peekScore(p,eyes){
+  if(bodyStuck(p[0],p[1],p[2])) return {visible:false,frac:0,center:false,eye:null};
+  const head=new THREE.Vector3(p[0],p[1]+BOT_HEAD_Y,p[2]);
+  let best={visible:false,frac:0,center:false,eye:null};
+  for(const e of eyes){
+    const r=headVisibleFrom(e,head,BOT_HEAD_R);
+    if(r.frac>(best.frac||0) || (r.visible&&!best.visible)) best={...r,eye:e};
+    if(r.visible) return {...r,eye:e};
+  }
+  return best;
+}
+function adjustPeek(p,eyes){
+  const base=peekScore(p,eyes);
+  if(base.visible) return {pos:p.slice(), moved:0, ...base};
+  const dirs=[];
+  for(const e of eyes){ const dx=e.x-p[0], dz=e.z-p[2], len=Math.hypot(dx,dz)||1; dirs.push([dx/len,dz/len]); }
+  for(const a of [0,45,90,135,180,225,270,315]){ const r=a*Math.PI/180; dirs.push([Math.cos(r),Math.sin(r)]); }
+  let best={pos:p.slice(), moved:0, ...base};
+  for(const st of [0.15,0.3,0.45,0.6,0.8,1.0,1.25,1.5]){
+    for(const d of dirs){
+      const q=[p[0]+d[0]*st, p[1], p[2]+d[1]*st];
+      const sc=peekScore(q,eyes);
+      if(sc.frac>best.frac || (sc.visible&&!best.visible)) best={pos:q, moved:st, ...sc};
+      if(sc.visible) return {pos:q, moved:st, ...sc};
+    }
+  }
+  return best;
+}
+function fixPeekVisibility(meta){
+  if(!meta||!meta.variants) return meta;
+  const eyes=peekEyes(meta);
+  meta.peekFix=[];
+  for(const v of meta.variants){
+    if(!v.peeks) continue;
+    const next=[];
+    for(const p of v.peeks){
+      const r=adjustPeek(p,eyes);
+      next.push(r.pos);
+      meta.peekFix.push({variant:v.id, from:p, to:r.pos, moved:r.moved, visible:!!r.visible, frac:r.frac, center:!!r.center});
+    }
+    v.peeks=next;
+  }
+  return meta;
+}
+function peekVisibilityReport(meta){
+  meta=meta||scnMeta;
+  if(!meta) return [];
+  const eyes=peekEyes(meta);
+  const out=[];
+  for(const v of meta.variants||[]){
+    for(const p of v.peeks||[]){
+      const sc=peekScore(p,eyes);
+      out.push({scn:meta.id,variant:v.id,peek:p,visible:!!sc.visible,frac:sc.frac,center:!!sc.center,stuck:bodyStuck(p[0],p[1],p[2])});
+    }
+  }
+  return out;
+}
+function clearFlashToast(){ const el=$('#flashToast'); if(el){ el.className=''; el.textContent=''; } clearTimeout(flashToast._t); }
+function flashToast(kind){
+  const el=$('#flashToast'); if(!el) return;
+  const labels={dodged:'Dodged',partial:'Partial',full:'Flashed',covered:'Covered'};
+  el.textContent=labels[kind]||kind;
+  el.className='show '+(kind||'');
+  clearTimeout(flashToast._t);
+  flashToast._t=setTimeout(()=>{ el.classList.remove('show'); }, 1100);
+}
+function flashRunTitle(res,fl){
+  const f=fl||FL, pre=(f&&f.preset)==='cs2'?'CS2-style':'Valorant-style';
+  const by=f&&f.st&&f.st.by?Object.keys(f.st.by):[];
+  if((f&&f.mix) || (res&&res.scn==='mix')) return pre+' · Mix';
+  if(by.length>1) return pre+' · '+by.map(id=>(SCN[id]||{}).name||id).join(' · ');
+  const id=(res&&res.scn)||(f&&f.scn);
+  return pre+' · '+((SCN[id]||{}).name||id||'Flash');
+}
+
 function bounceBomb(pos,vel,r,dt){
   vel.y-=18*dt; pos.addScaledVector(vel,dt);
   if(pos.y<FLOOR_Y+r){ pos.y=FLOOR_Y+r; if(vel.y<0) vel.y*=-0.38; vel.x*=0.72; vel.z*=0.72; if(Math.abs(vel.y)<0.9) vel.y=0; }
@@ -1340,6 +1686,7 @@ function spawnFlash(now){
     bomb.fuse=d.cs2*1000;
     const th=v.throw||{pos:v.pop.pos,vel:[0,5,4]};
     bomb.pos.set(jitter(th.pos[0]),th.pos[1],jitter(th.pos[2]));
+    nudgeOutOfSolid(bomb.pos,0.2);
     bomb.vel.set(th.vel[0]*(0.94+Math.random()*0.12),th.vel[1]*(0.94+Math.random()*0.12),th.vel[2]*(0.94+Math.random()*0.12));
     flashCue('throw',1,bomb.pos);
   }else{
@@ -1347,6 +1694,7 @@ function spawnFlash(now){
     const p=(v.pop||v.throw).pos;
     bomb.pos.set(jitter(p[0]),p[1],jitter(p[2]));
     if(bomb.pos.y<FLOOR_Y+0.2) bomb.pos.y=FLOOR_Y+0.2;
+    nudgeOutOfSolid(bomb.pos,0.22);
     flashCue('pop',1,bomb.pos);
   }
   g.position.copy(bomb.pos); g.visible=true; g.scale.setScalar(FL.preset==='val'?0.3:1);
@@ -1389,6 +1737,7 @@ function detonateFlash(now){
   const dur=whiteOut(factor);
   flashCue('bang',factor,bomb.pos);
   let kind='full'; if(covered) kind='covered'; else if(factor<=0.02) kind='dodged'; else if(factor<0.7) kind='partial';
+  flashToast(kind);
   FL.st[kind]++;
   if(kind==='dodged') FL.st.react.push((bomb.firstSafe!=null?bomb.firstSafe:now)-bomb.appeared);
   noteScn(kind);
@@ -1431,7 +1780,7 @@ function flashFinish(){
   let mixLine='';
   if(FL.mix&&FL.st.by){ const parts=Object.keys(FL.st.by).map(id=>{ const b=FL.st.by[id]; return `${(SCN[id]||{}).name||id}: ${b.dodged+b.covered}/${b.n} safe`; }); if(parts.length) mixLine=`<div class="small muted" style="margin-top:8px">${parts.join(' · ')}</div>`; }
   const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
-  const title=`${FL.preset==='cs2'?'CS2-style':'Valorant-style'} · ${(SCN[res.scn]||{}).name||res.scn}`;
+  const title=flashRunTitle(res,FL);
   showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div>${mixLine}<div class="small muted">Click Start to go again</div>`);
   const last=$('#lastFlash');
   if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
@@ -1441,7 +1790,7 @@ function flashFinish(){
 }
 function abandonFlash(){
   if(FL){ FL=null; hideGrenade(); }
-  clearPeekBots(); clearWhiteOut(); clearHud();
+  clearPeekBots(); clearWhiteOut(); clearFlashToast(); clearHud();
   if(MODE==='flash'&&document.pointerLockElement===stage) document.exitPointerLock();
 }
 
@@ -1455,7 +1804,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

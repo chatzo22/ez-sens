@@ -139,10 +139,34 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 .overlay .resgrid .v{color:#e6edf5}
 .overlay .badge{color:#36f1a6;background:#36f1a622}
 .notice{max-width:560px;text-align:left;color:#d5dee8}
+
+#flashToast{position:absolute;left:50%;top:16%;transform:translate(-50%,-20px);font:800 34px/1 system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;opacity:0;pointer-events:none;z-index:8;text-shadow:0 2px 10px #000c;transition:opacity .18s linear,transform .18s ease-out}
+#flashToast.show{opacity:1;transform:translate(-50%,0)}
+#flashToast.dodged{color:#36f1a6}
+#flashToast.partial{color:#ffd36a}
+#flashToast.full{color:#f2f6ff}
+#flashToast.covered{color:#9eb0c4}
+.flash-modal{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;background:#05070ae8}
+.flash-modal.hide{display:none!important}
+.flash-modal .box{width:min(560px,100%);max-height:min(90vh,640px);overflow:auto;background:var(--panel,#141a22);border:1px solid var(--line,#2a3340);border-radius:16px;padding:28px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;box-shadow:0 12px 40px #0008}
+.flash-modal .box .big{font-size:30px;font-weight:900;color:var(--acc,#36f1a6);margin:0}
+.flash-modal .box .notice{margin:0;text-align:left}
+.flash-modal .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
 </style>
 <script>try{var _s=JSON.parse(localStorage.getItem('ezsens.v1')||'{}');if(_s.settings&&_s.settings.theme==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
 </head>
 <body>
+<div id="flashWarnModal" class="flash-modal hide" role="dialog" aria-modal="true" aria-labelledby="flashWarnTitle">
+  <div class="box">
+    <h2 class="big" id="flashWarnTitle">Photosensitivity notice</h2>
+    <p class="notice small">This drill uses a full-screen flash. If you are sensitive to flashing lights, choose <b>reduced intensity</b>. There is never more than one flash at a time, and every fade lasts at least 300 milliseconds. You can change this later in the Flash options.</p>
+    <div class="actions">
+      <button type="button" class="btn sm" id="flashWarnReduced">I understand — use reduced intensity</button>
+      <button type="button" class="btn alt sm" id="flashWarnFull">I understand — full intensity</button>
+    </div>
+  </div>
+</div>
 <header>
   <div class="logo">EZ<b>Sens</b><small>aim trainer · sens converter</small></div>
   <nav id="nav">
@@ -282,7 +306,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   </div>
   <div class="card opts" id="flashOpts">
     <div><label for="flashDiff">Difficulty</label><select id="flashDiff"><option value="easy">Easy (longer fuse)</option><option value="normal" selected>Normal</option><option value="hard">Hard (faster fuse)</option></select></div>
-    <div><label for="flashCount">Flashes</label><select id="flashCount"><option>5</option><option selected>8</option><option>10</option><option>15</option></select></div>
+    <div><label for="flashCount">Flashes</label><select id="flashCount"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>8</option><option>10</option><option>15</option></select></div>
     <div><label for="flashTvol">Ring volume <span class="muted" id="flashTvolLab">40%</span></label><input id="flashTvol" type="range" min="0" max="1" step="0.05" value="0.4"></div>
     <div>
       <label style="margin:0">Time of day</label>
@@ -440,7 +464,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
       <li><b>Appearance:</b> Dark (default) and Light themes the whole UI. The 3D arenas are unchanged. The Sensitivity Finder also has its own Sunrise, Day and Night environments (sky, fog, light and ground tint; Night is the original dark arena). Train and Flash share that arena. The Range look is unchanged. Both choices are remembered in this browser.</li>
-      <li><b>Flash dodge:</b> situational blockout maps with scripted throws, wall bounces, line-of-sight occlusion and post-flash peek bots. Some scenarios auto-walk you down a path (aim only); optional WASD movement is in the Flash options. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A tinnitus-style ring can be muted or turned down.</li>
+      <li><b>Flash dodge:</b> situational blockout maps with scripted throws, wall bounces, line-of-sight occlusion and post-flash peek bots. Some scenarios auto-walk you down a path (aim only); optional WASD movement is in the Flash options. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is a fixed full-screen dialog shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A short on-screen toast reports Dodged, Partial, Flashed or Covered after each pop. Shots are blocked by map geometry (no wall-bangs). A tinnitus-style ring can be muted or turned down. Maps use simple original trim, frames, crates and fixtures; peek bots stand in cover with a visible head.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>

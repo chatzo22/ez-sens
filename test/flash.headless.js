@@ -76,13 +76,23 @@ fs.mkdirSync(OUT,{recursive:true});
 
   // photosensitivity notice on first start
   await pg.click('#flashBtn');
-  const warn=await pg.evaluate(()=>document.querySelector('#ov').innerText.replace(/\s+/g,' '));
+  const warn=await pg.evaluate(()=>{
+    const modal=document.querySelector('#flashWarnModal');
+    const cs=modal?getComputedStyle(modal):{};
+    const red=document.querySelector('#flashWarnReduced');
+    const r=red?red.getBoundingClientRect():{top:0,bottom:0};
+    return {text:(modal||document.querySelector('#ov')).innerText.replace(/\s+/g,' '), hide:modal&&modal.classList.contains('hide'), pos:cs.position, btnTop:r.top, btnBottom:r.bottom, vh:window.innerHeight};
+  });
   console.log('warn', warn);
-  if(!/Photosensitivity/i.test(warn)) fail('expected a photosensitivity notice before the first run');
+  if(!/Photosensitivity/i.test(warn.text||'')) fail('expected a photosensitivity notice before the first run');
+  if(warn.hide) fail('photosensitivity modal should be visible');
+  if(warn.pos!=='fixed') fail('photosensitivity modal should be position:fixed');
+  if(!(warn.btnTop>=0 && warn.btnBottom<=warn.vh+1)) fail('photosensitivity buttons should stay in the viewport at this size: '+JSON.stringify(warn));
   await pg.click('#flashWarnReduced');
-  const afterWarn=await pg.evaluate(()=>({warned:EZ.S.flash.warned, reduced:EZ.S.flash.reduced, ov:document.querySelector('#ov').innerText.replace(/\s+/g,' '), ready:EZ.flash()&&EZ.flash().phase}));
+  const afterWarn=await pg.evaluate(()=>({warned:EZ.S.flash.warned, reduced:EZ.S.flash.reduced, ov:document.querySelector('#ov').innerText.replace(/\s+/g,' '), ready:EZ.flash()&&EZ.flash().phase, modalHide:document.querySelector('#flashWarnModal').classList.contains('hide')}));
   console.log('after warn', afterWarn);
   if(!afterWarn.warned||!afterWarn.reduced) fail('notice did not save reduced-intensity preference');
+  if(afterWarn.modalHide===false) fail('photosensitivity modal should close after accept');
   if(!/Click here to lock|CS2-style|Valorant-style/i.test(afterWarn.ov)) fail('expected ready overlay after notice: '+afterWarn.ov);
 
   // dodge: look away before detonation
@@ -282,7 +292,146 @@ fs.mkdirSync(OUT,{recursive:true});
   if(!(peek.flashed[0].dim>0.5 && peek.flashed[0].op<0.95)) fail('flashed peek bots should be dimmed / harder to see: '+JSON.stringify(peek.flashed[0]));
   if(!/Bots killed|Headshot|STK|TTK|Dodge/i.test(peek.ov)) fail('recap should include bot and dodge stats: '+peek.ov);
 
-  await pg.evaluate(()=>{ EZ.setTheme('dark'); EZ.setEnv('night'); EZ.abandonFlash(); });
+
+  // --- v1.5.0: wall occlusion, peek visibility, count, modal, toast, mix title ---
+  const ui15=await pg.evaluate(()=>{
+    const opts=[...document.querySelectorAll('#flashCount option')].map(o=>+o.value);
+    const modal=document.getElementById('flashWarnModal');
+    const cs=modal?getComputedStyle(modal):{};
+    return {opts, pos:cs.position, z:cs.zIndex};
+  });
+  console.log('flash ui 1.5', ui15);
+  if(!(ui15.opts.includes(1)&&ui15.opts.includes(4))) fail('flash count should offer 1–4, got '+JSON.stringify(ui15.opts));
+  if(ui15.pos!=='fixed') fail('photosensitivity modal should be position:fixed, got '+ui15.pos);
+
+  const countOk=await pg.evaluate(()=>{
+    EZ.S.flash.count=1; document.querySelector('#flashCount').value='1';
+    document.querySelector('#flashCount').dispatchEvent(new Event('change',{bubbles:true}));
+    return EZ.S.flash.count;
+  });
+  if(countOk!==1) fail('flash count should allow 1, got '+countOk);
+
+  const vis=await pg.evaluate(()=>{
+    const out=[];
+    for(const id of EZ.SCN_IDS){
+      EZ.setScn(id);
+      const rows=EZ.peekVisibilityReport()||[];
+      out.push(...rows);
+    }
+    return out;
+  });
+  const bad=vis.filter(r=>!r.visible||r.stuck||r.frac<0.6);
+  console.log('peek visibility', vis.length, 'bad', bad);
+  if(!vis.length) fail('peek visibility report was empty');
+  if(bad.length) fail('peek heads must be visible from the player path, failed: '+JSON.stringify(bad.slice(0,8)));
+
+  const wallbang=await pg.evaluate(()=>{
+    const V=EZ.camEye.constructor;
+    EZ.setEnv('day');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hold';
+    EZ.S.flash.wasd=false; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.camEye.set(0,0,3.2); EZ.view.yaw=0; EZ.view.pitch=0;
+    const fl=EZ.flash(); fl.busyUntil=1e15;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    EZ.detonateFlash(performance.now());
+    fl.peekUntil=performance.now()+8000;
+    const bots=EZ.peekBots()||[];
+    if(!bots.length) return {error:'no bots'};
+    const bot=bots[0];
+    bots.forEach(b=>{ if(b!==bot){ b.dead=true; b.group.visible=false; } });
+    const fy=EZ.FLOOR_Y+0.05;
+    bot.dead=false; bot.group.visible=true; bot.state.hp=100; bot.state.armor=bot.state.armor||0;
+    // plant the bot fully behind the choke wall
+    bot.group.position.set(3.1, fy, -8);
+    bot.group.updateMatrixWorld(true);
+    const head=bot.head.getWorldPosition(new V());
+    const eye=EZ.camEye.clone();
+    const p=head.clone().sub(eye);
+    const len=p.length();
+    EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+    EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+    const dir=p.normalize();
+    const block=EZ.firstSolidHit(eye,dir,len-0.01);
+    const shots0=fl.st.dotShots||0, hits0=fl.st.dotHits||0, hp0=bot.state.hp;
+    EZ.flashShoot();
+    const toast=(document.querySelector('#flashToast')||{}).textContent||'';
+    const st={shots:(fl.st.dotShots||0)-shots0, hits:(fl.st.dotHits||0)-hits0, hp:bot.state.hp, hp0, toast, dead:bot.dead, los:EZ.flashVisible(head), block:block&&{t:block.t,role:block.wall.role}};
+    // control: move the same bot into the open doorway and shoot again
+    bot.dead=false; bot.group.visible=true; bot.state.hp=100;
+    bot.group.position.set(0, fy, -2.62);
+    bot.group.updateMatrixWorld(true);
+    const head2=bot.head.getWorldPosition(new V());
+    const p2=head2.clone().sub(EZ.camEye); const len2=p2.length();
+    EZ.view.yaw=Math.atan2(-p2.x,-p2.z)*180/Math.PI;
+    EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p2.y/len2)))*180/Math.PI;
+    const hits1=fl.st.dotHits||0;
+    EZ.flashShoot();
+    st.openHits=(fl.st.dotHits||0)-hits1;
+    st.openHp=bot.state.hp;
+    EZ.abandonFlash();
+    return st;
+  });
+  console.log('wallbang', wallbang);
+  if(wallbang.error) fail(wallbang.error);
+  if(wallbang.shots<1) fail('wall-bang test did not fire');
+  if(wallbang.hits!==0 || wallbang.hp!==wallbang.hp0) fail('shot through a wall must not register: '+JSON.stringify(wallbang));
+  if(!(wallbang.openHits>=1 && wallbang.openHp<wallbang.hp0)) fail('a visible-head shot should still register: '+JSON.stringify(wallbang));
+
+  const toast=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hold';
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    const bomb=EZ.flash().bomb;
+    EZ.camEye.set(0,0,3.2);
+    bomb.pos.set(3,1,-8);
+    EZ.detonateFlash(performance.now());
+    const el=document.querySelector('#flashToast');
+    const t={text:el?el.textContent:'', cls:el?el.className:'', st:{...EZ.flash().st}};
+    EZ.abandonFlash();
+    return t;
+  });
+  console.log('toast', toast);
+  if(!/Covered/i.test(toast.text||'')) fail('covered flash should toast Covered: '+JSON.stringify(toast));
+  if(!(toast.cls||'').includes('show')) fail('flash toast should be visible after a pop');
+
+  const mixTitle=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.scn='mix'; EZ.S.flash.preset='val';
+    EZ.startFlash(); EZ.forceFlashRun();
+    const fl=EZ.flash(); fl.n=0; fl.i=0; fl.st.by={hall:{n:1,dodged:1,covered:0},entry:{n:1,dodged:0,covered:1}};
+    fl.mix=true; fl.scn='mix';
+    EZ.flashFinish();
+    return (document.querySelector('#ov')||{}).innerText||'';
+  });
+  console.log('mix title', mixTitle.replace(/\s+/g,' ').trim().slice(0,180));
+  if(!/Mix/i.test(mixTitle)) fail('mixed-run recap title should say Mix: '+mixTitle);
+
+  const pops=await pg.evaluate(()=>{
+    EZ.setScn('overwall');
+    EZ.S.flash.warned=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='overwall';
+    EZ.startFlash(); EZ.forceFlashRun();
+    const fl=EZ.flash(); fl.busyUntil=1e15;
+    const inside=[];
+    for(let i=0;i<24;i++){
+      EZ.spawnFlash(performance.now());
+      const p=fl.bomb.pos;
+      const walls=EZ.scnWalls().filter(w=>w.role!=='decal'&&w.role!=='floor');
+      const hit=walls.some(w=>{
+        const cx=Math.max(w.min.x,Math.min(p.x,w.max.x)), cy=Math.max(w.min.y,Math.min(p.y,w.max.y)), cz=Math.max(w.min.z,Math.min(p.z,w.max.z));
+        const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz; return dx*dx+dy*dy+dz*dz<0.18*0.18;
+      });
+      if(hit) inside.push(p.toArray());
+      fl.bomb=null;
+    }
+    EZ.abandonFlash();
+    return {inside:inside.length, sample:inside[0]};
+  });
+  console.log('pop jitter', pops);
+  if(pops.inside) fail('flash pops must not land inside solid walls: '+JSON.stringify(pops));
+
+  await pg.evaluate(()=>{ EZ.setTheme('dark'); EZ.setEnv('day'); EZ.abandonFlash(); });
   for(const id of ['hall','hold','anchor','entry','retake','overwall','mid','ramp']){
     await pg.evaluate(id=>{ EZ.S.flash.scn=id; EZ.setMode('flash','flash'); EZ.previewScn(); }, id);
     await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
@@ -327,6 +476,34 @@ fs.mkdirSync(OUT,{recursive:true});
   await stage.screenshot({path:path.join(OUT,'bot-flash.png')});
   console.log('shot', path.join(OUT,'bot-flash.png'));
   await pg.evaluate(()=>EZ.abandonFlash());
+
+  for(const [id,name] of [['hall','flash-bot-peek-hall'],['overwall','flash-bot-peek-overwall']]){
+    await pg.evaluate(id=>{
+      const V=EZ.camEye.constructor;
+      EZ.setEnv('day'); EZ.setTheme('dark');
+      EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn=id;
+      EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm'; EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+      EZ.setMode('flash','flash');
+      EZ.startFlash(); EZ.forceFlashRun();
+      EZ.previewScn();
+      EZ.spawnFlash(performance.now());
+      EZ.lookAway();
+      EZ.detonateFlash(performance.now());
+      const fl=EZ.flash(); if(fl) fl.peekUntil=performance.now()+8000;
+      const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead&&b.group.visible);
+      if(bots[0]){
+        const head=bots[0].head.getWorldPosition(new V());
+        const p=head.clone().sub(EZ.camEye); const len=p.length()||1;
+        EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+        EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+      }
+      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+    }, id);
+    await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    await stage.screenshot({path:path.join(OUT,name+'.png')});
+    console.log('shot', path.join(OUT,name+'.png'));
+    await pg.evaluate(()=>EZ.abandonFlash());
+  }
 
   if(net.length) fail('unexpected network: '+net.join(', '));
   if(errs.length) fail('console errors: '+errs.join(' | '));
