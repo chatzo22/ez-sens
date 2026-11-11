@@ -577,6 +577,161 @@ fs.mkdirSync(OUT,{recursive:true});
   if(!(crouch.low && crouch.low.hs>=1 && crouch.low.hp<crouch.low.hp0)) fail('shot at crouched head must register: '+JSON.stringify(crouch.low));
   if(crouch.high && crouch.high.hs>=1) fail('shot at standing head height should not be a head hit on a crouched bot: '+JSON.stringify(crouch.high));
 
+
+  // --- v1.6.1 stance mix: distribution, mixed groups, switch hitboxes, recap ---
+  const stanceUi=await pg.evaluate(()=>{
+    EZ.S.bot.stance='mix';
+    const els=[...document.querySelectorAll('[data-bot=stance]')];
+    els.forEach(el=>{ el.value='mix'; el.dispatchEvent(new Event('change',{bubbles:true})); });
+    return {n:els.length, values:els.map(el=>el.value), saved:EZ.S.bot.stance, ids:EZ.STANCE_IDS, mode:EZ.botStanceMode(), labels:els.map(el=>[...el.options].map(o=>o.value+':'+o.textContent.trim()))};
+  });
+  console.log('stance ui', stanceUi);
+  if(stanceUi.n<3) fail('Bot stance select should appear on Flash, Train and Range, got '+stanceUi.n);
+  if(stanceUi.saved!=='mix' || stanceUi.mode!=='mix') fail('Bot stance should default to Mix: '+JSON.stringify(stanceUi));
+  if(!stanceUi.labels.every(l=>l.join().includes('mix')&&l.join().includes('stand')&&l.join().includes('crouch')&&l.join().includes('switch'))) fail('stance options missing: '+JSON.stringify(stanceUi.labels));
+
+  const dist=await pg.evaluate(()=>{
+    const rng=EZ.makeRng(20261116);
+    const counts={stand:0,crouch:0,switch:0};
+    const n=2000;
+    for(let i=0;i<n;i++) counts[EZ.pickStanceKind('mix', rng)]++;
+    const groups=[]; let bad=0;
+    const rng2=EZ.makeRng(42);
+    for(let nB of [2,3]){
+      for(let i=0;i<250;i++){
+        const kinds=EZ.assignGroupStances(nB,'mix',rng2);
+        const hasStand=kinds.some(k=>k==='stand');
+        const hasLow=kinds.some(k=>k==='crouch'||k==='switch');
+        if(!hasStand||!hasLow){ bad++; if(groups.length<6) groups.push({nB,kinds}); }
+      }
+    }
+    const only={};
+    for(const mode of ['stand','crouch','switch']){
+      only[mode]=Array.from({length:40},()=>EZ.pickStanceKind(mode, EZ.makeRng(1))).every(k=>k===mode);
+    }
+    return {n, counts, frac:{stand:counts.stand/n, crouch:counts.crouch/n, switch:counts.switch/n}, bad, groups, only};
+  });
+  console.log('stance dist', dist);
+  if(Math.abs(dist.frac.stand-0.40)>0.08) fail('stand share should be ~40%: '+JSON.stringify(dist.frac));
+  if(Math.abs(dist.frac.crouch-0.30)>0.08) fail('crouch share should be ~30%: '+JSON.stringify(dist.frac));
+  if(Math.abs(dist.frac.switch-0.30)>0.08) fail('switch share should be ~30%: '+JSON.stringify(dist.frac));
+  if(dist.bad) fail('mixed groups of 2–3 must include a standing bot and a crouched or switching bot: '+JSON.stringify(dist.groups));
+  if(!dist.only.stand||!dist.only.crouch||!dist.only.switch) fail('forced stance modes should stay pure: '+JSON.stringify(dist.only));
+
+  const spawned=await pg.evaluate(()=>{
+    EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot';
+    EZ.S.flash.warned=true; EZ.S.flash.rand=true; EZ.S.flash.preset='val'; EZ.S.flash.diff='normal'; EZ.S.flash.scn='hold'; EZ.S.flash.wasd=false;
+    const tally={stand:0,crouch:0,switch:0,groups:0,badGroups:0,samples:[]};
+    for(let seed=100; seed<160; seed++){
+      EZ.startFlash(); EZ.forceFlashRun();
+      EZ.flashSeed(seed);
+      const fl=EZ.flash(); fl.rand=true; fl.busyUntil=1e15;
+      EZ.spawnFlash(performance.now()); EZ.lookAway(); EZ.detonateFlash(performance.now());
+      const bots=(EZ.peekBots()||[]).filter(b=>b&&b.group.visible);
+      const kinds=bots.map(b=>b.stanceKind);
+      kinds.forEach(k=>{ if(tally[k]!=null) tally[k]++; });
+      if(bots.length>=2){
+        tally.groups++;
+        const hasStand=kinds.some(k=>k==='stand');
+        const hasLow=kinds.some(k=>k==='crouch'||k==='switch');
+        if(!hasStand||!hasLow){ tally.badGroups++; if(tally.samples.length<5) tally.samples.push(kinds); }
+      }
+      EZ.abandonFlash();
+    }
+    const tot=tally.stand+tally.crouch+tally.switch;
+    tally.tot=tot;
+    tally.frac=tot?{stand:tally.stand/tot,crouch:tally.crouch/tot,switch:tally.switch/tot}:{};
+    return tally;
+  });
+  console.log('spawned stances', spawned);
+  if(spawned.tot<40) fail('expected a useful sample of spawned stances, got '+spawned.tot);
+  if(Math.abs(spawned.frac.stand-0.40)>0.18) fail('spawned stand share off: '+JSON.stringify(spawned));
+  if(spawned.frac.crouch<0.10 || spawned.frac.switch<0.08) fail('spawned mix should include crouch and switch: '+JSON.stringify(spawned));
+  if(spawned.badGroups) fail('spawned mixed groups must include both stances: '+JSON.stringify(spawned));
+
+  const sw=await pg.evaluate(()=>{
+    const V=EZ.camEye.constructor;
+    EZ.setEnv('day');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hold';
+    EZ.S.flash.rand=false; EZ.S.flash.wasd=false;
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs'; EZ.S.bot.stance='switch';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.camEye.set(0,0,3.2); EZ.view.yaw=0; EZ.view.pitch=0;
+    const fl=EZ.flash(); fl.busyUntil=1e15;
+    EZ.spawnFlash(performance.now()); EZ.lookAway(); EZ.detonateFlash(performance.now());
+    fl.peekUntil=performance.now()+20000;
+    const bots=EZ.peekBots()||[];
+    if(!bots.length) return {error:'no bots'};
+    const bot=bots[0];
+    bots.forEach(b=>{ if(b!==bot){ b.dead=true; b.group.visible=false; } });
+    bot.move=null; bot.dead=false; bot.group.visible=true;
+    const fy=EZ.FLOOR_Y+0.05;
+    bot.group.position.set(0, fy, -2.62);
+    const aimAt=asyncY=>{
+      const head=bot.head.getWorldPosition(new V());
+      // override aim y if provided
+      const target=head.clone(); if(asyncY!=null) target.y=asyncY;
+      const p=target.clone().sub(EZ.camEye); const len=p.length()||1;
+      EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+      EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+      EZ.applyCams();
+    };
+    const shot=()=>{
+      EZ.armBot(bot); bot.dead=false; bot.group.visible=true;
+      const hp0=bot.state.hp, hs0=fl.st.hs||0, kills0=fl.st.botKills||0;
+      const hy=bot.head.getWorldPosition(new V()).y;
+      aimAt();
+      EZ.flashShoot();
+      return {hy:+hy.toFixed(3), hs:(fl.st.hs||0)-hs0, hp:bot.state.hp, hp0, killed:(fl.st.botKills||0)-kills0, crouch:+(bot.crouch||0).toFixed(3)};
+    };
+    EZ.applyCrouch(bot,0); bot.crouchWant=0;
+    const standY=bot.head.getWorldPosition(new V()).y;
+    const standHit=shot();
+    EZ.armBot(bot);
+    EZ.applyCrouch(bot,1); bot.crouchWant=1;
+    const crouchY=bot.head.getWorldPosition(new V()).y;
+    // standing-height shot on crouched bot should miss the head
+    bot.dead=false; bot.group.visible=true;
+    const hpH=bot.state.hp, hsH=fl.st.hs||0;
+    aimAt(standY);
+    EZ.flashShoot();
+    const highOnCrouch={hs:(fl.st.hs||0)-hsH, hp:bot.state.hp, hp0:hpH};
+    const crouchHit=shot();
+    // stand back up: crouched-height shot should miss, standing should hit
+    EZ.armBot(bot);
+    EZ.applyCrouch(bot,0); bot.crouchWant=0;
+    bot.dead=false; bot.group.visible=true;
+    const hpL=bot.state.hp, hsL=fl.st.hs||0;
+    aimAt(crouchY);
+    EZ.flashShoot();
+    const lowOnStand={hs:(fl.st.hs||0)-hsL, hp:bot.state.hp, hp0:hpL};
+    const standAgain=shot();
+    EZ.abandonFlash();
+    return {standY:+standY.toFixed(3), crouchY:+crouchY.toFixed(3), drop:+(standY-crouchY).toFixed(3), standHit, highOnCrouch, crouchHit, lowOnStand, standAgain};
+  });
+  console.log('stance switch hitbox', sw);
+  if(sw.error) fail('switch hitbox: '+sw.error);
+  if(!(sw.drop>=0.4)) fail('switch should lower the head when crouched, drop='+sw.drop);
+  if(!(sw.standHit && sw.standHit.hs>=1 && sw.standHit.hp<sw.standHit.hp0)) fail('standing headshot must register: '+JSON.stringify(sw.standHit));
+  if(sw.highOnCrouch && sw.highOnCrouch.hs>=1) fail('standing-height shot must miss a crouched bot: '+JSON.stringify(sw.highOnCrouch));
+  if(!(sw.crouchHit && sw.crouchHit.hs>=1 && sw.crouchHit.hp<sw.crouchHit.hp0)) fail('crouched headshot must register: '+JSON.stringify(sw.crouchHit));
+  if(sw.lowOnStand && sw.lowOnStand.hs>=1) fail('crouched-height shot must miss a standing bot: '+JSON.stringify(sw.lowOnStand));
+  if(!(sw.standAgain && sw.standAgain.hs>=1 && sw.standAgain.hp<sw.standAgain.hp0)) fail('standing headshot after standing back up must register: '+JSON.stringify(sw.standAgain));
+
+  const recapStance=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.scn='hold'; EZ.S.flash.preset='val';
+    EZ.startFlash(); EZ.forceFlashRun();
+    const fl=EZ.flash(); fl.n=0; fl.i=0; fl.st.standKills=2; fl.st.crouchKills=1; fl.st.moveKills=1; fl.st.botKills=3; fl.st.dots=3;
+    EZ.flashFinish();
+    return (document.querySelector('#ov')||{}).innerText||'';
+  });
+  console.log('recap stance', recapStance.replace(/\s+/g,' ').trim().slice(0,240));
+  if(!/Standing kills/i.test(recapStance) || !/Crouch kills/i.test(recapStance)) fail('recap should list standing vs crouch kills: '+recapStance);
+  // restore mix for later QA stills
+  await pg.evaluate(()=>{ EZ.S.bot.stance='mix'; });
+
+
   await pg.evaluate(()=>{ EZ.setTheme('dark'); EZ.setEnv('day'); EZ.abandonFlash(); });
   for(const id of ['hall','hold','anchor','entry','retake','overwall','mid','ramp']){
     await pg.evaluate(id=>{ EZ.S.flash.scn=id; EZ.setMode('flash','flash'); EZ.previewScn(); }, id);
@@ -714,6 +869,48 @@ fs.mkdirSync(OUT,{recursive:true});
   await stage.screenshot({path:path.join(OUT,'flash-crouch.png')});
   console.log('shot', path.join(OUT,'flash-crouch.png'));
   await pg.evaluate(()=>EZ.abandonFlash());
+
+  await pg.evaluate(()=>{
+    const V=EZ.camEye.constructor;
+    EZ.setEnv('day'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='overwall';
+    EZ.S.flash.rand=false; EZ.S.bot.stance='mix';
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm'; EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.previewScn();
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    EZ.detonateFlash(performance.now());
+    const fl=EZ.flash(); if(fl) fl.peekUntil=performance.now()+8000;
+    const fy=EZ.FLOOR_Y+0.05;
+    const live=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    // keep / make two bots in the open: standing left, crouched right
+    while(live.length<2){ const b=EZ.makeBot(); live.push(b); EZ.peekBots().push(b); }
+    const a=live[0], b=live[1];
+    live.slice(2).forEach(x=>{ x.dead=true; x.group.visible=false; });
+    [a,b].forEach((bot,i)=>{
+      bot.dead=false; bot.group.visible=true; bot.move=null; bot.dim=0; EZ.paintBot(bot,0); EZ.armBot(bot);
+      bot.group.position.set(i===0?-1.25:1.25, fy, -6.2);
+      if(i===0){ bot.crouchWant=0; EZ.applyCrouch(bot,0); }
+      else { bot.crouchWant=1; EZ.applyCrouch(bot,1); }
+      bot.group.updateMatrixWorld(true);
+    });
+    const mid=new V((a.head.getWorldPosition(new V()).x+b.head.getWorldPosition(new V()).x)/2,
+                    (a.head.getWorldPosition(new V()).y+b.head.getWorldPosition(new V()).y)/2,
+                    (a.head.getWorldPosition(new V()).z+b.head.getWorldPosition(new V()).z)/2);
+    const p=mid.clone().sub(EZ.camEye); const len=p.length()||1;
+    EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+    EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+    EZ.applyCams();
+    const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+    const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+  });
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await stage.screenshot({path:path.join(OUT,'flash-stance-mix.png')});
+  console.log('shot', path.join(OUT,'flash-stance-mix.png'));
+  await pg.evaluate(()=>EZ.abandonFlash());
+
 
   if(net.length) fail('unexpected network: '+net.join(', '));
   if(errs.length) fail('console errors: '+errs.join(' | '));

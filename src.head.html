@@ -263,6 +263,14 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
           <option value="cs2arm">CS2, armor (AK-47, kevlar + helmet)</option>
         </select>
       </div>
+      <div><label for="trainStance">Bot stance</label>
+        <select data-bot="stance" id="trainStance">
+          <option value="mix" selected>Mix (default)</option>
+          <option value="stand">Standing only</option>
+          <option value="crouch">Crouch only</option>
+          <option value="switch">Switching only</option>
+        </select>
+      </div>
       <div><label>Bot body</label><input type="color" data-bot="body" value="#f4f6f8"></div>
       <div><label>Bot head</label><input type="color" data-bot="head" value="#00e8ff"></div>
     </div>
@@ -287,7 +295,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 
 <section class="tab" id="t-flash">
   <h2>Flash dodge</h2>
-  <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) push out from cover — some strafe, shoulder-peek or crouch — and you shoot them before they retreat. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
+  <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) push out from cover — some strafe or shoulder-peek, and a mix stay standing, crouch, or switch stance mid-push — and you shoot them before they retreat. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
   <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
   <div class="drills" id="flashScn">
     <button data-scn="hall" class="on"><b>Long-doors-style hallway</b><span>Auto-walk a corridor. A flash comes around the far corner or off the wall.</span><em class="best" data-sbest="hall"></em></button>
@@ -330,6 +338,14 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
           <option value="valarm">Valorant, armor (Vandal, heavy shields)</option>
           <option value="cs2">CS2, no armor (AK-47)</option>
           <option value="cs2arm">CS2, armor (AK-47, kevlar + helmet)</option>
+        </select>
+      </div>
+      <div><label for="flashStance">Bot stance</label>
+        <select data-bot="stance" id="flashStance">
+          <option value="mix" selected>Mix (default)</option>
+          <option value="stand">Standing only</option>
+          <option value="crouch">Crouch only</option>
+          <option value="switch">Switching only</option>
         </select>
       </div>
       <div><label>Bot body</label><input type="color" data-bot="body" value="#f4f6f8"></div>
@@ -447,7 +463,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
-      <li><b>Flash dodge:</b> play a situation (hallway walk, choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe, shoulder-peek or crouch; hitboxes follow the crouch). A blind makes them harder to see. Recap tracks dodge %, bots killed, moving and crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
+      <li><b>Flash dodge:</b> play a situation (hallway walk, choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe or shoulder-peek; a Mix stance option — the default — keeps about 40% standing, 30% crouched and 30% switching mid-push, and groups of two or three always include both a standing bot and a crouched or switching one; Standing only, Crouch only and Switching only are also available). Hitboxes follow stance changes. The same Bot stance option applies to Train and Range bot targets. A blind makes them harder to see. Recap tracks dodge %, bots killed, moving kills, standing vs. crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
     </ul>
     <h3>Bots and damage models</h3>
     <ul class="small">

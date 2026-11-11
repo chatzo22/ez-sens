@@ -20,9 +20,11 @@ S.flash.tVol=Math.max(0,Math.min(1,S.flash.tVol==null?0.4:+S.flash.tVol));
 if(!['hall','hold','anchor','entry','retake','overwall','mid','ramp','mix'].includes(S.flash.scn)) S.flash.scn='hall';
 S.flash.wasd=!!S.flash.wasd;
 S.flash.rand=S.flash.rand!==false;
-S.bot=Object.assign({shape:'dot',dmg:'hs',body:'#f4f6f8',head:'#00e8ff'},S.bot||{});
+S.bot=Object.assign({shape:'dot',dmg:'hs',body:'#f4f6f8',head:'#00e8ff',stance:'mix'},S.bot||{});
 if(S.bot.shape!=='bot') S.bot.shape='dot';
 if(!M.DMG_IDS.includes(S.bot.dmg)) S.bot.dmg='hs';
+const STANCE_IDS=['mix','stand','crouch','switch'];
+if(!STANCE_IDS.includes(S.bot.stance)) S.bot.stance='mix';
 if(!/^#[0-9a-fA-F]{6}$/.test(S.bot.body||'')) S.bot.body='#f4f6f8';
 if(!/^#[0-9a-fA-F]{6}$/.test(S.bot.head||'')) S.bot.head='#00e8ff';
 store.rangeHistory=store.rangeHistory||[]; store.flashHistory=store.flashHistory||[];
@@ -316,6 +318,66 @@ function applyCrouch(bot,t){
   bot.legLocalY=-BOT_BODY_H/2+BOT_LEG_FROM_FEET;
   bot.group.updateMatrixWorld(true);
 }
+function botStanceMode(){ return STANCE_IDS.includes(S.bot&&S.bot.stance)?S.bot.stance:'mix'; }
+function stanceUnit(rng){ return rng?+rng():((FL&&typeof frand==='function')?frand():Math.random()); }
+function pickStanceKind(mode,rng){
+  mode=STANCE_IDS.includes(mode)?mode:botStanceMode();
+  if(mode==='stand'||mode==='crouch'||mode==='switch') return mode;
+  const r=stanceUnit(rng);
+  if(r<0.40) return 'stand';
+  if(r<0.70) return 'crouch';
+  return 'switch';
+}
+function assignGroupStances(n,mode,rng){
+  n=Math.max(0,+n||0)|0; mode=STANCE_IDS.includes(mode)?mode:botStanceMode();
+  const kinds=[]; for(let i=0;i<n;i++) kinds.push(pickStanceKind(mode,rng));
+  if(mode==='mix'&&n>=2){
+    const hasStand=kinds.some(k=>k==='stand');
+    const hasLow=kinds.some(k=>k==='crouch'||k==='switch');
+    if(!hasStand) kinds[0]='stand';
+    if(!hasLow){ const j=kinds[0]==='stand'&&n>1?1:0; kinds[j]=(stanceUnit(rng)<0.5)?'switch':'crouch'; }
+  }
+  return kinds;
+}
+function planStanceToggles(kind,now,delay,windowMs,rng,opts){
+  kind=kind||'stand'; now=+now||0; delay=+delay||0;
+  const startWant=kind==='crouch'?1:kind==='stand'?0:(stanceUnit(rng)<0.5?1:0);
+  const times=[];
+  if(kind==='switch'){
+    const t0=now+delay, end=now+(+windowMs||1100)-50;
+    let t=t0+(180+stanceUnit(rng)*260), want=startWant?0:1;
+    const max=(opts&&opts.max)||4;
+    while(t<end&&times.length<max){ times.push({at:t,want}); want=want?0:1; t+=200+stanceUnit(rng)*240; }
+  }
+  return {kind,startWant,times,auto:!!(opts&&opts.auto)};
+}
+function applyBotStance(bot,plan,now){
+  if(!bot||!plan) return;
+  bot.stanceKind=plan.kind;
+  bot.stancePlan=(plan.times||[]).slice();
+  bot.stanceAuto=!!plan.auto;
+  bot.crouchWant=plan.startWant;
+  const last=bot.stancePlan.length?bot.stancePlan[bot.stancePlan.length-1].at:now;
+  bot.nextStanceAt=(last||now||0)+250;
+  applyCrouch(bot, plan.startWant);
+}
+function stepBotStance(bot,now){
+  if(!bot||bot.dead) return;
+  const plan=bot.stancePlan;
+  if(plan&&plan.length){
+    while(plan.length&&now>=plan[0].at){ bot.crouchWant=plan.shift().want; }
+  }
+  if(bot.stanceKind==='switch'&&bot.stanceAuto&&(!plan||!plan.length)&&now>=(bot.nextStanceAt||0)){
+    bot.crouchWant=(bot.crouchWant>=0.5)?0:1;
+    bot.nextStanceAt=now+220+((FL&&typeof frange==='function')?frange(0,240):Math.random()*240);
+  }
+}
+function stepCrouch(bot,dt){
+  if(!bot||bot.crouchWant==null) return;
+  const cur=bot.crouch||0, want=+bot.crouchWant;
+  if(Math.abs(want-cur)>0.001) applyCrouch(bot, cur+(want-cur)*Math.min(1,dt*8));
+  else if(cur!==want) applyCrouch(bot,want);
+}
 function hideBot(bot){ if(bot){ bot.group.visible=false; bot.dead=true; } }
 function disposeBot(bot){ if(!bot)return; bot.scene.remove(bot.group); bot.bodyMat.dispose(); bot.headMat.dispose(); }
 const _ndc=new THREE.Vector2(0,0), _rc=new THREE.Raycaster();
@@ -344,6 +406,7 @@ function syncBotSettings(el){
   const k=el.dataset.bot, v=el.value;
   if(k==='shape') S.bot.shape=v==='bot'?'bot':'dot';
   else if(k==='dmg') S.bot.dmg=M.DMG_IDS.includes(v)?v:'hs';
+  else if(k==='stance') S.bot.stance=STANCE_IDS.includes(v)?v:'mix';
   else if(k==='body'||k==='head'){ const h=hexOk(v); if(h) S.bot[k]=h; }
   save(); syncBotUI();
   if(trainBot) paintBot(trainBot,0);
@@ -357,6 +420,7 @@ function syncBotUI(){
     const k=el.dataset.bot;
     if(k==='shape') el.value=S.bot.shape||'dot';
     else if(k==='dmg') el.value=S.bot.dmg||'hs';
+    else if(k==='stance') el.value=STANCE_IDS.includes(S.bot.stance)?S.bot.stance:'mix';
     else if(k==='body'||k==='head') el.value=hexOk(S.bot[k])||(k==='head'?'#00e8ff':'#f4f6f8');
   });
 }
@@ -387,7 +451,7 @@ function dirFrom(yaw,pitch){const y=yaw*D2R,p=pitch*D2R;return new THREE.Vector3
 const wrap=a=>((a+540)%360)-180;
 function angErr(ty,tp){ const a=dirFrom(view.yaw,view.pitch),b=dirFrom(ty,tp); const ang=Math.acos(Math.min(1,a.dot(b)))/D2R;
   return {ang,dx:wrap(ty-view.yaw)*Math.cos(tp*D2R),dy:tp-view.pitch};}
-function placeTarget(ty,tp,radDeg){ tp=M.clampPitch(tp,DIST,radDeg,FLOOR_Y,CEIL_Y); const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(M.targetRadius(DIST,radDeg)); tgt.visible=true; if(useBots()&&MODE!=='range'&&MODE!=='flash'){ const b=ensureTrainBot(); if(R&&R.t&&R.t._armed!==R.t){ armBot(b); paintBot(b,0); R.t._armed=R.t; R.t.nShots=0; } if(R&&R.tr&&!R.t){ if(R.tr._armed!==R.tr){ armBot(b); paintBot(b,0); R.tr._armed=R.tr; } } let sc=Math.max(0.12,tgt.scale.x/BOT_HEAD_R); const maxS=(tgt.position.y-FLOOR_Y-0.02)/BOT_HEAD_Y; if(maxS>0.2) sc=Math.min(sc,maxS); scaleBot(b,sc); placeBotHead(b,tgt.position.x,tgt.position.y,tgt.position.z); b.group.visible=true; tgt.visible=false; } else if(trainBot) hideBot(trainBot); return tp;}
+function placeTarget(ty,tp,radDeg){ tp=M.clampPitch(tp,DIST,radDeg,FLOOR_Y,CEIL_Y); const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(M.targetRadius(DIST,radDeg)); tgt.visible=true; if(useBots()&&MODE!=='range'&&MODE!=='flash'){ const b=ensureTrainBot(); if(R&&R.t&&R.t._armed!==R.t){ armBot(b); paintBot(b,0); R.t._armed=R.t; R.t.nShots=0; applyBotStance(b, planStanceToggles(pickStanceKind(), performance.now(), 0, 4000, null, {auto:true,max:8}), performance.now()); } if(R&&R.tr&&!R.t){ if(R.tr._armed!==R.tr){ armBot(b); paintBot(b,0); R.tr._armed=R.tr; applyBotStance(b, planStanceToggles(pickStanceKind(), performance.now(), 0, (R.segments[R.si]&&R.segments[R.si].dur||8)*1000+800, null, {auto:true,max:12}), performance.now()); } } let sc=Math.max(0.12,tgt.scale.x/BOT_HEAD_R); const maxS=(tgt.position.y-FLOOR_Y-0.02)/BOT_HEAD_Y; if(maxS>0.2) sc=Math.min(sc,maxS); scaleBot(b,sc); placeBotHead(b,tgt.position.x,tgt.position.y,tgt.position.z); b.group.visible=true; tgt.visible=false; } else if(trainBot) hideBot(trainBot); return tp;}
 
 /* ---------- sound ---------- */
 let actx=null;
@@ -479,6 +543,7 @@ function shoot(){ if(!R||R.phase!=='run')return; const s=R.segments[R.si]; if(s.
 function flash(){tgtMat.emissive.setHex(0xffffff);setTimeout(()=>tgtMat.emissive.setHex(tgtEmHex),60);}
 function nextSeg(){ R.si++; tgt.visible=false; if(trainBot) hideBot(trainBot); if(R.si>=R.segments.length) return finish(); startSeg(); }
 function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const s=R.segments[R.si]; if(!s)return;
+  if(useBots()&&trainBot&&!trainBot.dead){ stepBotStance(trainBot,now); stepCrouch(trainBot,dt); }
   if(s.type==='track'){ const T=R.tr; T.el+=dt;
     if(T.el>=T.next){T.next=T.el+rnd(0.5,1.4); const sp=rnd(22,62), th=Math.random()<0.75?(Math.random()<0.5?0:Math.PI)+rnd(-0.35,0.35):rnd(0,Math.PI*2); T.ty=Math.cos(th)*sp; T.tp=Math.sin(th)*sp*0.5;}
     const k=1-Math.exp(-dt*6); T.vy+=(T.ty-T.vy)*k; T.vp+=(T.tp-T.vp)*k; T.yaw+=T.vy*dt; T.pitch+=T.vp*dt;
@@ -757,10 +822,23 @@ function rTgtHead(t){ if(t.bot){ const v=new THREE.Vector3(); t.bot.head.getWorl
 function placeRT(t){ const r=S.range.size; let tries=0,x,y;
   do{ x=rnd(-RB.x+r,RB.x-r); y=rnd(RB.yMin+r,RB.yMax-r); tries++; } while(tries<40&&rTargets.some(o=>o!==t&&Math.hypot((o.x??rTgtHead(o).x)-x,(o.y0??rTgtHead(o).y)-y)<r*3.5));
   t.x=x; t.y0=y; t.vx=(Math.random()<0.5?-1:1)*S.range.speed; t.ph=rnd(0,6.28); t.born=performance.now(); t.fired=0;
-  if(t.bot){ scaleBot(t.bot,Math.max(0.15,r/BOT_HEAD_R)); placeBotHead(t.bot,x,y,RB.z+r); armBot(t.bot); paintBot(t.bot,0); t.mesh=t.bot.group; }
+  if(t.bot){ scaleBot(t.bot,Math.max(0.15,r/BOT_HEAD_R));
+    if(!t.bot.stanceKind){
+      const others=rTargets.filter(o=>o!==t&&o.bot&&!o.bot.dead).map(o=>o.bot.stanceKind).filter(Boolean);
+      let kind=pickStanceKind();
+      if(botStanceMode()==='mix'&&others.length){
+        const hasStand=others.some(k=>k==='stand'), hasLow=others.some(k=>k==='crouch'||k==='switch');
+        if(!hasStand) kind='stand'; else if(!hasLow) kind=(Math.random()<0.5)?'switch':'crouch';
+      }
+      applyBotStance(t.bot, planStanceToggles(kind, performance.now(), 0, 12000, null, {auto:true,max:16}), performance.now());
+    }
+    placeBotHead(t.bot,x,y,RB.z+r); t.footY=t.bot.group.position.y; armBot(t.bot); paintBot(t.bot,0); t.mesh=t.bot.group; }
   else { t.mesh.scale.setScalar(r); t.mesh.position.set(x,y,RB.z+r); }
 }
-function layoutTargets(){ clearTargets(); for(let i=0;i<S.range.count;i++){ let t; if(useBots()){ const bot=makeBot(rscene); t={bot,mesh:bot.group,isBot:true}; } else { t={mesh:new THREE.Mesh(rTgtGeo,rTgtMat())}; rscene.add(t.mesh); } rTargets.push(t); placeRT(t); } }
+function layoutTargets(){ clearTargets(); for(let i=0;i<S.range.count;i++){ let t; if(useBots()){ const bot=makeBot(rscene); t={bot,mesh:bot.group,isBot:true}; } else { t={mesh:new THREE.Mesh(rTgtGeo,rTgtMat())}; rscene.add(t.mesh); } rTargets.push(t); }
+  const bots=rTargets.filter(t=>t.bot); const kinds=assignGroupStances(bots.length);
+  bots.forEach((t,i)=>applyBotStance(t.bot, planStanceToggles(kinds[i], performance.now(), 0, 12000, null, {auto:true,max:16}), performance.now()));
+  rTargets.forEach(placeRT); }
 function rangeOverlay(){ const o=$('#ov'); o.classList.add('begin');
   if(RG&&RG.phase==='pause') showOv(`<div class="big">PAUSED</div><div>Click to continue · ${fmtT(RG.remaining)} left</div>`);
   else if(RG&&RG.last&&RG.result){ const r=RG.result; showOv(`<div class="big">CLICK TO BEGIN</div><div style="font-size:20px;font-weight:800">Last run: ${r.points} points · ${r.shots?Math.round(100*r.hits/r.shots):0}% accuracy</div><div class="small">${r.best?'New best! 🎯':'Best: '+bestPts()+' points'}</div>`); }
@@ -778,7 +856,7 @@ function rangeShoot(){ if(!RG||RG.phase!=='run')return; RG.shots++; vmKick=1;
     const res=M.applyHit(currentDmg(),pick.bot.state,pick.zone); showDmg(res);
     if(res.miss){ hitFx('miss'); beep(170,0.05,'square',0.025); rhud(); return; }
     t.fired=(t.fired||0)+1; RG.hits++; if(pick.zone==='head') RG.hs++;
-    if(res.killed){ const tth=performance.now()-t.born; RG.tth.push(tth); RG.stk.push(t.fired); RG.kills++; RG.points+=100+Math.max(0,Math.round((1000-tth)/20)); beep(1250,0.05,'triangle'); hitFx('hit'); placeRT(t); }
+    if(res.killed){ const tth=performance.now()-t.born; RG.tth.push(tth); RG.stk.push(t.fired); RG.kills++; RG.points+=100+Math.max(0,Math.round((1000-tth)/20)); beep(1250,0.05,'triangle'); hitFx('hit'); if(t.bot) t.bot.stanceKind=null; placeRT(t); }
     else { hitFx('hit'); beep(880,0.04,'triangle',0.04); }
     rhud(); return;
   }
@@ -789,7 +867,8 @@ function rangeShoot(){ if(!RG||RG.phase!=='run')return; RG.shots++; vmKick=1;
   else { hitFx('miss'); beep(170,0.05,'square',0.025); }
   rhud(); }
 function rangeStep(now){ const dt=Math.min(0.05,(now-RG.last)/1000); RG.last=now; RG.remaining-=dt*1000;
-  if(S.range.moving) for(const t of rTargets){ const r=S.range.size; t.x=(t.x??rTgtHead(t).x)+t.vx*dt; if(t.x>RB.x-r){t.x=RB.x-r;t.vx=-Math.abs(t.vx);} if(t.x<-RB.x+r){t.x=-RB.x+r;t.vx=Math.abs(t.vx);} t.ph+=dt*1.3; const y=Math.max(RB.yMin+r,Math.min(RB.yMax-r,t.y0+Math.sin(t.ph)*0.35*S.range.speed)); if(t.bot) placeBotHead(t.bot,t.x,y,RB.z+r); else t.mesh.position.set(t.x,y,RB.z+r); }
+  for(const t of rTargets){ if(t.bot&&!t.bot.dead){ stepBotStance(t.bot,now); stepCrouch(t.bot,dt); } }
+  if(S.range.moving) for(const t of rTargets){ const r=S.range.size; t.x=(t.x??rTgtHead(t).x)+t.vx*dt; if(t.x>RB.x-r){t.x=RB.x-r;t.vx=-Math.abs(t.vx);} if(t.x<-RB.x+r){t.x=-RB.x+r;t.vx=Math.abs(t.vx);} t.ph+=dt*1.3; const y=Math.max(RB.yMin+r,Math.min(RB.yMax-r,t.y0+Math.sin(t.ph)*0.35*S.range.speed)); if(t.bot){ const foot=(t.footY!=null?t.footY:(y-(botCrouchHeadY(t.bot))*t.bot.scale))+(y-(t.y0||y)); placeBotFeet(t.bot,t.x,foot,RB.z+r); } else t.mesh.position.set(t.x,y,RB.z+r); }
   if(RG.remaining<=0) return rangeEnd(); if((RG.fr=(RG.fr||0)+1)%4===0) rhud(); }
 function rhud(){ $('#rPts').textContent=RG?RG.points:0; $('#rTime').textContent=fmtT(RG?RG.remaining:S.range.dur*1000); $('#rAcc').textContent=RG&&RG.shots?Math.round(100*RG.hits/RG.shots)+'%':'—'; }
 function rangeEnd(){ RG.remaining=0; RG.phase='ready'; rhud(); beep(520,0.2); const prevBest=bestPts();
@@ -810,6 +889,7 @@ function renderPanel(){ const r=S.range,x=r.xh, top=[...store.rangeHistory].sort
   <div data-botopts="range" class="opts botopts" style="margin-top:8px;padding:0">
     <div><label>Target type</label><select data-bot="shape"><option value="dot" ${S.bot.shape!=='bot'?'selected':''}>Dot (sphere)</option><option value="bot" ${S.bot.shape==='bot'?'selected':''}>Bot (body + head)</option></select></div>
     <div><label>Damage model</label><select data-bot="dmg"><option value="hs">Headshots only</option><option value="val">Valorant, no armor (Vandal)</option><option value="valarm">Valorant, armor (Vandal, heavy shields)</option><option value="cs2">CS2, no armor (AK-47)</option><option value="cs2arm">CS2, armor (AK-47, kevlar + helmet)</option></select></div>
+    <div><label>Bot stance</label><select data-bot="stance"><option value="mix"${S.bot.stance==='mix'||!S.bot.stance?' selected':''}>Mix (default)</option><option value="stand"${S.bot.stance==='stand'?' selected':''}>Standing only</option><option value="crouch"${S.bot.stance==='crouch'?' selected':''}>Crouch only</option><option value="switch"${S.bot.stance==='switch'?' selected':''}>Switching only</option></select></div>
     <div><label>Bot body</label><input type="color" data-bot="body" value="${esc(S.bot.body||'#f4f6f8')}"></div>
     <div><label>Bot head</label><input type="color" data-bot="head" value="${esc(S.bot.head||'#00e8ff')}"></div>
   </div>
@@ -1652,11 +1732,8 @@ function stepPeekBots(dt,now){
   for(const bot of peekBots){
     if(!bot||bot.dead||!bot.group.visible) continue;
     const mv=bot.move;
-    if(bot.crouchWant!=null){
-      const cur=bot.crouch||0, want=+bot.crouchWant;
-      if(Math.abs(want-cur)>0.001){ applyCrouch(bot, cur+(want-cur)*Math.min(1,dt*8)); }
-      else if(cur!==want) applyCrouch(bot,want);
-    }
+    stepBotStance(bot,now);
+    stepCrouch(bot,dt);
     if(!mv) continue;
     if(remain<240 && mv.phase!=='retreat' && mv.phase!=='gone'){ mv.phase='retreat'; }
     if(now<mv.goAt && mv.phase==='wait') continue;
@@ -1675,7 +1752,6 @@ function stepPeekBots(dt,now){
       targetU=(t<0.5?t*2:(1-t)*2)* (mv.ampU||0.55);
     }else if(mv.style==='stop' && (mv.u||0)>=(mv.stopAt||0.62)){
       mv.u=mv.stopAt||0.62; bot.moving=false;
-      if(mv.crouchOnStop) bot.crouchWant=1;
       targetU=mv.u;
     }else{
       targetU=(mv.u||0)+(mv.speed*dt)/dist;
@@ -1698,7 +1774,7 @@ function stepPeekBots(dt,now){
     mv.u=u;
     bot.moving=mv.phase!=='stop' && Math.abs((targetU)-(mv._lu||0))>0.0005;
     mv._lu=targetU;
-    if(mv.phase==='go' && mv.style!=='shoulder' && u>=1){ mv.phase='hold'; bot.moving=false; if(mv.crouchOnStop) bot.crouchWant=1; }
+    if(mv.phase==='go' && mv.style!=='shoulder' && u>=1){ mv.phase='hold'; bot.moving=false; }
   }
 }
 
@@ -1802,6 +1878,7 @@ function spawnPeekBots(factor,peeks,now){
   const n=rand?fint(1,Math.min(3,list.length)):list.length;
   const picks=rand?fshuffle(list).slice(0,n):list;
   const styles=rand?null:['run','strafe','stop'];
+  const staged=[];
   for(let i=0;i<picks.length;i++){
     const p=picks[i];
     const bot=makeBot(scene); scaleBot(bot,1); placeBotFeet(bot,p[0],p[1],p[2]); bot.dim=factor; armBot(bot,now); paintBot(bot,factor);
@@ -1810,13 +1887,18 @@ function spawnPeekBots(factor,peeks,now){
     const style=rand?(frand()<0.28?'shoulder':frand()<0.34?'stop':frand()<0.5?'strafe':'run'):(styles[i%styles.length]);
     const delay=rand?frange(0,400):80;
     const speed=rand?frange(2.5,5.1):3.4;
-    const crouchWalk=rand?frand()<0.28:false;
-    const crouchOnStop=rand?frand()<0.4:(style==='stop');
-    bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},u:0,speed,style,goAt:now+delay,phase:'wait',amp:rand?frange(0.22,0.48):0.32,ampU:rand?frange(0.4,0.7):0.55,period:rand?frange(0.7,1.05):0.85,stopAt:rand?frange(0.52,0.78):0.65,crouchOnStop,strafe:style==='strafe'};
-    bot.crouch=0; bot.crouchWant=crouchWalk?1:0; bot.moving=false;
-    applyCrouch(bot,0);
+    bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},u:0,speed,style,goAt:now+delay,phase:'wait',amp:rand?frange(0.22,0.48):0.32,ampU:rand?frange(0.4,0.7):0.55,period:rand?frange(0.7,1.05):0.85,stopAt:rand?frange(0.52,0.78):0.65,strafe:style==='strafe'};
+    bot.moving=false;
     peekBots.push(bot);
+    staged.push({bot,delay});
   }
+  const kinds=assignGroupStances(peekBots.length);
+  const win=peekWindowMs();
+  staged.forEach((row,i)=>{
+    const plan=planStanceToggles(kinds[i], now, row.delay, win, null, {max:4,auto:false});
+    applyBotStance(row.bot, plan, now);
+    if(row.bot.move) row.bot.move.stanceKind=plan.kind;
+  });
   if(FL){ FL.peekUntil=now+peekWindowMs(); FL.peekT0=now; FL.st.dots=(FL.st.dots||0)+peekBots.length; }
 }
 function flashShoot(){
@@ -1838,7 +1920,7 @@ function flashShoot(){
     FL.st.stk.push(pick.bot.shots);
     const ttk=FL.peekT0!=null?now-FL.peekT0:NaN;
     if(Number.isFinite(ttk)) FL.st.ttkArr.push(ttk);
-    if((pick.bot.crouch||0)>0.45) FL.st.crouchKills=(FL.st.crouchKills||0)+1;
+    if((pick.bot.crouch||0)>0.45) FL.st.crouchKills=(FL.st.crouchKills||0)+1; else FL.st.standKills=(FL.st.standKills||0)+1;
     const moving=!!(pick.bot.moving || (pick.bot.move && pick.bot.move.phase==='go' && (pick.bot.move.u||0)>0.04 && pick.bot.move.style!=='stop'));
     if(moving) FL.st.moveKills=(FL.st.moveKills||0)+1;
     if(Number.isFinite(ttk)) FL.st.pushTtk.push(ttk);
@@ -1855,7 +1937,7 @@ function newFlashRound(){
   const id=scn0==='mix'?'hall':scn0;
   loadScn(id); placeStart();
   FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,scn:scn0,mix:scn0==='mix',rand:S.flash.rand!==false,
-    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,crouchKills:0,pushTtk:[],by:{}}};
+    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,standKills:0,crouchKills:0,pushTtk:[],by:{}}};
   flashSeed();
   flashHud();
   const scn=SCN[scn0]||SCN.hall;
@@ -1999,8 +2081,8 @@ function flashScore(st,n){
   const hsPct=st.dotHits?100*st.hs/st.dotHits:NaN;
   const stk=avg(st.stk), ttk=avg(st.ttkArr), firstHit=avg(st.dotFirst);
   const acc=st.dotShots?st.dotHits/st.dotShots:NaN;
-  const moveKills=st.moveKills||0, crouchKills=st.crouchKills||0, pushTtk=avg(st.pushTtk);
-  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,crouchKills,pushTtk};
+  const moveKills=st.moveKills||0, standKills=st.standKills||0, crouchKills=st.crouchKills||0, pushTtk=avg(st.pushTtk);
+  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,standKills,crouchKills,pushTtk};
 }
 function flashHud(){
   if(!FL)return;
@@ -2014,20 +2096,20 @@ function flashHud(){
 function flashFinish(){
   const res=flashScore(FL.st,FL.n); res.cm=FL.cm; res.preset=FL.preset; res.diff=FL.diff; res.scn=FL.mix?'mix':(FL.scn||S.flash.scn);
   const prev=bestFlash(res.scn,'scn'); res.isBest=res.score>prev&&res.score>0;
-  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,dmg:S.bot.dmg,rand:!!FL.rand});
+  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,standKills:res.standKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,dmg:S.bot.dmg,rand:!!FL.rand});
   store.flashHistory=store.flashHistory.slice(0,200); save();
   FL.phase='done'; hideGrenade(); clearPeekBots(); clearHud();
   if(document.pointerLockElement===stage)document.exitPointerLock();
   const pct=v=>Number.isFinite(v)?Math.round(v)+'%':'—';
   const ms=v=>Number.isFinite(v)?Math.round(v)+' ms':'—';
-  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
+  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Standing kills',String(res.standKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
   let mixLine='';
   if(FL.mix&&FL.st.by){ const parts=Object.keys(FL.st.by).map(id=>{ const b=FL.st.by[id]; return `${(SCN[id]||{}).name||id}: ${b.dodged+b.covered}/${b.n} safe`; }); if(parts.length) mixLine=`<div class="small muted" style="margin-top:8px">${parts.join(' · ')}</div>`; }
   const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
   const title=flashRunTitle(res,FL);
   showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div>${mixLine}<div class="small muted">Click Start to go again</div>`);
   const last=$('#lastFlash');
-  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
+  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Standing kills',res.standKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
     .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('');
   renderFlashBests(); renderFlashHist();
   FL=null;
@@ -2048,7 +2130,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
