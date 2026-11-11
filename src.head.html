@@ -6,15 +6,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%230a0d12%22/%3E%3Cpath d=%22M8 3v10M3 8h10%22 stroke=%22%2336f1a6%22 stroke-width=%222%22/%3E%3C/svg%3E">
 <title>EZ Sens — aim trainer &amp; sensitivity converter</title>
 <style>
-:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73}
+:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73;--header:linear-gradient(180deg,#0f141c,#0a0d12);--on-text:#04120c;--star:#3a4a60;--tag-custom:#cfd8e3}
+html[data-theme=light]{--bg:#e7edf3;--panel:#ffffff;--panel2:#f4f7fb;--line:#c5d0dc;--text:#15202b;--mute:#5a6b7c;--acc:#0d8a58;--acc2:#2c4cc4;--warn:#9a5a00;--bad:#c01b3c;--header:linear-gradient(180deg,#ffffff,#e7edf3);--on-text:#04120c;--star:#7a8a9a;--tag-custom:#3a4a5a}
 *{box-sizing:border-box}
+html{color-scheme:dark}html[data-theme=light]{color-scheme:light}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0f141c,#0a0d12);flex-wrap:wrap}
+header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--header);flex-wrap:wrap}
 .logo{font-weight:800;font-size:22px;letter-spacing:.5px}.logo b{color:var(--acc)}
 .logo small{display:block;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:1.5px;text-transform:uppercase}
 nav{display:flex;gap:6px;flex-wrap:wrap}
 nav button{background:transparent;border:1px solid transparent;color:var(--mute);padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-weight:600}
-nav button.on{color:var(--bg);background:var(--acc)}
+nav button.on{color:var(--on-text);background:var(--acc)}
 nav button:hover:not(.on){border-color:var(--line);color:var(--text)}
 main{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
 section.tab{display:none}section.tab.on{display:block}
@@ -39,9 +41,9 @@ th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;
 tr.me td{background:#36f1a60d}
 .tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 .tag.verified{background:#36f1a622;color:var(--acc)}.tag.consensus{background:#7c8cff22;color:var(--acc2)}
-.tag.community{background:#ffb54722;color:var(--warn)}.tag.disputed{background:#ff5d7322;color:var(--bad)}.tag.custom{background:#ffffff18;color:#cfd8e3}
-.star{background:none;border:0;cursor:pointer;font-size:18px;color:#3a4a60;padding:0 4px}.star.on{color:#ffd34d}
-.btn{background:var(--acc);color:#04120c;border:0;padding:10px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
+.tag.community{background:#ffb54722;color:var(--warn)}.tag.disputed{background:#ff5d7322;color:var(--bad)}.tag.custom{background:#ffffff18;color:var(--tag-custom)}
+.star{background:none;border:0;cursor:pointer;font-size:18px;color:var(--star);padding:0 4px}.star.on{color:#e6a800}
+.btn{background:var(--acc);color:var(--on-text);border:0;padding:10px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
 .btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
 .btn.sm{padding:6px 10px;font-size:13px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -118,7 +120,18 @@ ul{padding-left:20px}li{margin:4px 0}
 @media (pointer:coarse){.touchnote{display:block}}
 @media (max-width:640px){header{padding:12px 14px;gap:10px}main{padding:16px 12px 40px}.stat .v{font-size:20px}th,td{padding:6px}.rec{font-size:30px}.overlay .big{font-size:36px}}
 footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
+.themeseg{margin-left:auto;display:flex;gap:4px}
+.themeseg button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+.themeseg button.on{border-color:var(--acc);color:var(--acc)}
+#flashFx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+.overlay{z-index:7}
+.overlay,.overlay .muted,.overlay .subscore,.overlay .small,.overlay .resgrid .k{color:#b8c4d4}
+.overlay .big{color:#36f1a6}
+.overlay .resgrid .v{color:#e6edf5}
+.overlay .badge{color:#36f1a6;background:#36f1a622}
+.notice{max-width:560px;text-align:left;color:#d5dee8}
 </style>
+<script>try{var _s=JSON.parse(localStorage.getItem('ezsens.v1')||'{}');if(_s.settings&&_s.settings.theme==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
 </head>
 <body>
 <header>
@@ -127,11 +140,16 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <button data-t="range" class="on">Range</button>
     <button data-t="setup">Converter</button>
     <button data-t="train">Train</button>
+    <button data-t="flash">Flash</button>
     <button data-t="finder">Sens Finder</button>
     <button data-t="custom">Custom game</button>
     <button data-t="results">Results</button>
     <button data-t="about">About</button>
   </nav>
+  <div class="themeseg" data-themeseg>
+    <button type="button" data-theme="dark">Dark</button>
+    <button type="button" data-theme="light">Light</button>
+  </div>
 </header>
 <main>
 <div class="banner hide" id="shareBanner"><span>This link contains shared EZ Sens settings.</span><button class="btn sm" id="shareLoad">Load them</button><button class="btn alt sm" id="shareIgnore">Ignore</button></div>
@@ -215,6 +233,31 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <div class="grid g4" id="lastRound" style="margin-top:16px"></div>
 </section>
 
+<section class="tab" id="t-flash">
+  <h2>Flash dodge</h2>
+  <p class="sub">Practice turning away from a flash before it detonates. The arena uses your current game sensitivity and crosshair. Visuals are original (no game assets). A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> if you need a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms.</p>
+  <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
+  <div class="drills" id="flashPresets">
+    <button data-fp="val" class="on"><b>Valorant-style</b><span>A short visible pop-up (about 0.3–0.5 s), then a fast detonation.</span><em class="best" data-fbest="val"></em></button>
+    <button data-fp="cs2"><b>CS2-style</b><span>A thrown arc with a bounce and a ~1.5 s fuse. How flashed you get depends on your view angle.</span><em class="best" data-fbest="cs2"></em></button>
+  </div>
+  <div class="card opts" id="flashOpts">
+    <div><label for="flashDiff">Difficulty</label><select id="flashDiff"><option value="easy">Easy (longer fuse)</option><option value="normal" selected>Normal</option><option value="hard">Hard (faster fuse)</option></select></div>
+    <div><label for="flashCount">Flashes</label><select id="flashCount"><option>5</option><option selected>8</option><option>10</option><option>15</option></select></div>
+    <div><label for="flashTvol">Ring volume <span class="muted" id="flashTvolLab">40%</span></label><input id="flashTvol" type="range" min="0" max="1" step="0.05" value="0.4"></div>
+    <div class="checks">
+      <label class="inl"><input type="checkbox" id="flashAudio" checked> Audio cues</label>
+      <label class="inl"><input type="checkbox" id="flashReduced"> Reduced flash intensity</label>
+    </div>
+  </div>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="flashInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn4">Fullscreen</button><button class="btn" id="flashBtn">Start drill</button></div>
+  </div>
+  <div id="stageHost3"></div>
+  <div class="grid g4" id="lastFlash" style="margin-top:16px"></div>
+</section>
+
 <section class="tab" id="t-finder">
   <h2>Sensitivity finder</h2>
   <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Pick Sunrise, Day or Night for the arena; the Range tab is unchanged. Frame-rate and quality settings from the Train tab apply here too.</p>
@@ -279,6 +322,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
   <h3>Range — timed challenge history</h3>
   <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
+  <h3>Flash dodge history</h3>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Preset</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Dodge %</th><th>Avg reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
@@ -316,6 +361,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
+      <li><b>Flash dodge:</b> each pop is scored dodged (turned past 90° before detonation), partial, or full, based on the angle between your view and the grenade. Score rewards clean dodges and faster reactions. Visuals are original; preset names only describe the timing style.</li>
     </ul>
     <h3>Limitations</h3>
     <ul class="small">
@@ -324,7 +370,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
-      <li><b>Finder time of day:</b> Sunrise, Day and Night change the arena sky, fog, light and ground tint (Night is the original dark look). The choice is remembered in this browser. Train uses the same arena, so it follows the same setting. The Range look is unchanged.</li>
+      <li><b>Appearance:</b> Dark (default) and Light themes the whole UI. The 3D arenas are unchanged. The Sensitivity Finder also has its own Sunrise, Day and Night environments (sky, fog, light and ground tint; Night is the original dark arena). Train and Flash share that arena. The Range look is unchanged. Both choices are remembered in this browser.</li>
+      <li><b>Flash dodge:</b> turn away from a generic flash grenade before it pops. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A tinnitus-style ring can be muted or turned down.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>

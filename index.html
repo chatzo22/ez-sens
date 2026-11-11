@@ -6,15 +6,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%230a0d12%22/%3E%3Cpath d=%22M8 3v10M3 8h10%22 stroke=%22%2336f1a6%22 stroke-width=%222%22/%3E%3C/svg%3E">
 <title>EZ Sens — aim trainer &amp; sensitivity converter</title>
 <style>
-:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73}
+:root{--bg:#0a0d12;--panel:#121821;--panel2:#18202c;--line:#243042;--text:#e6edf5;--mute:#8a9bb0;--acc:#36f1a6;--acc2:#7c8cff;--warn:#ffb547;--bad:#ff5d73;--header:linear-gradient(180deg,#0f141c,#0a0d12);--on-text:#04120c;--star:#3a4a60;--tag-custom:#cfd8e3}
+html[data-theme=light]{--bg:#e7edf3;--panel:#ffffff;--panel2:#f4f7fb;--line:#c5d0dc;--text:#15202b;--mute:#5a6b7c;--acc:#0d8a58;--acc2:#2c4cc4;--warn:#9a5a00;--bad:#c01b3c;--header:linear-gradient(180deg,#ffffff,#e7edf3);--on-text:#04120c;--star:#7a8a9a;--tag-custom:#3a4a5a}
 *{box-sizing:border-box}
+html{color-scheme:dark}html[data-theme=light]{color-scheme:light}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0f141c,#0a0d12);flex-wrap:wrap}
+header{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--header);flex-wrap:wrap}
 .logo{font-weight:800;font-size:22px;letter-spacing:.5px}.logo b{color:var(--acc)}
 .logo small{display:block;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:1.5px;text-transform:uppercase}
 nav{display:flex;gap:6px;flex-wrap:wrap}
 nav button{background:transparent;border:1px solid transparent;color:var(--mute);padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-weight:600}
-nav button.on{color:var(--bg);background:var(--acc)}
+nav button.on{color:var(--on-text);background:var(--acc)}
 nav button:hover:not(.on){border-color:var(--line);color:var(--text)}
 main{max-width:1180px;margin:0 auto;padding:24px 28px 60px}
 section.tab{display:none}section.tab.on{display:block}
@@ -39,9 +41,9 @@ th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px;
 tr.me td{background:#36f1a60d}
 .tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 .tag.verified{background:#36f1a622;color:var(--acc)}.tag.consensus{background:#7c8cff22;color:var(--acc2)}
-.tag.community{background:#ffb54722;color:var(--warn)}.tag.disputed{background:#ff5d7322;color:var(--bad)}.tag.custom{background:#ffffff18;color:#cfd8e3}
-.star{background:none;border:0;cursor:pointer;font-size:18px;color:#3a4a60;padding:0 4px}.star.on{color:#ffd34d}
-.btn{background:var(--acc);color:#04120c;border:0;padding:10px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
+.tag.community{background:#ffb54722;color:var(--warn)}.tag.disputed{background:#ff5d7322;color:var(--bad)}.tag.custom{background:#ffffff18;color:var(--tag-custom)}
+.star{background:none;border:0;cursor:pointer;font-size:18px;color:var(--star);padding:0 4px}.star.on{color:#e6a800}
+.btn{background:var(--acc);color:var(--on-text);border:0;padding:10px 16px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}
 .btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
 .btn.sm{padding:6px 10px;font-size:13px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -118,7 +120,18 @@ ul{padding-left:20px}li{margin:4px 0}
 @media (pointer:coarse){.touchnote{display:block}}
 @media (max-width:640px){header{padding:12px 14px;gap:10px}main{padding:16px 12px 40px}.stat .v{font-size:20px}th,td{padding:6px}.rec{font-size:30px}.overlay .big{font-size:36px}}
 footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
+.themeseg{margin-left:auto;display:flex;gap:4px}
+.themeseg button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+.themeseg button.on{border-color:var(--acc);color:var(--acc)}
+#flashFx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+.overlay{z-index:7}
+.overlay,.overlay .muted,.overlay .subscore,.overlay .small,.overlay .resgrid .k{color:#b8c4d4}
+.overlay .big{color:#36f1a6}
+.overlay .resgrid .v{color:#e6edf5}
+.overlay .badge{color:#36f1a6;background:#36f1a622}
+.notice{max-width:560px;text-align:left;color:#d5dee8}
 </style>
+<script>try{var _s=JSON.parse(localStorage.getItem('ezsens.v1')||'{}');if(_s.settings&&_s.settings.theme==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
 </head>
 <body>
 <header>
@@ -127,11 +140,16 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <button data-t="range" class="on">Range</button>
     <button data-t="setup">Converter</button>
     <button data-t="train">Train</button>
+    <button data-t="flash">Flash</button>
     <button data-t="finder">Sens Finder</button>
     <button data-t="custom">Custom game</button>
     <button data-t="results">Results</button>
     <button data-t="about">About</button>
   </nav>
+  <div class="themeseg" data-themeseg>
+    <button type="button" data-theme="dark">Dark</button>
+    <button type="button" data-theme="light">Light</button>
+  </div>
 </header>
 <main>
 <div class="banner hide" id="shareBanner"><span>This link contains shared EZ Sens settings.</span><button class="btn sm" id="shareLoad">Load them</button><button class="btn alt sm" id="shareIgnore">Ignore</button></div>
@@ -215,6 +233,31 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <div class="grid g4" id="lastRound" style="margin-top:16px"></div>
 </section>
 
+<section class="tab" id="t-flash">
+  <h2>Flash dodge</h2>
+  <p class="sub">Practice turning away from a flash before it detonates. The arena uses your current game sensitivity and crosshair. Visuals are original (no game assets). A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> if you need a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms.</p>
+  <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
+  <div class="drills" id="flashPresets">
+    <button data-fp="val" class="on"><b>Valorant-style</b><span>A short visible pop-up (about 0.3–0.5 s), then a fast detonation.</span><em class="best" data-fbest="val"></em></button>
+    <button data-fp="cs2"><b>CS2-style</b><span>A thrown arc with a bounce and a ~1.5 s fuse. How flashed you get depends on your view angle.</span><em class="best" data-fbest="cs2"></em></button>
+  </div>
+  <div class="card opts" id="flashOpts">
+    <div><label for="flashDiff">Difficulty</label><select id="flashDiff"><option value="easy">Easy (longer fuse)</option><option value="normal" selected>Normal</option><option value="hard">Hard (faster fuse)</option></select></div>
+    <div><label for="flashCount">Flashes</label><select id="flashCount"><option>5</option><option selected>8</option><option>10</option><option>15</option></select></div>
+    <div><label for="flashTvol">Ring volume <span class="muted" id="flashTvolLab">40%</span></label><input id="flashTvol" type="range" min="0" max="1" step="0.05" value="0.4"></div>
+    <div class="checks">
+      <label class="inl"><input type="checkbox" id="flashAudio" checked> Audio cues</label>
+      <label class="inl"><input type="checkbox" id="flashReduced"> Reduced flash intensity</label>
+    </div>
+  </div>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="flashInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn4">Fullscreen</button><button class="btn" id="flashBtn">Start drill</button></div>
+  </div>
+  <div id="stageHost3"></div>
+  <div class="grid g4" id="lastFlash" style="margin-top:16px"></div>
+</section>
+
 <section class="tab" id="t-finder">
   <h2>Sensitivity finder</h2>
   <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Pick Sunrise, Day or Night for the arena; the Range tab is unchanged. Frame-rate and quality settings from the Train tab apply here too.</p>
@@ -279,6 +322,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
   <h3>Range — timed challenge history</h3>
   <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
+  <h3>Flash dodge history</h3>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Preset</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Dodge %</th><th>Avg reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
@@ -316,6 +361,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
+      <li><b>Flash dodge:</b> each pop is scored dodged (turned past 90° before detonation), partial, or full, based on the angle between your view and the grenade. Score rewards clean dodges and faster reactions. Visuals are original; preset names only describe the timing style.</li>
     </ul>
     <h3>Limitations</h3>
     <ul class="small">
@@ -324,7 +370,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
-      <li><b>Finder time of day:</b> Sunrise, Day and Night change the arena sky, fog, light and ground tint (Night is the original dark look). The choice is remembered in this browser. Train uses the same arena, so it follows the same setting. The Range look is unchanged.</li>
+      <li><b>Appearance:</b> Dark (default) and Light themes the whole UI. The 3D arenas are unchanged. The Sensitivity Finder also has its own Sunrise, Day and Night environments (sky, fog, light and ground tint; Night is the original dark arena). Train and Flash share that arena. The Range look is unchanged. Both choices are remembered in this browser.</li>
+      <li><b>Flash dodge:</b> turn away from a generic flash grenade before it pops. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A tinnitus-style ring can be muted or turned down.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>
@@ -547,7 +594,7 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'night',afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'night',theme:'dark',flash:{preset:'val',diff:'normal',count:8,audio:true,tVol:0.4,reduced:false,warned:false,safe:90},afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
 S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh);
@@ -556,7 +603,13 @@ if(!Object.keys(S.xhs).length){ S.xhs[S.game||'cs2']=M.normXH(S.xh.style?S.xh:S.
 Object.keys(S.xhs).forEach(k=>S.xhs[k]=M.normXH(S.xhs[k]));
 if(!S.xhs[S.game]) S.xhs[S.game]=M.normXH(S.xh); S.xh=S.xhs[S.game];
 if(S.env!=='sunrise'&&S.env!=='day'&&S.env!=='night') S.env='night';
-store.rangeHistory=store.rangeHistory||[];
+if(S.theme!=='light'&&S.theme!=='dark') S.theme='dark';
+S.flash=Object.assign({},DEF.flash,S.flash||{});
+if(S.flash.preset!=='cs2') S.flash.preset='val';
+if(!['easy','normal','hard'].includes(S.flash.diff)) S.flash.diff='normal';
+S.flash.count=Math.max(5,Math.min(15,+S.flash.count||8));
+S.flash.tVol=Math.max(0,Math.min(1,S.flash.tVol==null?0.4:+S.flash.tVol));
+store.rangeHistory=store.rangeHistory||[]; store.flashHistory=store.flashHistory||[];
 if(S.arcFov){ S.params.arc=Object.assign({fov:S.arcFov},S.params.arc); delete S.arcFov; }
 M.setCustom(S.custom); if(!safeGet(S.game)) S.game='cs2';
 function safeGet(id){ try{return M.get(id);}catch(e){return null;} }
@@ -573,11 +626,11 @@ const short=n=>n.replace('Counter-Strike 2','CS2').replace(/ \(.*\)/,'');
 /* ---------- tabs ---------- */
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const tab=b.dataset.t, from=document.querySelector('#nav button.on'), fromT=from&&from.dataset.t;
-  if(fromT&&fromT!==tab) abandonArenaRound();
+  if(fromT&&fromT!==tab){ abandonArenaRound(); abandonFlash(); }
   $$('#nav button').forEach(x=>x.classList.toggle('on',x===b));
   $$('section.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+b.dataset.t));
-  setMode(tab==='range'?'range':'arena', tab);
-  if(tab==='range')mountStage('#stageHost0'); if(tab==='train')mountStage('#stageHost'); if(tab==='finder')mountStage('#stageHost2');
+  setMode(tab==='range'?'range':tab==='flash'?'flash':'arena', tab);
+  if(tab==='range')mountStage('#stageHost0'); if(tab==='train')mountStage('#stageHost'); if(tab==='flash')mountStage('#stageHost3'); if(tab==='finder')mountStage('#stageHost2');
   if(tab==='results')renderHist(); refresh();});
 
 /* ---------- game picker ---------- */
@@ -627,7 +680,7 @@ function refresh(){
   const pick=[...new Set([S.game,...S.fav])].map(safeGet).filter(Boolean).slice(0,6);
   const info=good?`Arena turns at <b>${fmt(cm,1)} cm/360</b> = ${pick.map(x=>`${esc(short(x.name))} ${x.id===S.game?S.sens:fmtS(x,equiv(cm,x).r)}`).join(' · ')} @ ${S.dpi} DPI`:'Fill in the converter first.';
   { const ri=$('#rangeInfo'); if(ri) ri.innerHTML=good?`<b>${fmt(cm,1)} cm/360</b> (${esc(short(g.name))} ${S.sens} @ ${S.dpi} DPI — change it in the Converter tab)`:'your converter settings'; }
-  $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info;
+  $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info; const fi=$('#flashInfo'); if(fi)fi.innerHTML=info;
   $$('.cdpi').forEach(e=>e.textContent=S.dpi+' DPI'); $('#cpc').textContent=good?Math.round(M.countsPer360(cm,S.dpi)).toLocaleString():'—';
   renderCustomList(); calcCustom();
 }
@@ -676,7 +729,7 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+stage.innerHTML=`<div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="flashFx"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
 $('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
@@ -777,6 +830,10 @@ function applyEnv(id){
 function setEnv(id){ if(!ENV[id]) id='night'; S.env=id; save(); applyEnv(id); syncEnvUI(); }
 function syncEnvUI(){ $$('[data-envseg] button[data-env]').forEach(b=>b.classList.toggle('on',b.dataset.env===S.env)); }
 document.addEventListener('click',e=>{ const b=e.target.closest('[data-envseg] button[data-env]'); if(!b)return; setEnv(b.dataset.env); });
+function applyTheme(id){ document.documentElement.dataset.theme=id==='light'?'light':'dark'; }
+function setTheme(id){ S.theme=id==='light'?'light':'dark'; save(); applyTheme(S.theme); syncThemeUI(); const f=store.finder; if(f) drawChart(f); }
+function syncThemeUI(){ $$('[data-themeseg] button[data-theme]').forEach(b=>b.classList.toggle('on',b.dataset.theme===S.theme)); }
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-themeseg] button[data-theme]'); if(!b)return; setTheme(b.dataset.theme); });
 const tgtMat=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0d6b47,roughness:.4});
 const tgt=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),tgtMat); tgt.visible=false; scene.add(tgt);
 const DIST=M.ARENA.dist, FLOOR_Y=M.ARENA.floorY, CEIL_Y=M.ARENA.ceilY;
@@ -804,17 +861,19 @@ async function lockEl(el){ try{ await el.requestPointerLock({unadjustedMovement:
 document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement; stage.classList.toggle('locked',locked===stage);
   if(locked!==stage&&RG&&RG.phase==='run'){ RG.phase='pause'; rangeOverlay(); }
   if(locked!==pad&&swipe.on){ swipe.on=false; swipe.done=true; pad.classList.remove('on'); padTxt(); calcCustom(); }
-  if(locked!==stage&&R&&R.phase==='run'){R.phase='pause';showOv(`<div class="big">Paused</div><div class="muted">Click to resume · or press Start to restart</div>`);} });
-function look(dx,dy){ if(MODE==='range'){ if(RG&&RG.phase==='run'){ rview.yaw-=dx*degPerCountRange(); rview.pitch=Math.max(-89,Math.min(89,rview.pitch-dy*degPerCountRange())); } return; } if(!R||R.phase!=='run')return; view.yaw-=dx*degPerCount; view.pitch=Math.max(-89,Math.min(89,view.pitch-dy*degPerCount)); }
+  if(locked!==stage&&R&&R.phase==='run'){R.phase='pause';showOv(`<div class="big">Paused</div><div class="muted">Click to resume · or press Start to restart</div>`);}
+  if(locked!==stage&&FL&&FL.phase==='run'){FL.phase='pause';showOv(`<div class="big">Paused</div><div class="muted">Click to resume · or press Start to restart</div>`);} });
+function look(dx,dy){ if(MODE==='range'){ if(RG&&RG.phase==='run'){ rview.yaw-=dx*degPerCountRange(); rview.pitch=Math.max(-89,Math.min(89,rview.pitch-dy*degPerCountRange())); } return; } if(!((R&&R.phase==='run')||(FL&&FL.phase==='run')))return; view.yaw-=dx*degPerCount; view.pitch=Math.max(-89,Math.min(89,view.pitch-dy*degPerCount)); }
 function onMove(e){ if(!locked)return; if(locked===stage) look(e.movementX,e.movementY); else if(locked===pad&&swipe.on){ swipe.counts+=e.movementX; padTxt(); } }
 const RAW_EVT=('onpointerrawupdate' in window)?'pointerrawupdate':'mousemove';
 document.addEventListener(RAW_EVT,onMove,{passive:true});
 stage.addEventListener('mousedown',e=>{ if(e.button!==0)return;
   if(MODE==='range'){ if(e.target.closest('.rpanel'))return; if(locked!==stage){ if(!ok())return alert('Fill in the converter first.'); lockEl(stage).then(()=>{ if(document.pointerLockElement===stage)rangeBeginOrResume(); }); } else rangeShoot(); return; }
+  if(MODE==='flash'){ if(locked!==stage){ if(!ok())return alert('Fill in the converter first.'); if(FL&&(FL.phase==='pause'||FL.phase==='ready')) lockEl(stage).then(()=>{ if(document.pointerLockElement!==stage)return; if(FL.phase==='pause'){FL.phase='run';hideOv();FL.last=performance.now();} else flashCountdown(); }); } return; }
   if(locked!==stage){ if(R&&(R.phase==='pause'||R.phase==='ready')){ lockEl(stage).then(()=>{ if(R.phase==='pause'){R.phase='run';hideOv();R.last=performance.now();} else beginCountdown(); }); } return; }
   shoot(); });
 function showOv(h){const o=$('#ov');o.innerHTML=h;o.classList.remove('hide');} function hideOv(){$('#ov').classList.add('hide');}
-$('#fsBtn').onclick=$('#fsBtn2').onclick=$('#fsBtn3').onclick=()=>stage.requestFullscreen&&stage.requestFullscreen();
+$('#fsBtn').onclick=$('#fsBtn2').onclick=$('#fsBtn3').onclick=$('#fsBtn4').onclick=()=>stage.requestFullscreen&&stage.requestFullscreen();
 
 /* ---------- frame pacing ---------- */
 const F={hz:60,deltas:[],last:0,lastDraw:0,next:0,draws:[],ft:0};
@@ -913,7 +972,8 @@ function loop(now){ requestAnimationFrame(loop); measure(now);
   const ft=F.lastDraw?now-F.lastDraw:0; F.lastDraw=now; F.ft=F.ft?F.ft*0.9+ft*0.1:ft;
   if(MODE==='range'){ if(RG&&RG.phase==='run')rangeStep(now); rangeCam.rotation.set(rview.pitch*D2R,rview.yaw*D2R,0); vmAnim(now); renderer.render(rscene,rangeCam); }
   else { if(R&&R.phase==='run'){ step(now); if(R){R.fpsAcc+=ft;R.fpsN++;} }
-  camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); }
+    if(FL&&FL.phase==='run') flashStep(now);
+    camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); }
   if(xhKick>0){ xhKick*=0.78; if(xhKick<0.04)xhKick=0; drawCurrentXH(); }
   paintHint(now);
   if(S.showFps&&(F.dc=(F.dc||0)+1)%8===0) $('#hudFps').textContent=`${F.ft?Math.round(1000/F.ft):0} fps · ${F.ft.toFixed(2)} ms · ${F.hz} Hz${capFps()<F.hz?' · cap '+Math.round(capFps()):''}`; }
@@ -948,10 +1008,13 @@ function hitFx(kind){ const el=$('#hitFx'); if(!el)return; el.className=''; void
   if(currentXH().dynamic){ xhKick=1; drawCurrentXH(); } }
 
 function renderRangeHist(){ const rows=store.rangeHistory.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td><b>${h.points}</b></td><td>${h.shots?Math.round(100*h.hits/h.shots)+'%':'—'}</td><td>${h.hits} / ${h.shots}</td><td>${h.tth?Math.round(h.tth)+' ms':'—'}</td><td class="small">${esc(h.setup)}</td><td>${fmt(h.cm,1)}</td></tr>`).join(''); const el=$('#rhist'); if(el)el.innerHTML=rows||'<tr><td colspan="7" class="muted">No range runs yet.</td></tr>'; }
-function renderHist(){ renderRangeHist(); renderDrillBests(); const pb=$('#pbests'); if(pb){ const tile=(k,v)=>`<div class="card stat"><div class="k">${k}</div><div class="v">${v||'—'}</div></div>`;
-    pb.innerHTML=tile('Flick best',bestOf('flick')||'')+tile('Tracking best',bestOf('track')||'')+tile('Micro best',bestOf('micro')||'')+tile('Range best',bestPts()||''); }
+function renderFlashHist(){ const el=$('#fhist'); if(!el)return; const rows=(store.flashHistory||[]).map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.preset==='cs2'?'CS2-style':'Valorant-style'}</td><td><b>${Math.round(h.score)}</b></td><td>${h.dodged}</td><td>${h.partial}</td><td>${h.full}</td><td>${Math.round(h.dodgePct)}%</td><td>${Number.isFinite(h.react)?Math.round(h.react)+' ms':'—'}</td><td>${fmt(h.cm,1)}</td></tr>`).join(''); el.innerHTML=rows||'<tr><td colspan="9" class="muted">No flash rounds yet.</td></tr>'; }
+function bestFlash(preset){ return (store.flashHistory||[]).filter(h=>!preset||h.preset===preset).reduce((m,h)=>Math.max(m,+h.score||0),0); }
+function renderFlashBests(){ $$('#flashPresets .best').forEach(el=>{ const b=bestFlash(el.dataset.fbest); el.textContent=b?('Best '+Math.round(b)):''; }); }
+function renderHist(){ renderRangeHist(); renderDrillBests(); renderFlashHist(); renderFlashBests(); const pb=$('#pbests'); if(pb){ const tile=(k,v)=>`<div class="card stat"><div class="k">${k}</div><div class="v">${v||'—'}</div></div>`;
+    pb.innerHTML=tile('Flick best',bestOf('flick')||'')+tile('Tracking best',bestOf('track')||'')+tile('Micro best',bestOf('micro')||'')+tile('Range best',bestPts()||'')+tile('Flash (Val) best',bestFlash('val')||'')+tile('Flash (CS2) best',bestFlash('cs2')||''); }
   $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?(h.track!=null?Math.round(h.track)+'%':'—'):(h.acc!=null?Math.round(h.acc*100)+'%':'—')}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td><td>${h.fps||'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No rounds yet.</td></tr>'; }
-$('#clearBtn').onclick=()=>{ if(confirm('Clear all saved results?')){store.history=[];store.finder=null;save();renderHist();renderFinder();} };
+$('#clearBtn').onclick=()=>{ if(confirm('Clear all saved results?')){store.history=[];store.finder=null;store.flashHistory=[];save();renderHist();renderFinder();renderFlashBests();} };
 
 /* ---------- finder ---------- */
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -993,11 +1056,11 @@ function renderFinder(){ const f=store.finder; if(!f){$('#finderOut').innerHTML=
 function drawChart(f){ const c=$('#chart'),x=c.getContext('2d'),W=c.width,H=c.height,Pd=50; const rs=[...f.results].sort((a,b)=>a.cm-b.cm);
   const cms=rs.map(r=>r.cm).concat(f.rec.cm),lo=Math.min(...cms)*0.95,hi=Math.max(...cms)*1.05,ys=rs.map(r=>r.score),ymax=Math.max(10,...ys)*1.15;
   const X=v=>Pd+(W-2*Pd)*(Math.log(v)-Math.log(lo))/(Math.log(hi)-Math.log(lo)),Y=v=>H-Pd-(H-2*Pd)*v/ymax;
-  x.fillStyle='#18202c';x.fillRect(0,0,W,H);x.strokeStyle='#243042';x.lineWidth=2;x.strokeRect(Pd,Pd,W-2*Pd,H-2*Pd);
-  x.fillStyle='#8a9bb0';x.font='22px system-ui';x.fillText('faster ← cm/360 → slower',W/2-120,H-12);
+  const dark=S.theme!=='light'; x.fillStyle=dark?'#18202c':'#f3f6fa';x.fillRect(0,0,W,H);x.strokeStyle=dark?'#243042':'#c5d0dc';x.lineWidth=2;x.strokeRect(Pd,Pd,W-2*Pd,H-2*Pd);
+  x.fillStyle=dark?'#8a9bb0':'#5a6b7c';x.font='22px system-ui';x.fillText('faster ← cm/360 → slower',W/2-120,H-12);
   x.strokeStyle='#36f1a6';x.setLineDash([8,8]);x.beginPath();x.moveTo(X(f.rec.cm),Pd);x.lineTo(X(f.rec.cm),H-Pd);x.stroke();x.setLineDash([]);
   x.strokeStyle='#7c8cff';x.beginPath();rs.forEach((r,i)=>i?x.lineTo(X(r.cm),Y(r.score)):x.moveTo(X(r.cm),Y(r.score)));x.stroke();
-  rs.forEach(r=>{x.fillStyle='#7c8cff';x.beginPath();x.arc(X(r.cm),Y(r.score),8,0,7);x.fill();x.fillStyle='#e6edf5';x.fillText(r.cm.toFixed(1),X(r.cm)-20,Y(r.score)-16);}); }
+  rs.forEach(r=>{x.fillStyle='#7c8cff';x.beginPath();x.arc(X(r.cm),Y(r.score),8,0,7);x.fill();x.fillStyle=dark?'#e6edf5':'#15202b';x.fillText(r.cm.toFixed(1),X(r.cm)-20,Y(r.score)-16);}); }
 
 /* ---------- crosshair (customizable, original) ---------- */
 function currentXH(){ const id=S.game||'cs2'; if(!S.xhs[id]) S.xhs[id]=M.normXH(M.XH_DEF); S.xh=S.xhs[id]; return S.xh; }
@@ -1023,6 +1086,7 @@ function drawXH(c,el){ el=el||$('#xh'); if(!el)return; c=M.normXH(c); const col=
 function drawCurrentXH(){ drawXH(currentXH()); $$('.xh-origin').forEach(el=>drawXH(currentXH(),el)); }
 function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawCurrentXH();
   if(m==='range'){ setRangeFov(); rangeOverlay(); }
+  else if(m==='flash'){ clearHud(); $('#ov').classList.remove('begin'); if(!FL||FL.phase==='done') flashIdleOv(); }
   else if(!R){ clearHud(); $('#ov').classList.remove('begin');
     if(tab==='finder') showOv(`<div class="big">Sens Finder</div><div class="muted">Press Start finder, then click the arena to lock and begin.</div>`);
     else showOv(`<div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div>`); } }
@@ -1031,7 +1095,7 @@ function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $(
 function xhEditorHTML(){ const x=currentXH(); const g=safeGet(S.game); const name=g?g.name:S.game;
   const games=M.all();
   const styles=[['cross','Cross'],['dot','Dot'],['crossdot','Cross + dot'],['circle','Circle'],['t','T']];
-  return `<div class="xhhead"><label>Crosshair for <b data-xh-game>${esc(short(name))}</b> <span class="muted small">(Train + Range)</span></label><div class="xhprev"><div class="xh-origin"></div></div></div>
+  return `<div class="xhhead"><label>Crosshair for <b data-xh-game>${esc(short(name))}</b> <span class="muted small">(Train, Range and Flash)</span></label><div class="xhprev"><div class="xh-origin"></div></div></div>
   <div class="grid2">
     <div><label>Style</label><select data-xh="style">${styles.map(([v,l])=>`<option value="${v}" ${x.style===v?'selected':''}>${l}</option>`).join('')}</select></div>
     <div><label>Color</label><input data-xh="color" type="color" value="${x.color}" style="height:36px;padding:2px"></div>
@@ -1236,12 +1300,228 @@ function paintHint(now){
   for(const h of vis) drawHintArc(ctx,W,H,h,now); _hintHad=true;
 }
 
+
+/* ---------- flash dodge ---------- */
+let FL=null, grenade=null, _flashPeak=0, _flashUntil=0, _ringOsc=null;
+const FDIFF={easy:{val:0.55,cs2:2.0,spread:80},normal:{val:0.42,cs2:1.5,spread:120},hard:{val:0.3,cs2:1.1,spread:160}};
+function makeGrenade(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.16,16,12),new THREE.MeshStandardMaterial({color:0x4a5344,roughness:.7,metalness:.25}));
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.065,0.1,8),new THREE.MeshStandardMaterial({color:0x2a2e28,roughness:.55,metalness:.3}));
+  cap.position.y=0.16;
+  const lever=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.12,0.02),new THREE.MeshStandardMaterial({color:0x6a7060,roughness:.5,metalness:.4}));
+  lever.position.set(0.08,0.12,0);
+  const fuse=new THREE.Mesh(new THREE.SphereGeometry(0.035,8,8),new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff5500,emissiveIntensity:1.2}));
+  fuse.position.y=0.23;
+  g.add(body,cap,lever,fuse); g.userData.fuse=fuse; return g;
+}
+function ensureGrenade(){ if(grenade)return grenade; grenade=makeGrenade(); grenade.visible=false; scene.add(grenade); return grenade; }
+function hideGrenade(){ if(grenade)grenade.visible=false; }
+function flashAngle(pos){ const dir=dirFrom(view.yaw,view.pitch); const to=pos.clone(); if(to.lengthSq()<1e-8)return 180; to.normalize(); return Math.acos(Math.min(1,Math.max(-1,dir.dot(to))))/D2R; }
+function flashFactor(ang){ const safe=+S.flash.safe||90; if(ang>=safe)return 0; if(ang<=20)return 1; const t=(ang-20)/(safe-20); return Math.max(0,1-t*t); }
+function flashIdleOv(){ showOv(`<div class="big">Flash dodge</div><div class="muted">Pick a preset and press Start, then click the arena to lock and begin.</div><div class="small muted">Turn away past 90° before it detonates. Esc pauses.</div>`); }
+function syncFlashUI(){
+  const f=S.flash;
+  $$('#flashPresets button').forEach(b=>b.classList.toggle('on',b.dataset.fp===f.preset));
+  const d=$('#flashDiff'); if(d)d.value=f.diff;
+  const c=$('#flashCount'); if(c)c.value=String(f.count);
+  const a=$('#flashAudio'); if(a)a.checked=!!f.audio;
+  const r=$('#flashReduced'); if(r)r.checked=!!f.reduced;
+  const v=$('#flashTvol'); if(v)v.value=f.tVol;
+  const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(f.tVol*100)+'%';
+  renderFlashBests();
+}
+function persistFlash(){ save(); syncFlashUI(); }
+$('#flashPresets').addEventListener('click',e=>{ const b=e.target.closest('button[data-fp]'); if(!b)return; S.flash.preset=b.dataset.fp; persistFlash(); });
+$('#flashDiff').onchange=()=>{S.flash.diff=$('#flashDiff').value;persistFlash();};
+$('#flashCount').onchange=()=>{S.flash.count=Math.max(5,Math.min(15,+$('#flashCount').value||8));persistFlash();};
+$('#flashAudio').onchange=()=>{S.flash.audio=$('#flashAudio').checked;persistFlash();};
+$('#flashReduced').onchange=()=>{S.flash.reduced=$('#flashReduced').checked;persistFlash();};
+$('#flashTvol').oninput=()=>{S.flash.tVol=Math.max(0,Math.min(1,+$('#flashTvol').value||0)); const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(S.flash.tVol*100)+'%'; save();};
+
+function flashCue(kind,factor){
+  if(!S.flash.audio)return;
+  if(kind==='pop') beep(700,0.06,'square',0.04);
+  else if(kind==='throw') beep(220,0.08,'sawtooth',0.03);
+  else if(kind==='bang') beep(140,0.1,'square',0.05*(factor||1));
+}
+function startRing(factor,dur){
+  stopRing();
+  const vol=Math.max(0,Math.min(1,S.flash.tVol))*factor*(S.flash.reduced?0.45:0.7);
+  if(vol<0.01||!S.flash.audio)return;
+  try{
+    actx=actx||new AudioContext();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type='sine'; o.frequency.value=7800;
+    g.gain.setValueAtTime(vol*0.08,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime+dur);
+    _ringOsc={o,g};
+  }catch(e){}
+}
+function stopRing(){ if(!_ringOsc)return; try{_ringOsc.o.stop();}catch(e){} _ringOsc=null; }
+
+function whiteOut(factor){
+  const el=$('#flashFx'); if(!el)return Math.max(350,300);
+  const peak=factor*(S.flash.reduced?0.38:1);
+  _flashPeak=peak;
+  if(peak<=0.02){ el.style.opacity=0; _flashUntil=performance.now()+350; return 350; }
+  const total=(S.flash.reduced?800:1900)*(0.5+0.5*factor);
+  const fade=Math.max(300,total*0.55), hold=Math.max(80,total-fade);
+  el.style.transition='opacity 70ms linear';
+  el.style.background=S.flash.reduced?'rgb(255,255,236)':'#fff';
+  el.style.opacity=String(peak);
+  clearTimeout(whiteOut._t);
+  whiteOut._t=setTimeout(()=>{ el.style.transition=`opacity ${fade}ms linear`; el.style.opacity='0'; },hold);
+  const dur=hold+fade;
+  _flashUntil=performance.now()+dur;
+  startRing(factor,dur/1000);
+  return dur;
+}
+function clearWhiteOut(){
+  const el=$('#flashFx'); if(el){ el.style.transition='none'; el.style.opacity='0'; }
+  clearTimeout(whiteOut._t); _flashPeak=0; _flashUntil=0; stopRing();
+}
+
+function flashWarnThen(go){
+  if(S.flash.warned){ go(); return; }
+  showOv(`<div class="big" style="font-size:34px">Photosensitivity notice</div>
+    <p class="notice small">This drill uses a full-screen flash. If you are sensitive to flashing lights, choose <b>reduced intensity</b>. There is never more than one flash at a time, and every fade lasts at least 300 milliseconds. You can change this later in the Flash options.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button type="button" class="btn sm" id="flashWarnReduced">I understand — use reduced intensity</button>
+      <button type="button" class="btn alt sm" id="flashWarnFull">I understand — full intensity</button>
+    </div>`);
+  const bind=(id,reduced)=>{ const b=$(id); if(!b)return; b.onclick=ev=>{ ev.stopPropagation(); S.flash.warned=true; S.flash.reduced=reduced; persistFlash(); go(); }; };
+  bind('#flashWarnReduced',true); bind('#flashWarnFull',false);
+}
+
+function newFlashRound(){
+  if(!ok())return alert('Fill in the converter first.');
+  mountStage('#stageHost3'); setMode('flash','flash'); setFov();
+  degPerCount=M.degPerCountFromCm(currentCm(),S.dpi);
+  view.yaw=0; view.pitch=4; hideGrenade(); clearWhiteOut();
+  const n=S.flash.count;
+  FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,st:{dodged:0,partial:0,full:0,react:[]}};
+  flashHud();
+  showOv(`<div class="big">${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'}</div><div class="muted">Click here to lock your mouse and start</div><div class="small muted">${n} flashes · ${S.flash.diff} · Esc to pause</div>`);
+}
+$('#flashBtn').onclick=()=>flashWarnThen(newFlashRound);
+
+function flashCountdown(){ FL.phase='count'; let n=3; const tick=()=>{ if(!FL||FL.phase!=='count')return; if(n===0){hideOv();FL.phase='run';FL.last=performance.now();FL.busyUntil=FL.last+200;beep(880,0.08);return;} showOv(`<div class="big">${n}</div>`); beep(440,0.06); n--; setTimeout(tick,450);}; tick(); }
+
+function spawnFlash(now){
+  const d=FDIFF[FL.diff]||FDIFF.normal, g=ensureGrenade();
+  const spread=d.spread, yaw=view.yaw+rnd(-spread,spread)* (Math.random()<0.15? (Math.random()<0.5?-1:1)*1.4 : 1);
+  const bomb={kind:FL.preset,t0:now,appeared:now,safeAt:null,detonated:false,factor:null,fuse:0,pos:new THREE.Vector3(),vel:new THREE.Vector3()};
+  if(FL.preset==='cs2'){
+    bomb.fuse=d.cs2*1000;
+    const pitch=rnd(6,16), spd=rnd(8,13);
+    const dir=dirFrom(yaw,pitch);
+    bomb.pos.set(0,-0.2,0); bomb.vel.copy(dir).multiplyScalar(spd); bomb.vel.y=rnd(5,9);
+    flashCue('throw');
+  }else{
+    bomb.fuse=d.val*1000;
+    const dist=rnd(7,13), tp=rnd(-4,18);
+    const dir=dirFrom(yaw,tp);
+    bomb.pos.copy(dir).multiplyScalar(dist);
+    if(bomb.pos.y<FLOOR_Y+0.2) bomb.pos.y=FLOOR_Y+0.2;
+    flashCue('pop');
+  }
+  g.position.copy(bomb.pos); g.visible=true; g.scale.setScalar(FL.preset==='val'?0.3:1);
+  FL.bomb=bomb;
+}
+function flashStep(now){
+  if(!FL||FL.phase!=='run')return;
+  const dt=Math.min(0.05,(now-(FL.last||now))/1000); FL.last=now;
+  const bomb=FL.bomb;
+  if(!bomb){
+    if(FL.i>=FL.n){ if(now>=FL.busyUntil) flashFinish(); return; }
+    if(now>=FL.busyUntil) spawnFlash(now);
+    flashHud(); return;
+  }
+  if(FL.preset==='cs2'){
+    bomb.vel.y-=18*dt;
+    bomb.pos.addScaledVector(bomb.vel,dt);
+    const r=0.18;
+    if(bomb.pos.y<FLOOR_Y+r){ bomb.pos.y=FLOOR_Y+r; if(bomb.vel.y<0) bomb.vel.y*=-0.38; bomb.vel.x*=0.72; bomb.vel.z*=0.72; if(Math.abs(bomb.vel.y)<0.9) bomb.vel.y=0; }
+  }else if(grenade&&grenade.scale.x<1){ const s=Math.min(1,grenade.scale.x+dt*6); grenade.scale.setScalar(s); }
+  if(grenade){ grenade.position.copy(bomb.pos); grenade.rotation.y+=dt*2.2; grenade.rotation.z+=dt*0.7;
+    const fu=grenade.userData.fuse; if(fu){ const blink=0.5+0.5*Math.sin(now*0.03+(1-Math.max(0,(bomb.fuse-(now-bomb.t0))/bomb.fuse))*20); fu.material.emissiveIntensity=0.6+1.6*blink; } }
+  const ang=flashAngle(bomb.pos);
+  if(ang>=(S.flash.safe||90)&&bomb.safeAt==null) bomb.safeAt=now;
+  if(ang<(S.flash.safe||90)) bomb.safeAt=null; // must still be turned away at detonation? 
+  // Reaction time is time from appearance to first becoming safe, but classification uses angle at detonation.
+  // Keep first-safe timestamp even if they look back: store firstSafe separately.
+  if(bomb.firstSafe==null && ang>=(S.flash.safe||90)) bomb.firstSafe=now;
+  if(now-bomb.t0>=bomb.fuse) detonateFlash(now);
+  flashHud();
+}
+function detonateFlash(now){
+  const bomb=FL.bomb; if(!bomb||bomb.detonated)return;
+  bomb.detonated=true;
+  const ang=flashAngle(bomb.pos); const factor=flashFactor(ang);
+  bomb.factor=factor; bomb.ang=ang;
+  hideGrenade();
+  const dur=whiteOut(factor);
+  flashCue('bang',factor);
+  let kind='full'; if(factor<=0.02) kind='dodged'; else if(factor<0.7) kind='partial';
+  FL.st[kind]++;
+  if(kind==='dodged') FL.st.react.push((bomb.firstSafe!=null?bomb.firstSafe:now)-bomb.appeared);
+  FL.i++; FL.bomb=null; FL.busyUntil=now+dur+400;
+}
+function flashScore(st,n){
+  const dodgePct=n?100*st.dodged/n:0;
+  const react=st.react.length?st.react.reduce((a,b)=>a+b,0)/st.react.length:NaN;
+  // 100 per dodge, 40 per partial (scaled by leftover), 0 full; + speed bonus on dodges already in react quality
+  let score=0;
+  score += st.dodged*100 + st.partial*40;
+  if(st.react.length){ const avg=st.react.reduce((a,b)=>a+b,0)/st.react.length; score += Math.max(0,20*(1-avg/1200))*st.dodged; }
+  score = n?score/n:0;
+  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,n};
+}
+function flashHud(){
+  if(!FL)return;
+  const bar=$('#ahud'); if(bar)bar.classList.add('show');
+  $('#hudK1').textContent='FLASH'; $('#hudV1').textContent=FL.i+'/'+FL.n;
+  $('#hudK2').textContent='DODGED'; $('#hudV2').textContent=FL.i?Math.round(100*FL.st.dodged/FL.i)+'%':'—';
+  const best=bestFlash(FL.preset);
+  $('#hudK3').textContent='BEST'; $('#hudV3').textContent=best?Math.round(best):'—';
+  const cm=$('#hudCm'); if(cm) cm.textContent=`${FL.preset==='cs2'?'CS2-style':'Valorant-style'} · ${FL.diff}`;
+}
+function flashFinish(){
+  const res=flashScore(FL.st,FL.n); res.cm=FL.cm; res.preset=FL.preset; res.diff=FL.diff;
+  const prev=bestFlash(FL.preset); res.isBest=res.score>prev&&res.score>0;
+  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,dodgePct:res.dodgePct,react:res.react});
+  store.flashHistory=store.flashHistory.slice(0,200); save();
+  FL.phase='done'; hideGrenade(); clearHud();
+  if(document.pointerLockElement===stage)document.exitPointerLock();
+  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Avg reaction',Number.isFinite(res.react)?Math.round(res.react)+' ms':'—')];
+  const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
+  const title=FL.preset==='cs2'?'CS2-style':'Valorant-style';
+  showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div><div class="small muted">Click Start to go again</div>`);
+  const last=$('#lastFlash');
+  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full',res.partial+' / '+res.full],['Dodge %',Math.round(res.dodgePct)+'%'],['Avg reaction',Number.isFinite(res.react)?Math.round(res.react)+' ms':'—'],['Best',Math.round(Math.max(prev,res.score))||'—']]
+    .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('');
+  renderFlashBests(); renderFlashHist();
+  FL=null;
+}
+function abandonFlash(){
+  if(FL){ FL=null; hideGrenade(); }
+  clearWhiteOut(); clearHud();
+  if(MODE==='flash'&&document.pointerLockElement===stage) document.exitPointerLock();
+}
+
+
 /* test hooks for headless checks */
 window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:(m,tab)=>setMode(m,tab),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},tick:(ms)=>{if(!R)return; if(R.phase!=='run'){R.phase='run';hideOv();} step((R.last||performance.now())+ms);},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S,
   FLOOR_Y,CEIL_Y,DIST,targetPos:()=>tgt.position.clone(),targetRad:()=>tgt.scale.x,targetVisible:()=>tgt.visible,hintSample:()=>sampleHints(),paintHint,bestOf,clearHud,placeTarget,
   currentXH,saveXH,loadGameXH,xhCode:()=>M.xhCode(currentXH()),importXH:s=>importXH(s),
-  setEnv,env:()=>S.env,envInfo:()=>({mode:S.env,fog:fog.color.getHex(),fogNear:fog.near,fogFar:fog.far,hemi:hemi.intensity,hemiSky:hemi.color.getHex(),sunI:sun.intensity,sunCol:sun.color.getHex(),sunPos:sun.position.toArray(),sunDisc:sunDisc.visible,sunScale:sunDisc.scale.x,floor:floor.material.color.getHex(),tgt:tgtMat.color.getHex(),tgtEm:tgtMat.emissive.getHex(),bg:scene.background&&scene.background.getHex(),sky:!!skyMesh.parent,hint:hintPal})};
-RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); requestAnimationFrame(loop);
+  setEnv,env:()=>S.env,envInfo:()=>({mode:S.env,fog:fog.color.getHex(),fogNear:fog.near,fogFar:fog.far,hemi:hemi.intensity,hemiSky:hemi.color.getHex(),sunI:sun.intensity,sunCol:sun.color.getHex(),sunPos:sun.position.toArray(),sunDisc:sunDisc.visible,sunScale:sunDisc.scale.x,floor:floor.material.color.getHex(),tgt:tgtMat.color.getHex(),tgtEm:tgtMat.emissive.getHex(),bg:scene.background&&scene.background.getHex(),sky:!!skyMesh.parent,hint:hintPal}),
+  setTheme,theme:()=>S.theme,applyTheme,
+  flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
+  flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
+  lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos; const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,p.length()))))/D2R; view.yaw=yaw; view.pitch=pitch;}};
+RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
 </script>
 </body>
