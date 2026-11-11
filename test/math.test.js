@@ -89,4 +89,17 @@ const fade=M.offscreenHint(0.9,0,false,{inset:0.78});
 assert(fade.alpha>0 && fade.alpha<1, 'near the edge the hint fades in'); n++;
 const a1=M.offscreenHint(1.2,0.3,false), a2=M.offscreenHint(0.4,0.9,false);
 assert(a1.ang!==a2.ang, 'hint angle tracks the sample direction'); n++;
+// per-game crosshair codes + classic CSGO share-code import
+const xh=M.normXH({style:'t',color:'#Ff00Aa',size:10,thick:3,gap:-2,outline:true,outlineW:2,dot:true,opacity:0.5,dynamic:true});
+assert.strictEqual(xh.color,'#ff00aa'); n++;
+const code=M.xhCode(xh), back=M.parseEZX(code);
+assert.deepStrictEqual(back,xh); n++;
+assert.strictEqual(M.parseXHCode(code).src,'ez'); n++;
+const cs=M.decodeCsgoXH('CSGO-Cn37R-YE7vo-pLCAL-aURmZ-z6zkG');
+assert(cs.ok&&cs.fields.style===2&&cs.fields.gap===-1.3&&cs.fields.length===4.6&&cs.fields.thick===1.2, 'CSGO example fields'); n++;
+assert(cs.fields.r===175&&cs.fields.g===81&&cs.fields.b===213&&cs.fields.alpha===137&&cs.fields.dot&&cs.fields.t&&cs.fields.outline, 'CSGO example color/flags'); n++;
+assert(cs.xh.style==='t'&&cs.xh.color==='#af51d5'&&cs.xh.dot&&cs.xh.dynamic, 'CSGO maps to a T-dot profile'); n++;
+assert(M.decodeCsgoXH('CSGO-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA').error, 'junk CSGO code rejected'); n++;
+assert.strictEqual(M.parseXHCode('CSvbPubOq37zTGqtsPTP5QTrp5CB4xFXiKRLfzJsm49ZRe').error,'cs2-new'); n++;
 console.log(`all ${n} math checks passed (${M.GAMES.length} built-in games)`);
+

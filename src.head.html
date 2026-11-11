@@ -52,17 +52,46 @@ tr.me td{background:#36f1a60d}
 .drills button{flex:1;min-width:160px;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:12px;cursor:pointer;font:inherit}
 .drills button b{display:block;font-size:15px}.drills button span{font-size:12px;color:var(--mute)}
 .drills button.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
-.opts{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.opts{display:flex;gap:12px 16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 .opts>div{min-width:120px}.opts label{margin-top:0}
+.opts .checks{display:flex;flex-direction:column;gap:6px;min-width:180px}
+.opts #perfInfo{flex:1 1 100%}
+.opts .xhrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:260px}
+.opts .xhrow select,.opts .xhrow input[type=color]{width:auto}
+.opts .xhrow input[type=range]{width:90px;padding:0}
+.xhedit{flex:1 1 100%;border-top:1px solid var(--line);margin-top:8px;padding-top:10px}
+.xhedit .xhhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.xhedit .xhhead label{margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)}
+.xhprev{position:relative;width:76px;height:76px;background:#05070a;border:1px solid var(--line);border-radius:10px;flex:0 0 76px}
+.xhprev .xh-origin{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none}
+.xhedit .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px 12px}
+.xhedit .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.xhedit .actions input[type=text]{flex:1;min-width:180px;padding:6px 10px;font-size:13px}
+.xhedit .msg{font-size:12px;color:var(--mute)}
+.xhedit .msg.ok{color:var(--acc)}.xhedit .msg.bad{color:var(--bad)}
+#xh{opacity:1}
+.drills button .best{display:block;font-size:11px;color:var(--acc);font-weight:700;margin-top:2px}
+.drills button .best:empty{display:none}
 #stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
 #stage canvas{display:block;width:100%;height:100%}
 #stage:fullscreen{border-radius:0;border:0}
 #edgeHint{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 #xh{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
-#xh i{position:absolute;display:block}
-#rhud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:28px;padding:8px 22px;border-radius:12px;background:#0b0f16b0;font-weight:800;font-variant-numeric:tabular-nums;pointer-events:none;color:#fff;letter-spacing:.5px}
-#rhud span{display:flex;flex-direction:column;align-items:center;font-size:22px}#rhud small{font-size:10px;color:#b8c4d4;letter-spacing:1.5px;font-weight:700}
-#stage.range #rhud{display:flex}#stage.range .hud{display:none}
+#xh i,.xh-origin i{position:absolute;display:block;margin:0}
+#hitFx{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid transparent;border-radius:50%;pointer-events:none;z-index:4;opacity:0;box-sizing:border-box}
+#hitFx.hit{border-color:#36f1a6;box-shadow:0 0 8px #36f1a688;animation:hitpop .2s ease-out}
+#hitFx.miss{border-color:#ff5d73;box-shadow:0 0 8px #ff5d7388;animation:hitpop .2s ease-out}
+@keyframes hitpop{0%{transform:scale(.35);opacity:.95}100%{transform:scale(1.85);opacity:0}}
+#rhud,#ahud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;gap:28px;padding:8px 22px;border-radius:12px;background:#0b0f16b0;font-weight:800;font-variant-numeric:tabular-nums;pointer-events:none;color:#fff;letter-spacing:.5px}
+#rhud span,#ahud span{display:flex;flex-direction:column;align-items:center;font-size:22px}
+#rhud small,#ahud small{font-size:10px;color:#b8c4d4;letter-spacing:1.5px;font-weight:700}
+#ahud.show{display:flex}#stage.range #rhud{display:flex}#stage.range #ahud{display:none!important}
+.hud-cm{position:absolute;right:14px;top:16px;font-size:12px;color:#b8c4d4;pointer-events:none;text-shadow:0 1px 3px #000}
+#stage.range .hud-cm{display:none}
+.resgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px 16px;width:min(540px,92%);margin:6px auto 4px;text-align:center}
+.resgrid .k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:1px}
+.resgrid .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;background:#36f1a622;color:var(--acc);font-weight:800;font-size:11px;padding:3px 10px;border-radius:999px;letter-spacing:.8px;margin-top:2px}
 .rpanel{position:absolute;left:12px;top:12px;z-index:5;display:none;max-width:290px;max-height:calc(100% - 24px);overflow:auto;background:#0b0f16e8;border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:13px}
 #stage.range .rpanel{display:block}#stage.locked .rpanel{display:none!important}
 .rpanel summary{cursor:pointer;font-weight:800;padding:4px 0;list-style:none}.rpanel summary::-webkit-details-marker{display:none}
@@ -74,6 +103,7 @@ tr.me td{background:#36f1a60d}
 #hudFps{position:absolute;left:12px;bottom:10px;font:12px ui-monospace,monospace;color:#9fe;pointer-events:none;text-shadow:0 1px 2px #000}
 .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05070acc;text-align:center;padding:20px;gap:10px}
 .overlay.hide{display:none}.overlay .big{font-size:52px;font-weight:900;color:var(--acc)}
+.overlay .subscore{font-size:15px;color:var(--mute)}
 .muted{color:var(--mute)}.small{font-size:13px}.warn{color:var(--warn)}
 .bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
 canvas#chart{width:100%;height:220px;background:var(--panel2);border-radius:10px}
@@ -92,7 +122,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 </head>
 <body>
 <header>
-  <div class="logo">EZ<b>Sens</b><small>aim lab · sens converter</small></div>
+  <div class="logo">EZ<b>Sens</b><small>aim trainer · sens converter</small></div>
   <nav id="nav">
     <button data-t="range" class="on">Range</button>
     <button data-t="setup">Converter</button>
@@ -151,22 +181,23 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p class="sub">Pick a drill. Click the arena to lock the mouse; <b>Esc</b> pauses. Every raw mouse count turns the camera by exactly yaw × sens of your setup, applied the instant the event arrives — independent of frame rate.</p>
   <p class="touchnote warn">The trainer needs a desktop mouse (Chrome or Edge). The converter works fine on this device.</p>
   <div class="drills" id="drills">
-    <button data-d="flick" class="on"><b>Flick</b><span>20 static targets, 12–60° away</span></button>
-    <button data-d="track"><b>Tracking</b><span>25 s, keep the crosshair on a strafing target</span></button>
-    <button data-d="micro"><b>Micro-adjust</b><span>20 tiny targets, 2–8° away</span></button>
+    <button data-d="flick" class="on"><b>Flick</b><span>20 static targets, 12–60° away</span><em class="best" data-best="flick"></em></button>
+    <button data-d="track"><b>Tracking</b><span>25 s, keep the crosshair on a strafing target</span><em class="best" data-best="track"></em></button>
+    <button data-d="micro"><b>Micro-adjust</b><span>20 tiny targets, 2–8° away</span><em class="best" data-best="micro"></em></button>
   </div>
   <div class="card opts" id="perf">
     <div><label for="fps">Frame rate</label><select id="fps"><option value="auto">Uncapped (monitor)</option><option>60</option><option>100</option><option>144</option><option>240</option><option value="custom">Custom…</option></select></div>
     <div id="fpsCustomWrap" class="hide"><label for="fpsCustom">Custom FPS</label><input id="fpsCustom" type="number" min="20" max="1000" step="1" value="165"></div>
     <div><label for="scale">Render scale</label><select id="scale"><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="native">Native (HiDPI)</option></select></div>
     <div><label for="afov">Arena FOV (horizontal °)</label><input id="afov" type="number" min="60" max="130" step="1" placeholder="auto"></div>
-    <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="checks">
       <label class="inl"><input type="checkbox" id="lowq"> Low quality (faster)</label>
       <label class="inl"><input type="checkbox" id="showFps" checked> FPS counter</label>
       <label class="inl"><input type="checkbox" id="sound" checked> Sound cues</label>
       <label class="inl"><input type="checkbox" id="hintOpt" checked> Off-screen target hint</label>
     </div>
-    <div class="small muted" id="perfInfo" style="flex:2"></div>
+    <div id="xhEditor" class="xhedit" data-xhedit></div>
+    <div class="small muted" id="perfInfo"></div>
   </div>
   <div class="row small muted" style="margin-bottom:10px;align-items:center">
     <div id="trainInfo"></div>
@@ -227,6 +258,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 <section class="tab" id="t-results">
   <h2>Results</h2>
   <p class="sub">Saved in this browser only (localStorage).</p>
+  <div class="grid g4" id="pbests" style="margin-bottom:16px"></div>
   <div class="card tw"><table><thead><tr><th>When</th><th>Drill</th><th>cm/360</th><th>Score</th><th>Accuracy</th><th>Avg TTK</th><th>Over / under</th><th>FPS</th></tr></thead><tbody id="hist"></tbody></table>
   <p><button class="btn alt" id="clearBtn">Clear history</button></p></div>
   <h3>Range — timed challenge history</h3>
@@ -277,6 +309,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor.</li>
+      <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
+      <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>
     </ul>
   </div>
 </section>

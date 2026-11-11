@@ -31,6 +31,9 @@ const fl=await pg.evaluate(async()=>{ EZ.forceRun(); const dpc=0.022; for(let k=
   for(let i=0;i<60;i++){ const dy=((t.ty-EZ.view.yaw+540)%360)-180, dp=t.tp-EZ.view.pitch; EZ.simMove(-dy/dpc/2,-dp/dpc/2); await new Promise(r=>requestAnimationFrame(r)); if(Math.hypot(dy,dp)<0.2)break; }
   EZ.simShoot(); } return EZ.state()?'still running':'finished'; });
 console.log('flick', fl, await pg.$eval('#lastRound',e=>e.innerText.replace(/\s+/g,' ')));
+const ovFlick=await pg.$eval('#ov',e=>e.innerText.replace(/\s+/g,' '));
+console.log('flick overlay', ovFlick);
+if(!/Time-to-hit|First shot|Accuracy|NEW BEST|Best/.test(ovFlick)) throw new Error('flick results overlay missing recap stats: '+ovFlick);
 await pg.screenshot({path:'/tmp/pw/train.png'});
 // tracking must stay above the floor even with a strong downward velocity;
 // off-screen hint must follow the target live as the view turns
@@ -40,7 +43,8 @@ const trackHint=await pg.evaluate(()=>{
   const T=EZ.state().tr; T.pitch=-80; T.vp=-120; T.tp=-120;
   const ys=[]; for(let i=0;i<180;i++){ EZ.tick(16); ys.push(EZ.targetPos().y-EZ.targetRad()); }
   const minClear=Math.min(...ys);
-  T.vy=0; T.vp=0; T.ty=0; T.tp=0; T.yaw=0; T.pitch=0;
+  T.vy=0; T.vp=0; T.ty=0; T.tp=0; T.next=999; T.yaw=0; T.pitch=0;
+  EZ.placeTarget(0,0,1.3);
   EZ.view.pitch=0;
   EZ.view.yaw=90; const right=EZ.hintSample()[0];
   EZ.view.yaw=70; const stillRight=EZ.hintSample()[0];
@@ -59,6 +63,36 @@ if(!(trackHint.stillRight.alpha>0.5 && trackHint.stillRight.x>0)) throw new Erro
 if(!(trackHint.left.alpha>0.5 && trackHint.left.x<0)) throw new Error('hint should move to the left edge when the view turns the other way');
 if(!(trackHint.onAlpha<0.05)) throw new Error('hint should fade out when the target is on-screen');
 // custom tab
+// per-game crosshair editor: save, switch, restore, export/import, CSGO code
+await pg.click('nav button[data-t=train]');
+const xh=await pg.evaluate(()=>{
+  const a={style:'t',color:'#ff3355',size:12,thick:3,gap:-1,outline:true,outlineW:2,dot:true,opacity:0.8,dynamic:true};
+  EZ.saveXH(a);
+  const code=EZ.xhCode();
+  const cs2=JSON.parse(JSON.stringify(EZ.currentXH()));
+  EZ.setGame('valorant');
+  const after=JSON.parse(JSON.stringify(EZ.currentXH()));
+  EZ.setGame('cs2');
+  const back=JSON.parse(JSON.stringify(EZ.currentXH()));
+  const rst=(()=>{ EZ.saveXH(EZMath.XH_DEF); return EZ.currentXH().style; })();
+  EZ.setGame('cs2'); // still cs2
+  const imp=EZ.importXH(code);
+  const fromCs=EZ.importXH('CSGO-Cn37R-YE7vo-pLCAL-aURmZ-z6zkG');
+  const skipNew=EZ.importXH('CSvbPubOq37zTGqtsPTP5QTrp5CB4xFXiKRLfzJsm49ZRe');
+  return {code,cs2,after,back,rst,impOk:!!(imp&&imp.ok),fromCs:fromCs&&fromCs.xh,skipNew:skipNew&&skipNew.error,parts:document.querySelectorAll('#xh i').length,gameName:document.querySelector('[data-xh-game]')&&document.querySelector('[data-xh-game]').textContent};
+});
+console.log('xh profiles', JSON.stringify(xh));
+if(xh.after.style==='t'&&xh.after.color==='#ff3355') throw new Error('valorant should start on the default profile, not inherit the CS2 edit');
+if(!(xh.back.style==='t'&&xh.back.color==='#ff3355'&&xh.back.dynamic)) throw new Error('CS2 crosshair did not reload after switching back');
+if(!xh.impOk) throw new Error('EZX import failed');
+if(!(xh.fromCs&&xh.fromCs.style==='t'&&xh.fromCs.color==='#af51d5')) throw new Error('CSGO share code did not import');
+if(xh.skipNew!=='cs2-new') throw new Error('new CS2 codes should be skipped, got '+xh.skipNew);
+await pg.click('nav button[data-t=finder]'); await new Promise(r=>setTimeout(r,200));
+
+const finderIdle=await pg.evaluate(()=>({ov:document.querySelector('#ov').innerText.replace(/\s+/g,' '), hud:document.querySelector('#ahud').classList.contains('show'), hudText:document.querySelector('#ahud').innerText.replace(/\s+/g,' ')}));
+console.log('finder idle', finderIdle);
+if(/Micro|Flick 1|on target|19\/20/.test(finderIdle.ov) || finderIdle.hud) throw new Error('finder tab leaked the previous drill HUD/overlay: '+JSON.stringify(finderIdle));
+if(!/Sens Finder|Start finder/i.test(finderIdle.ov)) throw new Error('finder idle overlay should mention the finder: '+finderIdle.ov);
 await pg.click('nav button[data-t=custom]'); await pg.type('#cname','My Game'); await pg.type('#cyaw','0.05');
 await pg.click('#csave'); console.log('custom saved', await pg.$eval('#clist',e=>e.innerText.replace(/\s+/g,' ')));
 await pg.click('nav button[data-t=about]'); console.log('about rows', await pg.$$eval('#yawTbl tr',r=>r.length));

@@ -6,6 +6,8 @@ Original aim trainer + sensitivity converter/finder. Live: https://chatzo22.gith
 - Tests: `node test/math.test.js` (conversion math vs. published reference points).
 - 16 built-in games + custom games (enter a yaw or calibrate). Yaw values and sources are listed in the app's About tab.
 - Tracking targets bounce off the floor and ceiling so they never go underground. An optional off-screen hint (on by default) paints a red-to-magenta glow on the screen edge that follows a target you can't see, in Train, Finder and the Range.
+- Train uses a compact mid-run HUD and an end-of-round recap (score, accuracy, time-to-hit, first-shot time, local best). Hits and misses flash a short ring on the crosshair.
+- Each game has its own crosshair (style, color, length, thickness, gap, outline, center dot, opacity, optional dynamic shot spread). Train and Range share it. Export/import an EZX1 code, copy from another game, or paste a classic CSGO- share code.
 - Not affiliated with Valve, Embark Studios or any publisher.
 
 ## Windows desktop app

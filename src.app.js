@@ -2,10 +2,15 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
-S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh); store.rangeHistory=store.rangeHistory||[];
+S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh);
+S.xhs=S.xhs&&typeof S.xhs==='object'?S.xhs:{}; S.xh=M.normXH(S.xh||DEF.xh);
+if(!Object.keys(S.xhs).length){ S.xhs[S.game||'cs2']=M.normXH(S.xh.style?S.xh:S.range.xh); }
+Object.keys(S.xhs).forEach(k=>S.xhs[k]=M.normXH(S.xhs[k]));
+if(!S.xhs[S.game]) S.xhs[S.game]=M.normXH(S.xh); S.xh=S.xhs[S.game];
+store.rangeHistory=store.rangeHistory||[];
 if(S.arcFov){ S.params.arc=Object.assign({fov:S.arcFov},S.params.arc); delete S.arcFov; }
 M.setCustom(S.custom); if(!safeGet(S.game)) S.game='cs2';
 function safeGet(id){ try{return M.get(id);}catch(e){return null;} }
@@ -21,11 +26,13 @@ const short=n=>n.replace('Counter-Strike 2','CS2').replace(/ \(.*\)/,'');
 
 /* ---------- tabs ---------- */
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const tab=b.dataset.t, from=document.querySelector('#nav button.on'), fromT=from&&from.dataset.t;
+  if(fromT&&fromT!==tab) abandonArenaRound();
   $$('#nav button').forEach(x=>x.classList.toggle('on',x===b));
   $$('section.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+b.dataset.t));
-  setMode(b.dataset.t==='range'?'range':'arena');
-  if(b.dataset.t==='range')mountStage('#stageHost0'); if(b.dataset.t==='train')mountStage('#stageHost'); if(b.dataset.t==='finder')mountStage('#stageHost2');
-  if(b.dataset.t==='results')renderHist(); refresh();});
+  setMode(tab==='range'?'range':'arena', tab);
+  if(tab==='range')mountStage('#stageHost0'); if(tab==='train')mountStage('#stageHost'); if(tab==='finder')mountStage('#stageHost2');
+  if(tab==='results')renderHist(); refresh();});
 
 /* ---------- game picker ---------- */
 function sortedGames(q){ q=(q||'').toLowerCase().trim();
@@ -43,7 +50,7 @@ $('#game').addEventListener('change',()=>setGame($('#game').value));
 function setGame(id){ if(id===S.game)return; const cm=currentCm(); const old=S.game; S.game=id;
   // keep the same 360 distance when switching the "your game" selector
   if(Number.isFinite(cm)){ const s=M.menuRound(id,M.sensForCm(cm,S.dpi,id,P(id))); if(Number.isFinite(s)) S.sens=+(+s).toPrecision(5); }
-  $('#sens').value=S.sens; save(); renderParams(); refresh(); }
+  $('#sens').value=S.sens; loadGameXH(); save(); renderParams(); refresh(); }
 $('#favBtn').onclick=()=>toggleFav(S.game);
 function toggleFav(id){ S.fav=isFav(id)?S.fav.filter(x=>x!==id):S.fav.concat(id); save(); fillSelect(); refresh(); }
 function renderParams(){ const g=M.get(S.game); const p=P(S.game);
@@ -123,7 +130,7 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div class="hud"><span id="hudL"></span><span id="hudR"></span></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+stage.innerHTML=`<div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
 $('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
@@ -193,7 +200,8 @@ function shouldDraw(now){ const cap=capFps(); if(cap>=F.hz-0.5)return true; cons
 const DESK={on:!!window.ezsensDesktop,unlock:false};
 function perfInfo(){ const cap=capFps(); const want=S.fps==='custom'?+S.fpsCustom:+S.fps;
   $('#perfInfo').innerHTML=`${DESK.unlock?'<b>Desktop app · FPS unlocked</b> — max render rate ≈ <b>'+F.hz+' fps</b>':'Display ≈ <b>'+F.hz+' Hz</b>'} · cap ${S.fps==='auto'?'= display':Math.round(cap)+' fps'}${(S.fps!=='auto'&&want>F.hz)?` <span class="warn">(${want} is above ${DESK.unlock?'what your PC can render':'your display\'s refresh rate'}, so it runs at ${F.hz}${DESK.on&&!DESK.unlock?' — turn on Unlock FPS to go higher':''})</span>`:''}<br>Input: ${RAW_EVT==='pointerrawupdate'?'pointerrawupdate (lowest latency)':'mousemove'} · raw ${rawOK===null?'(lock to check)':rawOK?'ON':'<span class="warn">OFF</span>'}`; }
-function syncPerf(){ $('#fps').value=S.fps; $('#fpsCustom').value=S.fpsCustom; $('#fpsCustomWrap').classList.toggle('hide',S.fps!=='custom'); $('#scale').value=S.scale; $('#lowq').checked=S.lowq; $('#showFps').checked=S.showFps; $('#sound').checked=S.sound; const ho=$('#hintOpt'); if(ho)ho.checked=!!S.hint; $('#afov').value=S.afov; $('#hudFps').classList.toggle('hide',!S.showFps); perfInfo(); }
+function syncPerf(){ $('#fps').value=S.fps; $('#fpsCustom').value=S.fpsCustom; $('#fpsCustomWrap').classList.toggle('hide',S.fps!=='custom'); $('#scale').value=S.scale; $('#lowq').checked=S.lowq; $('#showFps').checked=S.showFps; $('#sound').checked=S.sound; const ho=$('#hintOpt'); if(ho)ho.checked=!!S.hint; $('#afov').value=S.afov; $('#hudFps').classList.toggle('hide',!S.showFps);
+  syncXHEditors(); drawCurrentXH(); perfInfo(); }
 if(DESK.on){ const w=document.createElement('label'); w.className='inl'; w.innerHTML='<input type="checkbox" id="unlockFps"> Unlock FPS (app restart)'; $('#lowq').closest('div').appendChild(w);
   window.ezsensDesktop.get().then(c=>{ DESK.unlock=!!c.unlockFps; $('#unlockFps').checked=DESK.unlock; perfInfo(); });
   $('#unlockFps').onchange=()=>window.ezsensDesktop.setUnlock($('#unlockFps').checked);
@@ -214,8 +222,8 @@ const SEG={flick:{min:12,max:60,rad:1.5},micro:{min:2,max:8,rad:0.45}};
 function newRound(segments,cm,onDone,label){
   degPerCount=M.degPerCountFromCm(cm,S.dpi); setFov();
   view.yaw=0;view.pitch=4;
-  R={segments,si:0,cm,onDone,label,phase:'ready',fpsAcc:0,fpsN:0,st:{clicks:0,hits:0,ttk:[],land:[],over:0,under:0,on:0,trackT:0,lead:0,leadN:0,trOver:0,trUnder:0}};
-  tgt.visible=false; $('#hudL').textContent=''; $('#hudR').textContent='';
+  R={segments,si:0,cm,onDone,label,phase:'ready',fpsAcc:0,fpsN:0,st:{clicks:0,hits:0,ttk:[],land:[],over:0,under:0,on:0,trackT:0,lead:0,leadN:0,trOver:0,trUnder:0,react:[]}};
+  tgt.visible=false; clearHud();
   showOv(`<div class="big">${label}</div><div class="muted">Click here to lock your mouse and start</div><div class="small muted">Esc to pause</div>`);
 }
 function beginCountdown(){ R.phase='count'; let n=3; const tick=()=>{ if(!R||R.phase!=='count')return; if(n===0){hideOv();R.phase='run';R.last=performance.now();startSeg();beep(880,0.08);return;} showOv(`<div class="big">${n}</div>`); beep(440,0.06); n--; setTimeout(tick,450);}; tick(); }
@@ -229,9 +237,10 @@ function along(){const e=angErr(R.t.ty,R.t.tp);return (e.dx*R.t.d0[0]+e.dy*R.t.d
 function recordLanding(){ if(R.t.landed)return; R.t.landed=true; const a=along(), e=angErr(R.t.ty,R.t.tp);
   const s=R.st; if(e.ang<=R.t.rad*1.15){s.land.push(0);} else if(a<0){s.over++;s.land.push(a/R.t.n0);} else {s.under++;s.land.push(a/R.t.n0);} }
 function shoot(){ if(!R||R.phase!=='run')return; const s=R.segments[R.si]; if(s.type==='track')return;
+  if(!R.t.shot){ R.t.shot=true; R.st.react.push(performance.now()-R.t.t0); }
   R.st.clicks++; const e=angErr(R.t.ty,R.t.tp);
-  if(e.ang<=R.t.rad){ recordLanding(); R.st.hits++; R.st.ttk.push(performance.now()-R.t.t0); flash(); beep(1320,0.05,'triangle'); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); }
-  else { beep(180,0.05,'square',0.03); if(!R.t.landed) recordLanding(); } }
+  if(e.ang<=R.t.rad){ recordLanding(); R.st.hits++; R.st.ttk.push(performance.now()-R.t.t0); flash(); hitFx('hit'); beep(1320,0.05,'triangle'); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); }
+  else { hitFx('miss'); beep(180,0.05,'square',0.03); if(!R.t.landed) recordLanding(); } }
 function flash(){tgtMat.emissive.setHex(0xffffff);setTimeout(()=>tgtMat.emissive.setHex(0x0d6b47),60);}
 function nextSeg(){ R.si++; tgt.visible=false; if(R.si>=R.segments.length) return finish(); startSeg(); }
 function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const s=R.segments[R.si]; if(!s)return;
@@ -249,8 +258,17 @@ function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const
     if(now-t.t0>4000){ if(!t.landed)recordLanding(); R.st.ttk.push(4000); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); } }
   if(R&&R.phase==='run'){R.lastV=[view.yaw,view.pitch]; hud();} }
 function hud(){ const s=R.segments[R.si]; if(!s)return; const st=R.st;
-  $('#hudL').textContent=s.type==='track'?`Tracking ${Math.max(0,s.dur+0.6-R.tr.el).toFixed(1)}s · on target ${st.trackT?Math.round(100*st.on/st.trackT):0}%`:`${s.type==='micro'?'Micro':'Flick'} ${s.done}/${s.count} · acc ${st.clicks?Math.round(100*st.hits/st.clicks):100}%`;
-  $('#hudR').textContent=R.hideCm?R.label:`${fmt(R.cm,1)} cm/360${rawOK===false?' · raw input OFF':''}`; }
+  const bar=$('#ahud'); if(bar)bar.classList.add('show');
+  if(s.type==='track'){
+    $('#hudK1').textContent='TIME'; $('#hudV1').textContent=Math.max(0,s.dur+0.6-R.tr.el).toFixed(1)+'s';
+    $('#hudK2').textContent='ON TARGET'; $('#hudV2').textContent=st.trackT?Math.round(100*st.on/st.trackT)+'%':'—';
+  } else {
+    $('#hudK1').textContent=s.type==='micro'?'MICRO':'TARGETS'; $('#hudV1').textContent=s.done+'/'+s.count;
+    $('#hudK2').textContent='ACCURACY'; $('#hudV2').textContent=st.clicks?Math.round(100*st.hits/st.clicks)+'%':'—';
+  }
+  const best=bestOf(R.label==='Warm-up'||R.hideCm?null: (s.type==='micro'?'micro':s.type==='track'?'track':'flick'));
+  $('#hudK3').textContent='BEST'; $('#hudV3').textContent=best?Math.round(best):'—';
+  const cm=$('#hudCm'); if(cm) cm.textContent=R.hideCm?R.label:`${fmt(R.cm,1)} cm/360${rawOK===false?' · raw input OFF':''}`; }
 function scoreOf(st){
   const acc=st.clicks?st.hits/st.clicks:0, ttk=st.ttk.length?st.ttk.reduce((a,b)=>a+b,0)/st.ttk.length:NaN;
   const flick=st.ttk.length?Math.min(130,100*acc*500/Math.max(250,ttk)):null;
@@ -259,9 +277,10 @@ function scoreOf(st){
   const nl=st.over+st.under+st.land.filter(x=>x===0).length;
   const bF=nl?(st.over-st.under)/nl:null; const bT=st.leadN?Math.max(-1,Math.min(1,(st.lead/st.leadN)/1.3)):null;
   const bs=[bF,bT].filter(x=>x!=null); const bias=bs.length?bs.reduce((a,b)=>a+b,0)/bs.length:0;
-  return {score,acc,ttk,flick,track,bias,over:st.over,under:st.under,trOver:st.trOver,trUnder:st.trUnder};
+  const react=st.react&&st.react.length?st.react.reduce((a,b)=>a+b,0)/st.react.length:NaN;
+  return {score,acc,ttk,flick,track,bias,over:st.over,under:st.under,trOver:st.trOver,trUnder:st.trUnder,react};
 }
-function finish(){ const res=Object.assign(scoreOf(R.st),{cm:R.cm,label:R.label,fps:R.fpsN?Math.round(1000/(R.fpsAcc/R.fpsN)):null}); R.phase='done'; tgt.visible=false; if(document.pointerLockElement===stage)document.exitPointerLock();
+function finish(){ const res=Object.assign(scoreOf(R.st),{cm:R.cm,label:R.label,fps:R.fpsN?Math.round(1000/(R.fpsAcc/R.fpsN)):null}); R.phase='done'; tgt.visible=false; clearHud(); if(document.pointerLockElement===stage)document.exitPointerLock();
   beep(660,0.12); const cb=R.onDone; R=null; cb(res); }
 function loop(now){ requestAnimationFrame(loop); measure(now);
   if(!shouldDraw(now))return;
@@ -269,6 +288,7 @@ function loop(now){ requestAnimationFrame(loop); measure(now);
   if(MODE==='range'){ if(RG&&RG.phase==='run')rangeStep(now); rangeCam.rotation.set(rview.pitch*D2R,rview.yaw*D2R,0); vmAnim(now); renderer.render(rscene,rangeCam); }
   else { if(R&&R.phase==='run'){ step(now); if(R){R.fpsAcc+=ft;R.fpsN++;} }
   camera.rotation.set(view.pitch*D2R,view.yaw*D2R,0); renderer.render(scene,camera); }
+  if(xhKick>0){ xhKick*=0.78; if(xhKick<0.04)xhKick=0; drawCurrentXH(); }
   paintHint(now);
   if(S.showFps&&(F.dc=(F.dc||0)+1)%8===0) $('#hudFps').textContent=`${F.ft?Math.round(1000/F.ft):0} fps · ${F.ft.toFixed(2)} ms · ${F.hz} Hz${capFps()<F.hz?' · cap '+Math.round(capFps()):''}`; }
 const biasTxt=b=>Math.abs(b)<0.15?'balanced':(b>0?`overshoots (${Math.round(b*100)}%)`:`undershoots (${Math.round(-b*100)}%)`);
@@ -278,12 +298,33 @@ let drill='flick';
 $('#drills').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;drill=b.dataset.d;$$('#drills button').forEach(x=>x.classList.toggle('on',x===b));});
 const DRILLS={flick:()=>[{type:'flick',count:20}],micro:()=>[{type:'micro',count:20}],track:()=>[{type:'track',dur:25}]};
 $('#startBtn').onclick=()=>{ if(!ok())return alert('Fill in the converter first.'); mountStage('#stageHost');
-  newRound(DRILLS[drill](),currentCm(),res=>{ addHist(drill,res); showRes(res); showOv(`<div class="big">${Math.round(res.score)}</div><div class="muted">score · ${biasTxt(res.bias)}</div><div class="small muted">Press Start to go again</div>`); },drill[0].toUpperCase()+drill.slice(1)); };
-function showRes(r){ $('#lastRound').innerHTML=[['Score',Math.round(r.score)],['Accuracy',r.flick!=null?Math.round(r.acc*100)+'%':'—'],['Avg time-to-kill',Number.isFinite(r.ttk)?Math.round(r.ttk)+' ms':'—'],['On target',r.track!=null?Math.round(r.track)+'%':'—'],['Overshoot / undershoot',r.flick!=null?`${r.over} / ${r.under}`:`${r.trOver.toFixed(1)}s / ${r.trUnder.toFixed(1)}s`],['Tendency',biasTxt(r.bias)],['Avg FPS',r.fps||'—']]
+  newRound(DRILLS[drill](),currentCm(),res=>{ const prev=bestOf(drill); res.isBest=res.score>prev&&res.score>0; addHist(drill,res); showRes(res); showRoundOv(drill,res); renderDrillBests(); },drill[0].toUpperCase()+drill.slice(1)); };
+function showRes(r){ $('#lastRound').innerHTML=[['Score',Math.round(r.score)],['Accuracy',r.flick!=null?Math.round(r.acc*100)+'%':'—'],['Time-to-hit',Number.isFinite(r.ttk)?Math.round(r.ttk)+' ms':'—'],['First shot',Number.isFinite(r.react)?Math.round(r.react)+' ms':'—'],['On target',r.track!=null?Math.round(r.track)+'%':'—'],['Overshoot / undershoot',r.flick!=null?`${r.over} / ${r.under}`:`${r.trOver.toFixed(1)}s / ${r.trUnder.toFixed(1)}s`],['Tendency',biasTxt(r.bias)],['Avg FPS',r.fps||'—']]
   .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join(''); }
-function addHist(drill,r){ store.history.unshift({at:Date.now(),drill,cm:r.cm,score:r.score,acc:r.acc,ttk:r.ttk,over:r.over,under:r.under,bias:r.bias,fps:r.fps}); store.history=store.history.slice(0,200); save(); }
+function addHist(drill,r){ store.history.unshift({at:Date.now(),drill,cm:r.cm,score:r.score,acc:r.acc,ttk:r.ttk,react:r.react,track:r.track,over:r.over,under:r.under,bias:r.bias,fps:r.fps}); store.history=store.history.slice(0,200); save(); }
+function bestOf(drill){ if(!drill)return 0; return store.history.filter(h=>h.drill===drill).reduce((m,h)=>Math.max(m,+h.score||0),0); }
+function renderDrillBests(){ $$('#drills .best').forEach(el=>{ const b=bestOf(el.dataset.best); el.textContent=b?('Best '+Math.round(b)):''; }); }
+function cell(k,v){ return `<div><div class="k">${k}</div><div class="v">${v}</div></div>`; }
+function showRoundOv(kind,res){
+  const cells=[];
+  if(res.flick!=null) cells.push(cell('Accuracy',Math.round(res.acc*100)+'%'), cell('Time-to-hit',Number.isFinite(res.ttk)?Math.round(res.ttk)+' ms':'—'), cell('First shot',Number.isFinite(res.react)?Math.round(res.react)+' ms':'—'));
+  if(res.track!=null) cells.push(cell('On target',Math.round(res.track)+'%'), cell('Over / under',`${res.trOver.toFixed(1)}s / ${res.trUnder.toFixed(1)}s`));
+  if(res.flick!=null) cells.push(cell('Over / under',`${res.over} / ${res.under}`));
+  cells.push(cell('Tendency',biasTxt(res.bias)));
+  const best=bestOf(kind);
+  const badge=res.isBest?'<div class="badge">NEW BEST</div>':(best?`<div class="subscore">Best ${Math.round(best)}</div>`:'');
+  const title=kind[0].toUpperCase()+kind.slice(1);
+  showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div><div class="small muted">Click the arena or press Start to go again</div>`);
+}
+function clearHud(){ const a=$('#ahud'); if(a){ a.classList.remove('show'); ['hudV1','hudV2','hudV3'].forEach(id=>{const e=$('#'+id); if(e)e.textContent='—';}); } const c=$('#hudCm'); if(c)c.textContent=''; }
+function abandonArenaRound(){ if(R){ R=null; tgt.visible=false; } clearHud(); if(document.pointerLockElement===stage) document.exitPointerLock(); }
+function hitFx(kind){ const el=$('#hitFx'); if(!el)return; el.className=''; void el.offsetWidth; el.className=kind==='miss'?'miss':'hit';
+  if(currentXH().dynamic){ xhKick=1; drawCurrentXH(); } }
+
 function renderRangeHist(){ const rows=store.rangeHistory.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td><b>${h.points}</b></td><td>${h.shots?Math.round(100*h.hits/h.shots)+'%':'—'}</td><td>${h.hits} / ${h.shots}</td><td>${h.tth?Math.round(h.tth)+' ms':'—'}</td><td class="small">${esc(h.setup)}</td><td>${fmt(h.cm,1)}</td></tr>`).join(''); const el=$('#rhist'); if(el)el.innerHTML=rows||'<tr><td colspan="7" class="muted">No range runs yet.</td></tr>'; }
-function renderHist(){ renderRangeHist(); $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?'—':Math.round(h.acc*100)+'%'}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td><td>${h.fps||'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No rounds yet.</td></tr>'; }
+function renderHist(){ renderRangeHist(); renderDrillBests(); const pb=$('#pbests'); if(pb){ const tile=(k,v)=>`<div class="card stat"><div class="k">${k}</div><div class="v">${v||'—'}</div></div>`;
+    pb.innerHTML=tile('Flick best',bestOf('flick')||'')+tile('Tracking best',bestOf('track')||'')+tile('Micro best',bestOf('micro')||'')+tile('Range best',bestPts()||''); }
+  $('#hist').innerHTML=store.history.map(h=>`<tr><td>${new Date(h.at).toLocaleString()}</td><td>${h.drill}</td><td>${fmt(h.cm,1)}</td><td>${Math.round(h.score)}</td><td>${h.drill==='track'?(h.track!=null?Math.round(h.track)+'%':'—'):(h.acc!=null?Math.round(h.acc*100)+'%':'—')}</td><td>${Number.isFinite(h.ttk)?Math.round(h.ttk)+' ms':'—'}</td><td>${biasTxt(h.bias||0)}</td><td>${h.fps||'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">No rounds yet.</td></tr>'; }
 $('#clearBtn').onclick=()=>{ if(confirm('Clear all saved results?')){store.history=[];store.finder=null;save();renderHist();renderFinder();} };
 
 /* ---------- finder ---------- */
@@ -333,16 +374,91 @@ function drawChart(f){ const c=$('#chart'),x=c.getContext('2d'),W=c.width,H=c.he
   rs.forEach(r=>{x.fillStyle='#7c8cff';x.beginPath();x.arc(X(r.cm),Y(r.score),8,0,7);x.fill();x.fillStyle='#e6edf5';x.fillText(r.cm.toFixed(1),X(r.cm)-20,Y(r.score)-16);}); }
 
 /* ---------- crosshair (customizable, original) ---------- */
-const ARENA_XH={style:'cross',color:'#36f1a6',size:8,gap:2,outline:true};
-function drawXH(c){ const el=$('#xh'), col=c.color||'#fff', sh=c.outline?'box-shadow:0 0 0 1px #000a;':'', parts=[];
+function currentXH(){ const id=S.game||'cs2'; if(!S.xhs[id]) S.xhs[id]=M.normXH(M.XH_DEF); S.xh=S.xhs[id]; return S.xh; }
+function loadGameXH(){ currentXH(); drawCurrentXH(); syncXHEditors(); }
+function saveXH(x){ x=M.normXH(x); S.xhs[S.game]=x; S.xh=x; save(); drawCurrentXH(); syncXHEditors(); }
+function xhCss(c){ const h=(c.color||'#fff').replace('#',''); const n=parseInt(h,16); if(!Number.isFinite(n)||h.length!==6) return c.color||'#fff';
+  const a=c.opacity==null?1:c.opacity; return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+let xhKick=0;
+function drawXH(c,el){ el=el||$('#xh'); if(!el)return; c=M.normXH(c); const col=xhCss(c), ow=c.outline?c.outlineW:0, sh=ow?`box-shadow:0 0 0 ${ow}px #000c;`:'';
+  const kick=c.dynamic&&xhKick>0?xhKick*Math.max(4,c.size*0.45):0;
+  const s=+c.size, g=(+c.gap)+kick, t=Math.max(1,+c.thick), parts=[];
   const box=(x,y,w,h,extra='')=>parts.push(`<i style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${col};${sh}${extra}"></i>`);
-  const s=+c.size||6, g=+c.gap||0, t=2;
-  if(c.style==='dot'||c.style==='crossdot'){ const d=c.style==='dot'?s:2; box(-d/2,-d/2,d,d,'border-radius:50%;'); }
-  if(c.style==='cross'||c.style==='crossdot'){ box(-t/2,-g-s,t,s); box(-t/2,g,t,s); box(-g-s,-t/2,s,t); box(g,-t/2,s,t); }
-  if(c.style==='circle'){ parts.push(`<i style="left:${-s}px;top:${-s}px;width:${2*s}px;height:${2*s}px;border:2px solid ${col};border-radius:50%;box-sizing:border-box;${c.outline?'box-shadow:0 0 0 1px #000a, inset 0 0 0 1px #000a;':''}"></i>`); box(-1,-1,2,2,'border-radius:50%;'); }
+  const dot=(d)=>{ d=Math.max(2,d); box(-d/2,-d/2,d,d,'border-radius:50%;'); };
+  if(c.style==='dot'){ dot(s); }
+  else if(c.style==='circle'){ const stroke=Math.max(2,t); parts.push(`<i style="left:${-s}px;top:${-s}px;width:${2*s}px;height:${2*s}px;border:${stroke}px solid ${col};border-radius:50%;box-sizing:border-box;background:transparent;${c.outline?`box-shadow:0 0 0 ${ow}px #000c, inset 0 0 0 ${ow}px #000c;`:''}"></i>`); if(c.dot)dot(Math.max(2,t+1)); }
+  else {
+    const arms=c.style==='t'?'t':'cross';
+    if(arms==='t'){ box(-t/2,g,t,s); box(-g-s,-t/2,s,t); box(g,-t/2,s,t); } // no top arm
+    else { box(-t/2,-g-s,t,s); box(-t/2,g,t,s); box(-g-s,-t/2,s,t); box(g,-t/2,s,t); }
+    if(c.dot||c.style==='crossdot') dot(Math.max(2,t+1));
+  }
   el.innerHTML=parts.join(''); }
-function setMode(m){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawXH(m==='range'?S.range.xh:ARENA_XH);
-  if(m==='range'){ setRangeFov(); rangeOverlay(); } else if(!R){ $('#ov').classList.remove('begin'); showOv(`<div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div>`); } }
+function drawCurrentXH(){ drawXH(currentXH()); $$('.xh-origin').forEach(el=>drawXH(currentXH(),el)); }
+function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawCurrentXH();
+  if(m==='range'){ setRangeFov(); rangeOverlay(); }
+  else if(!R){ clearHud(); $('#ov').classList.remove('begin');
+    if(tab==='finder') showOv(`<div class="big">Sens Finder</div><div class="muted">Press Start finder, then click the arena to lock and begin.</div>`);
+    else showOv(`<div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div>`); } }
+
+
+function xhEditorHTML(){ const x=currentXH(); const g=safeGet(S.game); const name=g?g.name:S.game;
+  const games=M.all();
+  const styles=[['cross','Cross'],['dot','Dot'],['crossdot','Cross + dot'],['circle','Circle'],['t','T']];
+  return `<div class="xhhead"><label>Crosshair for <b data-xh-game>${esc(short(name))}</b> <span class="muted small">(Train + Range)</span></label><div class="xhprev"><div class="xh-origin"></div></div></div>
+  <div class="grid2">
+    <div><label>Style</label><select data-xh="style">${styles.map(([v,l])=>`<option value="${v}" ${x.style===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div><label>Color</label><input data-xh="color" type="color" value="${x.color}" style="height:36px;padding:2px"></div>
+    <div><label>Length <span class="muted" data-xh-val="size">${x.size}px</span></label><input data-xh="size" type="range" min="1" max="32" step="1" value="${x.size}"></div>
+    <div><label>Thickness <span class="muted" data-xh-val="thick">${x.thick}px</span></label><input data-xh="thick" type="range" min="1" max="10" step="1" value="${x.thick}"></div>
+    <div><label>Gap <span class="muted" data-xh-val="gap">${x.gap}px</span></label><input data-xh="gap" type="range" min="-8" max="20" step="1" value="${x.gap}"></div>
+    <div><label>Outline width <span class="muted" data-xh-val="outlineW">${x.outlineW}px</span></label><input data-xh="outlineW" type="range" min="1" max="4" step="1" value="${x.outlineW}"></div>
+    <div><label>Opacity <span class="muted" data-xh-val="opacity">${Math.round(x.opacity*100)}%</span></label><input data-xh="opacity" type="range" min="0.1" max="1" step="0.05" value="${x.opacity}"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end">
+      <label class="inl"><input data-xh="outline" type="checkbox" ${x.outline?'checked':''}> Outline</label>
+      <label class="inl"><input data-xh="dot" type="checkbox" ${x.dot?'checked':''}> Center dot</label>
+      <label class="inl"><input data-xh="dynamic" type="checkbox" ${x.dynamic?'checked':''}> Dynamic (opens on shot)</label>
+    </div>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn alt sm" data-xh-act="reset">Reset default</button>
+    <select data-xh-copy>${games.map(g=>`<option value="${g.id}" ${g.id===S.game?'disabled':''}>Copy from ${esc(short(g.name))}</option>`).join('')}</select>
+    <button type="button" class="btn alt sm" data-xh-act="copy">Copy</button>
+  </div>
+  <div class="actions">
+    <input type="text" data-xh-code placeholder="EZX1-… or a CSGO- share code" value="${esc(M.xhCode(x))}">
+    <button type="button" class="btn alt sm" data-xh-act="export">Copy code</button>
+    <button type="button" class="btn sm" data-xh-act="import">Import</button>
+    <span class="msg" data-xh-msg></span>
+  </div>`; }
+function fillXHEditors(){ $$('[data-xhedit]').forEach(root=>{ root.innerHTML=xhEditorHTML(); const prev=root.querySelector('.xh-origin'); if(prev)drawXH(currentXH(),prev); }); }
+function syncXHEditors(){ const x=currentXH();
+  $$('[data-xhedit]').forEach(root=>{
+    if(!root.querySelector('[data-xh=style]')) return;
+    const set=(k,v)=>{ const el=root.querySelector('[data-xh="'+k+'"]'); if(!el)return; if(el.type==='checkbox')el.checked=!!v; else el.value=v; };
+    set('style',x.style); set('color',x.color); set('size',x.size); set('thick',x.thick); set('gap',x.gap); set('outlineW',x.outlineW); set('opacity',x.opacity); set('outline',x.outline); set('dot',x.dot); set('dynamic',x.dynamic);
+    const lab=(k,s)=>{ const e=root.querySelector('[data-xh-val="'+k+'"]'); if(e)e.textContent=s; };
+    lab('size',x.size+'px'); lab('thick',x.thick+'px'); lab('gap',x.gap+'px'); lab('outlineW',x.outlineW+'px'); lab('opacity',Math.round(x.opacity*100)+'%');
+    const gn=root.querySelector('[data-xh-game]'); if(gn){ const g=safeGet(S.game); gn.textContent=g?short(g.name):S.game; }
+    const code=root.querySelector('[data-xh-code]'); if(code&&document.activeElement!==code) code.value=M.xhCode(x);
+    const prev=root.querySelector('.xh-origin'); if(prev)drawXH(x,prev);
+  }); }
+function readXHFrom(root){ const v=k=>{ const el=root.querySelector('[data-xh="'+k+'"]'); if(!el)return; return el.type==='checkbox'?el.checked:(el.type==='range'||el.type==='number'?+el.value:el.value); };
+  return M.normXH({style:v('style'),color:v('color'),size:v('size'),thick:v('thick'),gap:v('gap'),outline:v('outline'),outlineW:v('outlineW'),dot:v('dot'),opacity:v('opacity'),dynamic:v('dynamic')}); }
+function xhMsg(root,text,ok){ const m=root.querySelector('[data-xh-msg]'); if(!m)return; m.textContent=text; m.className='msg '+(ok?'ok':'bad'); }
+function importXH(s){ const r=M.parseXHCode(s); if(r&&r.ok&&r.xh){ saveXH(r.xh); return r; } return r||{error:'bad'}; }
+function bindXHEditors(){ document.addEventListener('input',e=>{ const root=e.target.closest('[data-xhedit]'); if(!root)return;
+  if(e.target.dataset.xh){ const x=readXHFrom(root); saveXH(x); } });
+  document.addEventListener('click',e=>{ const root=e.target.closest('[data-xhedit]'); if(!root)return; const act=e.target.dataset.xhAct; if(!act)return;
+    if(act==='reset'){ saveXH(M.XH_DEF); xhMsg(root,'Reset to the default green cross.',true); }
+    if(act==='copy'){ const id=root.querySelector('[data-xh-copy]').value; if(id&&id!==S.game){ const src=S.xhs[id]?M.normXH(S.xhs[id]):M.XH_DEF; saveXH(src); xhMsg(root,'Copied.',true); } }
+    if(act==='export'){ const code=M.xhCode(currentXH()); const box=root.querySelector('[data-xh-code]'); if(box)box.value=code;
+      (async()=>{ try{ await navigator.clipboard.writeText(code); xhMsg(root,'Code copied.',true); }catch(err){ xhMsg(root,'Copy it from the box.',true); } })(); }
+    if(act==='import'){ const raw=(root.querySelector('[data-xh-code]')||{}).value||''; const r=importXH(raw);
+      if(r&&r.ok) xhMsg(root,r.src==='csgo'?'Imported from a CSGO share code.':'Imported.',true);
+      else if(r&&r.error==='cs2-new') xhMsg(root,'That looks like a new CS2 code (no dashes). Only classic CSGO- codes can be imported right now.',false);
+      else xhMsg(root,'Could not read that code.',false); }
+  }); }
 
 /* ---------- shooting range (original design) ---------- */
 let RG=null; const rview={yaw:0,pitch:2};
@@ -399,8 +515,8 @@ function rangeShoot(){ if(!RG||RG.phase!=='run')return; RG.shots++; vmKick=1;
   const o=new THREE.Vector3(); rangeCam.getWorldPosition(o); const d=new THREE.Vector3(); rangeCam.getWorldDirection(d);
   let best=null,bd=Infinity; for(const t of rTargets){ const c=t.mesh.position, r=S.range.size; const oc=c.clone().sub(o); const tc=oc.dot(d); if(tc<0)continue; const d2=oc.lengthSq()-tc*tc; if(d2<=r*r&&tc<bd){bd=tc;best=t;} }
   if(best){ const tth=performance.now()-best.born; RG.tth.push(tth); RG.hits++; RG.points+=100+Math.max(0,Math.round((1000-tth)/20)); beep(1250,0.05,'triangle');
-    best.mesh.material.emissive.setHex(0xffffff); const m=best.mesh.material; setTimeout(()=>m.emissive.setHex(0),50); placeRT(best); }
-  else beep(170,0.05,'square',0.025);
+    best.mesh.material.emissive.setHex(0xffffff); const m=best.mesh.material; setTimeout(()=>m.emissive.setHex(0),50); hitFx('hit'); placeRT(best); }
+  else { hitFx('miss'); beep(170,0.05,'square',0.025); }
   rhud(); }
 function rangeStep(now){ const dt=Math.min(0.05,(now-RG.last)/1000); RG.last=now; RG.remaining-=dt*1000;
   if(S.range.moving) for(const t of rTargets){ const p=t.mesh.position, r=S.range.size; p.x+=t.vx*dt; if(p.x>RB.x-r){p.x=RB.x-r;t.vx=-Math.abs(t.vx);} if(p.x<-RB.x+r){p.x=-RB.x+r;t.vx=Math.abs(t.vx);} t.ph+=dt*1.3; p.y=Math.max(RB.yMin+r,Math.min(RB.yMax-r,t.y0+Math.sin(t.ph)*0.35*S.range.speed)); }
@@ -420,15 +536,13 @@ function renderPanel(){ const r=S.range,x=r.xh, top=[...store.rangeHistory].sort
   <label>Speed <span class="muted" id="spv">${r.speed} m/s</span></label><input data-r="speed" type="range" min="0.3" max="5" step="0.1" value="${r.speed}">
   <div class="rowx" style="margin-top:8px"><label class="inl"><input data-r="viewmodel" type="checkbox" ${r.viewmodel?'checked':''}> Viewmodel</label><label class="inl"><input data-g="sound" type="checkbox" ${S.sound?'checked':''}> Hit sounds</label></div>
   <label class="inl" style="margin-top:6px"><input data-g="hint" type="checkbox" ${S.hint?'checked':''}> Off-screen target hint</label>
-  <label>Crosshair</label><div class="rowx"><select data-x="style">${[['dot','Dot'],['cross','Cross'],['crossdot','Cross + dot'],['circle','Circle']].map(([v,t])=>`<option ${v===x.style?'selected':''} value="${v}">${t}</option>`).join('')}</select><input data-x="color" type="color" value="${x.color}" style="height:30px;padding:2px"></div>
-  <div class="rowx"><div><label>Size</label><input data-x="size" type="range" min="2" max="24" step="1" value="${x.size}"></div><div><label>Gap</label><input data-x="gap" type="range" min="0" max="10" step="1" value="${x.gap}"></div></div>
-  <label class="inl" style="margin-top:6px"><input data-x="outline" type="checkbox" ${x.outline?'checked':''}> Outline</label>
+  <div class="xhedit" data-xhedit></div>
   <label>Best runs</label><table>${top.map(h=>`<tr><td><b>${h.points}</b></td><td>${h.shots?Math.round(100*h.hits/h.shots):0}%</td><td class="muted">${new Date(h.at).toLocaleDateString()}</td></tr>`).join('')||'<tr><td class="muted">No runs yet</td></tr>'}</table>
-  <label>Recent</label><table>${rec.map(h=>`<tr><td>${h.points}</td><td>${h.shots?Math.round(100*h.hits/h.shots):0}%</td><td class="muted small">${esc(h.setup)}</td></tr>`).join('')||'<tr><td class="muted">—</td></tr>'}</table>`; }
+  <label>Recent</label><table>${rec.map(h=>`<tr><td>${h.points}</td><td>${h.shots?Math.round(100*h.hits/h.shots):0}%</td><td class="muted small">${esc(h.setup)}</td></tr>`).join('')||'<tr><td class="muted">—</td></tr>'}</table>`;
+  fillXHEditors(); }
 function onPanel(e){ const el=e.target, v=el.type==='checkbox'?el.checked:(el.type==='color'||el.tagName==='SELECT'&&el.dataset.x)?el.value:+el.value;
   if(el.dataset.r){ const k=el.dataset.r; S.range[k]=k==='count'?Math.max(1,Math.min(8,Math.round(v)||1)):v; if(k==='size')$('#szv').textContent=Math.round(v*200)+' cm'; if(k==='speed')$('#spv').textContent=v+' m/s';
     if(RG&&(RG.phase==='pause')&&['size','count','moving','speed'].includes(k)) layoutTargets(); if(k==='dur'&&(!RG||RG.phase!=='pause'))rhud(); }
-  if(el.dataset.x){ S.range.xh[el.dataset.x]=v; drawXH(S.range.xh); }
   if(el.dataset.g==='sound'){ S.sound=v; const sb=$('#sound'); if(sb)sb.checked=v; }
   if(el.dataset.g==='hint'){ S.hint=v; const ho=$('#hintOpt'); if(ho)ho.checked=v; if(!S.hint)clearHint(); }
   save(); }
@@ -496,7 +610,8 @@ function paintHint(now){
 }
 
 /* test hooks for headless checks */
-window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:m=>setMode(m),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},tick:(ms)=>{if(!R)return; if(R.phase!=='run'){R.phase='run';hideOv();} step((R.last||performance.now())+ms);},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S,
-  FLOOR_Y,CEIL_Y,DIST,targetPos:()=>tgt.position.clone(),targetRad:()=>tgt.scale.x,targetVisible:()=>tgt.visible,hintSample:()=>sampleHints(),paintHint};
-RANGE_INIT(); makeRenderer(); syncInputs(); syncPerf(); renderHist(); renderFinder(); requestAnimationFrame(loop);
+window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:(m,tab)=>setMode(m,tab),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},tick:(ms)=>{if(!R)return; if(R.phase!=='run'){R.phase='run';hideOv();} step((R.last||performance.now())+ms);},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S,
+  FLOOR_Y,CEIL_Y,DIST,targetPos:()=>tgt.position.clone(),targetRad:()=>tgt.scale.x,targetVisible:()=>tgt.visible,hintSample:()=>sampleHints(),paintHint,bestOf,clearHud,placeTarget,
+  currentXH,saveXH,loadGameXH,xhCode:()=>M.xhCode(currentXH()),importXH:s=>importXH(s)};
+RANGE_INIT(); makeRenderer(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

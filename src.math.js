@@ -131,6 +131,69 @@
     const t=Math.min(tx,ty);
     return {x:sx*t,y:sy*t,ang:Math.atan2(sy,sx),alpha,inside};
   }
+  // Per-game crosshair profiles + short codes + classic CSGO- share-code import
+  const XH_STYLES=['cross','dot','crossdot','circle','t'];
+  const XH_DEF={style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false};
+  const clampN=(v,lo,hi,d)=>Number.isFinite(+v)?Math.max(lo,Math.min(hi,+v)):d;
+  function hexColor(c){ c=String(c||'').trim(); if(/^#?[0-9a-fA-F]{6}$/.test(c)) return '#'+c.replace('#','').toLowerCase(); return XH_DEF.color; }
+  function normXH(o){ o=o||{};
+    const style=XH_STYLES.includes(o.style)?o.style:'cross';
+    return {style,color:hexColor(o.color),size:Math.round(clampN(o.size,1,48,8)),thick:Math.round(clampN(o.thick,1,12,2)),
+      gap:Math.round(clampN(o.gap,-12,24,2)),outline:!!o.outline,outlineW:Math.round(clampN(o.outlineW,1,4,1)),
+      dot:!!o.dot||style==='dot'||style==='crossdot',opacity:Math.round(clampN(o.opacity,0.1,1,1)*100)/100,dynamic:!!o.dynamic};
+  }
+  function xhCode(o){ const n=normXH(o), st={cross:'C',dot:'D',crossdot:'X',circle:'O',t:'T'}[n.style]||'C';
+    const f=(n.outline?1:0)|(n.dot?2:0)|(n.dynamic?4:0);
+    return 'EZX1-'+st+n.color.slice(1)+'-s'+n.size+'t'+n.thick+'g'+n.gap+'w'+n.outlineW+'a'+Math.round(n.opacity*100)+'f'+f; }
+  function parseEZX(s){ const m=String(s).trim().match(/^EZX1-([CDXOT])([0-9a-fA-F]{6})-s(-?\d+)t(-?\d+)g(-?\d+)w(-?\d+)a(-?\d+)f(-?\d+)$/i);
+    if(!m)return null; const st={C:'cross',D:'dot',X:'crossdot',O:'circle',T:'t'}[m[1].toUpperCase()]||'cross'; const f=+m[8];
+    return normXH({style:st,color:'#'+m[2],size:+m[3],thick:+m[4],gap:+m[5],outlineW:+m[6],opacity:(+m[7])/100,outline:!!(f&1),dot:!!(f&2)||st==='dot'||st==='crossdot',dynamic:!!(f&4)}); }
+  // Classic CSGO-/CS2 legacy share codes (public format: 25 base-57 chars → 18 bytes). New dashed-free CS… container is skipped.
+  const CS_ALPH='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+  function csgoBytes(code){ let s=String(code).trim().replace(/^CSGO-/i,'').replace(/-/g,''); if(s.length!==25)return null;
+    for(const ch of s) if(CS_ALPH.indexOf(ch)<0)return null;
+    s=s.split('').reverse().join(''); let n=0n; for(const ch of s) n=n*57n+BigInt(CS_ALPH.indexOf(ch));
+    const b=new Array(18).fill(0); for(let i=17;i>=0;i--){ b[i]=Number(n&255n); n>>=8n; } return b; }
+  function i8(v){ return v>127?v-256:v; }
+  function rgbHex(r,g,b){ const h=n=>('0'+(Math.max(0,Math.min(255,n|0)).toString(16))).slice(-2); return '#'+h(r)+h(g)+h(b); }
+  function xhFromCsgoFields(f){ if(!f)return null;
+    let style='cross';
+    if(f.t) style='t';
+    else if(f.kind==='circle') style=f.dot?'circle':'circle';
+    else if(f.kind==='dot'|| (f.length<=0.15 && f.dot)) style='dot';
+    else if(f.dot) style='crossdot';
+    const dyn=!!f.dynamic;
+    return normXH({style,color:rgbHex(f.r,f.g,f.b),size:Math.max(1,Math.round(f.length*2)),thick:Math.max(1,Math.round(f.thick*2)),
+      gap:Math.round(f.gap*2),outline:!!f.outline,outlineW:Math.max(1,Math.round(f.outlineW||1)),dot:!!f.dot,opacity:f.useAlpha?Math.round((f.alpha/255)*100)/100:1,dynamic:dyn}); }
+  function decodeCsgoXH(code){ const raw=String(code||'').trim();
+    if(/^CS(?!GO)/i.test(raw) && !raw.includes('-')) return {error:'cs2-new'};
+    const b=csgoBytes(raw); if(!b)return {error:'bad'};
+    let sum=0; for(let i=1;i<18;i++) sum+=b[i]; if((sum&255)!==b[0]) return {error:'checksum'};
+    const ver=b[1];
+    if(ver===1){ const style=(b[13]&0xf)>>1, flags=b[13]>>4;
+      const f={format:'legacy-v1',gap:i8(b[2])/10,outlineW:b[3]/2,r:b[4],g:b[5],b:b[6],alpha:b[7],
+        outline:!!(b[10]&8),thick:b[12]/10,dot:!!(flags&1),useAlpha:!!(flags&4),t:!!(flags&8),style,length:b[14]/10,
+        dynamic:style<=3,kind:style===5?'legacy':'cross'};
+      return {ok:true,fields:f,xh:xhFromCsgoFields(f)}; }
+    if(ver===3||ver===4){ const st=b[2]&0xf;
+      const kind=st===1||st===3?'circle':st===6?'dot':'cross';
+      const sh=b[14]|(b[15]<<8), scale=sh>0?1080/sh:1;
+      const bits=b[10]|(b[11]<<8)|(b[12]<<16)|(b[13]<<24);
+      const f={format:'legacy-v'+ver,style:st,dynamic:st===0||st===1||st===2||st===7,dot:!!(b[2]&0x40),t:!!(b[2]&0x80),
+        r:b[3],g:b[4],b:b[5],alpha:b[6],useAlpha:true,gap:b[7]*scale/2,length:b[8]*scale,thick:(bits>>23)&0x1f,
+        outline:ver===3?!!(b[2]&0x20):(((b[13]>>4)&3)!==0),outlineW:1,kind};
+      // v3/v4 gap/length are already pixels; don't double-scale in xhFromCsgoFields
+      const xh=normXH({style:f.t?'t':f.kind==='circle'?'circle':f.kind==='dot'||(f.length<2&&f.dot)?'dot':f.dot?'crossdot':'cross',
+        color:rgbHex(f.r,f.g,f.b),size:Math.max(1,Math.round(f.length)),thick:Math.max(1,f.thick),
+        gap:Math.round(ver>=3?b[7]*(sh>0?1080/sh:1):f.gap),outline:f.outline,outlineW:1,dot:!!f.dot,opacity:f.alpha/255,dynamic:f.dynamic});
+      return {ok:true,fields:f,xh}; }
+    return {error:'version'}; }
+  function parseXHCode(s){ s=String(s||'').trim(); if(!s)return {error:'empty'};
+    const ez=parseEZX(s); if(ez)return {ok:true,xh:ez,src:'ez'};
+    if(/^CSGO-/i.test(s)||/^CS(?!GO)/i.test(s)) return Object.assign({src:'csgo'}, decodeCsgoXH(s));
+    return {error:'bad'}; }
+
   root.EZMath = {K,SOURCES:S,GAMES:B,get,all,setCustom,defaults,dpc,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm,countsPer360,yawFromRuler,yawFromCounts,
-    ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint};
+    ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint,
+    XH_DEF,XH_STYLES,normXH,xhCode,parseEZX,parseXHCode,decodeCsgoXH,csgoBytes};
 })(typeof window!=='undefined'?window:globalThis);

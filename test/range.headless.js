@@ -21,7 +21,7 @@ await pg.screenshot({path:'/tmp/pw/range1.png'});
 await pg.evaluate(()=>{EZ.range().remaining=50;}); await new Promise(r=>setTimeout(r,400));
 console.log('after end:', await pg.$eval('#ov',e=>e.innerText.replace(/\s+/g,' ')), '| history', await pg.evaluate(()=>JSON.parse(localStorage.getItem('ezsens.v1')).rangeHistory.length));
 // crosshair customizer + panel changes
-await pg.select('#rpanelBody select[data-x=style]','crossdot'); console.log('crosshair parts', await pg.$$eval('#xh i',e=>e.length));
+await pg.select('#rpanelBody select[data-xh=style]','crossdot'); console.log('crosshair parts', await pg.$$eval('#xh i',e=>e.length), 'style', await pg.evaluate(()=>EZ.currentXH().style));
 await pg.click('#rpanelBody input[data-r=moving]'); console.log('moving saved', await pg.evaluate(()=>EZ.S.range.moving));
 await pg.evaluate(()=>EZ.rangeBegin()); const p0=await pg.evaluate(()=>EZ.rangeTargets()[0].x); await new Promise(r=>setTimeout(r,500)); const move=await pg.evaluate(()=>{ const ts=EZ.rangeTargets(); return {p1:ts[0].x, ys:ts.map(t=>t.y), minY:0.8, size:EZ.S.range.size}; });
 console.log('moving target dx', (move.p1-p0).toFixed(3), 'ys', move.ys);
