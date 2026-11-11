@@ -199,8 +199,16 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <div id="xhEditor" class="xhedit" data-xhedit></div>
     <div class="small muted" id="perfInfo"></div>
   </div>
-  <div class="row small muted" style="margin-bottom:10px;align-items:center">
-    <div id="trainInfo"></div>
+  <div class="row" style="margin-bottom:10px;align-items:center">
+    <div>
+      <label style="margin:0">Time of day</label>
+      <div class="seg" data-envseg>
+        <button type="button" data-env="sunrise">Sunrise</button>
+        <button type="button" data-env="day">Day</button>
+        <button type="button" data-env="night">Night</button>
+      </div>
+    </div>
+    <div class="small muted" id="trainInfo" style="flex:1"></div>
     <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn">Fullscreen</button><button class="btn" id="startBtn">Start drill</button></div>
   </div>
   <div id="stageHost"></div>
@@ -209,10 +217,18 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 
 <section class="tab" id="t-finder">
   <h2>Sensitivity finder</h2>
-  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Frame-rate and quality settings from the Train tab apply here too.</p>
+  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Pick Sunrise, Day or Night for the arena; the Range tab is unchanged. Frame-rate and quality settings from the Train tab apply here too.</p>
   <p class="touchnote warn">The finder needs a desktop mouse (Chrome or Edge).</p>
-  <div class="row small muted" style="margin-bottom:10px;align-items:center">
-    <div id="finderInfo"></div>
+  <div class="row" style="margin-bottom:10px;align-items:center">
+    <div>
+      <label style="margin:0">Time of day</label>
+      <div class="seg" data-envseg>
+        <button type="button" data-env="sunrise">Sunrise</button>
+        <button type="button" data-env="day">Day</button>
+        <button type="button" data-env="night">Night</button>
+      </div>
+    </div>
+    <div class="small muted" id="finderInfo" style="flex:1"></div>
     <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn2">Fullscreen</button><button class="btn" id="finderBtn">Start finder</button></div>
   </div>
   <div id="stageHost2"></div>
@@ -308,7 +324,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
-      <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor.</li>
+      <li><b>Finder time of day:</b> Sunrise, Day and Night change the arena sky, fog, light and ground tint (Night is the original dark look). The choice is remembered in this browser. Train uses the same arena, so it follows the same setting. The Range look is unchanged.</li>
+      <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>
     </ul>
@@ -530,7 +547,7 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'night',afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
 S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh);
@@ -538,6 +555,7 @@ S.xhs=S.xhs&&typeof S.xhs==='object'?S.xhs:{}; S.xh=M.normXH(S.xh||DEF.xh);
 if(!Object.keys(S.xhs).length){ S.xhs[S.game||'cs2']=M.normXH(S.xh.style?S.xh:S.range.xh); }
 Object.keys(S.xhs).forEach(k=>S.xhs[k]=M.normXH(S.xhs[k]));
 if(!S.xhs[S.game]) S.xhs[S.game]=M.normXH(S.xh); S.xh=S.xhs[S.game];
+if(S.env!=='sunrise'&&S.env!=='day'&&S.env!=='night') S.env='night';
 store.rangeHistory=store.rangeHistory||[];
 if(S.arcFov){ S.params.arc=Object.assign({fov:S.arcFov},S.params.arc); delete S.arcFov; }
 M.setCustom(S.custom); if(!safeGet(S.game)) S.game='cs2';
@@ -668,17 +686,97 @@ function makeRenderer(){ if(renderer){ renderer.dispose(); renderer.domElement.r
   renderer=new THREE.WebGLRenderer({canvas:c,context:ctx,antialias:!S.lowq,powerPreference:'high-performance'}); stage.prepend(c);
   scene.fog=S.lowq?null:fog; resize(); }
 let MODE='range';
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a0f); const fog=new THREE.Fog(0x070a0f,40,110);
+const scene=new THREE.Scene();
+const fog=new THREE.Fog(0x070a0f,40,110);
 const camera=new THREE.PerspectiveCamera(70,16/9,0.05,300); camera.rotation.order='YXZ';
-scene.add(new THREE.HemisphereLight(0x9fb6ff,0x10151c,0.9));
+const hemi=new THREE.HemisphereLight(0x9fb6ff,0x10151c,0.9); scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffffff,0.9); sun.position.set(10,30,5); scene.add(sun);
 const floor=new THREE.Mesh(new THREE.CircleGeometry(90,64),new THREE.MeshStandardMaterial({color:0x0f141b,roughness:1}));
 floor.rotation.x=-Math.PI/2; floor.position.y=-1.7; scene.add(floor);
-const grid=new THREE.PolarGridHelper(90,36,18,64,0x1d2a3a,0x141c27); grid.position.y=-1.69; scene.add(grid);
+let grid=null;
+function makeGrid(c1,c2){ if(grid){ scene.remove(grid); grid.geometry.dispose(); const m=grid.material; if(Array.isArray(m))m.forEach(x=>x.dispose()); else if(m)m.dispose(); } grid=new THREE.PolarGridHelper(90,36,18,64,c1,c2); grid.position.y=-1.69; scene.add(grid); }
+makeGrid(0x1d2a3a,0x141c27);
+const pillars=[];
 for(let a=0;a<360;a+=10){const r=Math.PI*a/180, major=a%90===0;
   const p=new THREE.Mesh(new THREE.BoxGeometry(major?1.4:0.8,major?14:8+(a%30===0?3:0),major?1.4:0.8),
     new THREE.MeshStandardMaterial({color:major?0x2b3a55:0x18212e,emissive:major?0x0d1630:0x000000}));
-  p.position.set(Math.sin(r)*48,(major?14:8)/2-1.7,-Math.cos(r)*48); scene.add(p);}
+  p.position.set(Math.sin(r)*48,(major?14:8)/2-1.7,-Math.cos(r)*48); scene.add(p); pillars.push({mesh:p,major});}
+const SKY_R=220;
+const skyGeo=new THREE.SphereGeometry(SKY_R,48,24);
+const skyMesh=new THREE.Mesh(skyGeo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,depthWrite:false,fog:false}));
+scene.add(skyMesh);
+function paintSky(top,mid,hor,down){
+  const pos=skyGeo.attributes.position, c=new THREE.Color(), Ctop=new THREE.Color(top), Cmid=new THREE.Color(mid), Chor=new THREE.Color(hor), Cdown=new THREE.Color(down);
+  let attr=skyGeo.attributes.color; if(!attr||attr.count!==pos.count){ attr=new THREE.BufferAttribute(new Float32Array(pos.count*3),3); skyGeo.setAttribute('color',attr); }
+  const arr=attr.array;
+  for(let i=0;i<pos.count;i++){
+    const u=pos.getY(i)/SKY_R;
+    if(u>=0.22) c.copy(Cmid).lerp(Ctop,(u-0.22)/0.78);
+    else if(u>=0) c.copy(Chor).lerp(Cmid,u/0.22);
+    else c.copy(Chor).lerp(Cdown,Math.min(1,-u));
+    arr[i*3]=c.r; arr[i*3+1]=c.g; arr[i*3+2]=c.b;
+  }
+  attr.needsUpdate=true;
+}
+const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:0xfff2c0,fog:false,depthWrite:false}));
+const sunHalo=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:0xffb060,transparent:true,opacity:0.28,fog:false,depthWrite:false,side:THREE.FrontSide}));
+sunHalo.scale.setScalar(2.6); sunDisc.add(sunHalo); scene.add(sunDisc);
+const ENV={
+  night:{
+    skyTop:0x070a0f,skyMid:0x0a1018,skyHor:0x10161f,skyDown:0x05070b,
+    fog:0x070a0f,fogNear:40,fogFar:110,
+    hemiSky:0x9fb6ff,hemiGround:0x10151c,hemi:0.9,
+    sunCol:0xffffff,sunI:0.9,sunPos:[10,30,5],sunVis:false,sunScale:4,sunDisc:0xfff2c0,sunHalo:0x88a0ff,
+    floor:0x0f141b,gridA:0x1d2a3a,gridB:0x141c27,
+    pilMaj:0x2b3a55,pilMajEm:0x0d1630,pilMin:0x18212e,pilMinEm:0x000000,
+    tgt:0x36f1a6,tgtEm:0x0d6b47,
+    hint:{c0:[255,64,100],c1:[255,36,140],c2:[150,24,210],c3:[50,0,80],edge:[255,190,220]}
+  },
+  day:{
+    skyTop:0x3a7ec8,skyMid:0x8ec4ee,skyHor:0xe4eef6,skyDown:0x8aa0b0,
+    fog:0xc5d8ea,fogNear:70,fogFar:180,
+    hemiSky:0xe8f2ff,hemiGround:0x6a7a88,hemi:1.45,
+    sunCol:0xfff6e0,sunI:1.7,sunPos:[22,55,-70],sunVis:true,sunScale:5.5,sunDisc:0xfff8e0,sunHalo:0xffe8a8,
+    floor:0x3a4552,gridA:0x5a6a7a,gridB:0x4a5562,
+    pilMaj:0x5a6a7c,pilMajEm:0x1a2430,pilMin:0x4a5560,pilMinEm:0x000000,
+    tgt:0x12e878,tgtEm:0x0a8a40,
+    hint:{c0:[255,40,60],c1:[255,24,80],c2:[200,16,48],c3:[80,0,16],edge:[255,210,210]}
+  },
+  sunrise:{
+    skyTop:0x1a2868,skyMid:0xe8789a,skyHor:0xff9a4a,skyDown:0x6a3a28,
+    fog:0xe8a078,fogNear:55,fogFar:150,
+    hemiSky:0xffc8a8,hemiGround:0x3a2818,hemi:1.15,
+    sunCol:0xffb060,sunI:1.55,sunPos:[16,12,-80],sunVis:true,sunScale:8,sunDisc:0xffe0a0,sunHalo:0xff8a4a,
+    floor:0x2a221c,gridA:0x5a4038,gridB:0x3a2e28,
+    pilMaj:0x5a4038,pilMajEm:0x2a1810,pilMin:0x3a2e28,pilMinEm:0x100804,
+    tgt:0x2affc8,tgtEm:0x0a7a58,
+    hint:{c0:[255,80,160],c1:[200,40,200],c2:[120,30,220],c3:[40,0,80],edge:[255,180,230]}
+  }
+};
+let tgtEmHex=0x0d6b47, hintPal=ENV.night.hint;
+function applyEnv(id){
+  const e=ENV[id]||ENV.night;
+  paintSky(e.skyTop,e.skyMid,e.skyHor,e.skyDown);
+  scene.background=new THREE.Color(e.fog);
+  fog.color.setHex(e.fog); fog.near=e.fogNear; fog.far=e.fogFar;
+  if(!S.lowq) scene.fog=fog;
+  hemi.color.setHex(e.hemiSky); hemi.groundColor.setHex(e.hemiGround); hemi.intensity=e.hemi;
+  sun.color.setHex(e.sunCol); sun.intensity=e.sunI; sun.position.set(e.sunPos[0],e.sunPos[1],e.sunPos[2]);
+  sunDisc.visible=!!e.sunVis; sunHalo.visible=!!e.sunVis;
+  if(e.sunVis){
+    sunDisc.position.copy(sun.position).setLength(180);
+    sunDisc.scale.setScalar(e.sunScale);
+    sunDisc.material.color.setHex(e.sunDisc);
+    sunHalo.material.color.setHex(e.sunHalo);
+  }
+  floor.material.color.setHex(e.floor);
+  makeGrid(e.gridA,e.gridB);
+  pillars.forEach(p=>{ p.mesh.material.color.setHex(p.major?e.pilMaj:e.pilMin); p.mesh.material.emissive.setHex(p.major?e.pilMajEm:e.pilMinEm); });
+  tgtMat.color.setHex(e.tgt); tgtMat.emissive.setHex(e.tgtEm); tgtEmHex=e.tgtEm; hintPal=e.hint;
+}
+function setEnv(id){ if(!ENV[id]) id='night'; S.env=id; save(); applyEnv(id); syncEnvUI(); }
+function syncEnvUI(){ $$('[data-envseg] button[data-env]').forEach(b=>b.classList.toggle('on',b.dataset.env===S.env)); }
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-envseg] button[data-env]'); if(!b)return; setEnv(b.dataset.env); });
 const tgtMat=new THREE.MeshStandardMaterial({color:0x36f1a6,emissive:0x0d6b47,roughness:.4});
 const tgt=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),tgtMat); tgt.visible=false; scene.add(tgt);
 const DIST=M.ARENA.dist, FLOOR_Y=M.ARENA.floorY, CEIL_Y=M.ARENA.ceilY;
@@ -769,7 +867,7 @@ function shoot(){ if(!R||R.phase!=='run')return; const s=R.segments[R.si]; if(s.
   R.st.clicks++; const e=angErr(R.t.ty,R.t.tp);
   if(e.ang<=R.t.rad){ recordLanding(); R.st.hits++; R.st.ttk.push(performance.now()-R.t.t0); flash(); hitFx('hit'); beep(1320,0.05,'triangle'); s.done++; if(s.done>=s.count) nextSeg(); else spawn(); }
   else { hitFx('miss'); beep(180,0.05,'square',0.03); if(!R.t.landed) recordLanding(); } }
-function flash(){tgtMat.emissive.setHex(0xffffff);setTimeout(()=>tgtMat.emissive.setHex(0x0d6b47),60);}
+function flash(){tgtMat.emissive.setHex(0xffffff);setTimeout(()=>tgtMat.emissive.setHex(tgtEmHex),60);}
 function nextSeg(){ R.si++; tgt.visible=false; if(R.si>=R.segments.length) return finish(); startSeg(); }
 function step(now){ const dt=Math.min(0.05,(now-R.last)/1000); R.last=now; const s=R.segments[R.si]; if(!s)return;
   if(s.type==='track'){ const T=R.tr; T.el+=dt;
@@ -1110,19 +1208,20 @@ function drawHintArc(ctx,W,H,h,now){
   const A=h.alpha*(0.78+0.22*Math.sin(now*0.007));
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.translate(cx,cy); ctx.rotate(ang);
   let g=ctx.createRadialGradient(reach-8,0,2,reach-8,0,210);
-  g.addColorStop(0,`rgba(255,64,100,${0.58*A})`);
-  g.addColorStop(0.18,`rgba(255,36,140,${0.34*A})`);
-  g.addColorStop(0.48,`rgba(150,24,210,${0.14*A})`);
-  g.addColorStop(1,'rgba(50,0,80,0)');
+  const P=hintPal||ENV.night.hint, rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  g.addColorStop(0,rgba(P.c0,0.58*A));
+  g.addColorStop(0.18,rgba(P.c1,0.34*A));
+  g.addColorStop(0.48,rgba(P.c2,0.14*A));
+  g.addColorStop(1,rgba(P.c3,0));
   ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(reach-10,0,74,180,0,0,Math.PI*2); ctx.fill();
   g=ctx.createLinearGradient(reach-36,-100,reach-36,100);
-  g.addColorStop(0,'rgba(255,40,160,0)');
-  g.addColorStop(0.32,`rgba(255,70,120,${0.75*A})`);
+  g.addColorStop(0,rgba(P.c1,0));
+  g.addColorStop(0.32,rgba(P.c0,0.75*A));
   g.addColorStop(0.5,`rgba(255,220,230,${0.95*A})`);
-  g.addColorStop(0.68,`rgba(190,40,230,${0.75*A})`);
-  g.addColorStop(1,'rgba(110,0,180,0)');
+  g.addColorStop(0.68,rgba(P.c2,0.75*A));
+  g.addColorStop(1,rgba(P.c3,0));
   ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(reach-6,0,18,118,0,0,Math.PI*2); ctx.fill();
-  ctx.strokeStyle=`rgba(255,190,220,${0.9*A})`; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.strokeStyle=rgba(P.edge,0.9*A); ctx.lineWidth=3; ctx.lineCap='round';
   ctx.beginPath(); ctx.ellipse(reach+2,0,5,86,0,-1.15,1.15); ctx.stroke();
   ctx.restore();
 }
@@ -1140,8 +1239,9 @@ function paintHint(now){
 /* test hooks for headless checks */
 window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.clone()),rangeCamPos:()=>{const v=new THREE.Vector3();rangeCam.getWorldPosition(v);return v;},rangeBegin:()=>rangeBeginOrResume(),rangeShoot:()=>rangeShoot(),setMode:(m,tab)=>setMode(m,tab),mode:()=>MODE,simMove:(dx,dy)=>look(dx,dy),simShoot:()=>shoot(),forceRun:()=>{if(R){R.phase='run';R.last=performance.now();hideOv();startSeg();}},tick:(ms)=>{if(!R)return; if(R.phase!=='run'){R.phase='run';hideOv();} step((R.last||performance.now())+ms);},state:()=>R,view,frame:F,capFps,rawEvt:RAW_EVT,setGame,applyShare,enc,dec,S,
   FLOOR_Y,CEIL_Y,DIST,targetPos:()=>tgt.position.clone(),targetRad:()=>tgt.scale.x,targetVisible:()=>tgt.visible,hintSample:()=>sampleHints(),paintHint,bestOf,clearHud,placeTarget,
-  currentXH,saveXH,loadGameXH,xhCode:()=>M.xhCode(currentXH()),importXH:s=>importXH(s)};
-RANGE_INIT(); makeRenderer(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); requestAnimationFrame(loop);
+  currentXH,saveXH,loadGameXH,xhCode:()=>M.xhCode(currentXH()),importXH:s=>importXH(s),
+  setEnv,env:()=>S.env,envInfo:()=>({mode:S.env,fog:fog.color.getHex(),fogNear:fog.near,fogFar:fog.far,hemi:hemi.intensity,hemiSky:hemi.color.getHex(),sunI:sun.intensity,sunCol:sun.color.getHex(),sunPos:sun.position.toArray(),sunDisc:sunDisc.visible,sunScale:sunDisc.scale.x,floor:floor.material.color.getHex(),tgt:tgtMat.color.getHex(),tgtEm:tgtMat.emissive.getHex(),bg:scene.background&&scene.background.getHex(),sky:!!skyMesh.parent,hint:hintPal})};
+RANGE_INIT(); makeRenderer(); applyEnv(S.env); syncEnvUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
 </script>
 </body>

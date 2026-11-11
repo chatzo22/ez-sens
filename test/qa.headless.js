@@ -266,6 +266,38 @@ const note=(s)=>{ console.log('!',s); issues.push(s); };
   if(!/Sens Finder|Start finder/i.test(finderIdle.ov)) note('finder idle overlay missing intro: '+finderIdle.ov);
   await shot('10-finder-idle');
 
+  // time-of-day modes (Finder / Train arena only)
+  const envQa=await evalJ(()=>{
+    const night=(()=>{EZ.setEnv('night');return EZ.envInfo();})();
+    const day=(()=>{EZ.setEnv('day');return EZ.envInfo();})();
+    const rise=(()=>{EZ.setEnv('sunrise');return EZ.envInfo();})();
+    const saved=JSON.parse(localStorage.getItem('ezsens.v1')).settings.env;
+    const on=[...document.querySelectorAll('[data-envseg] button.on')].map(b=>b.dataset.env);
+    EZ.setEnv('night');
+    return {night,day,rise,saved,on};
+  });
+  console.log('finder env', envQa.saved, envQa.on, envQa.night.fog, envQa.day.fog, envQa.rise.fog);
+  if(!(envQa.day.fog!==envQa.night.fog && envQa.rise.fog!==envQa.day.fog)) note('env modes did not change fog');
+  if(!envQa.day.sunDisc||!envQa.rise.sunDisc||envQa.night.sunDisc) note('sun disc visibility is wrong');
+  if(envQa.saved!=='sunrise') note('env did not persist to localStorage');
+  if(envQa.on.some(x=>x!=='night')) note('env UI out of sync after reset to night');
+  const pose={sunrise:{yaw:8,pitch:8},day:{yaw:6,pitch:12},night:{yaw:0,pitch:4}};
+  for(const mode of ['sunrise','day','night']){
+    await evalJ(({mode,pose})=>{
+      EZ.setEnv(mode); EZ.setMode('arena','finder');
+      document.querySelector('#ov').classList.add('hide');
+      EZ.view.yaw=pose[mode].yaw; EZ.view.pitch=pose[mode].pitch;
+      EZ.placeTarget(0,2,1.6);
+    },{mode,pose});
+    await pg.evaluate(()=>document.querySelector('#stage').scrollIntoView({block:'center'}));
+    await new Promise(r=>setTimeout(r,250));
+    const el=await pg.$('#stage');
+    const f=path.join(OUT,'finder-'+mode+'.png');
+    await el.screenshot({path:f});
+    console.log('shot', f);
+  }
+  await evalJ(()=>{ document.querySelector('#ov').classList.remove('hide'); EZ.setMode('arena','finder'); });
+
   // --- custom game ---
   await pg.click('nav button[data-t=custom]');
   await new Promise(r=>setTimeout(r,200));

@@ -199,8 +199,16 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <div id="xhEditor" class="xhedit" data-xhedit></div>
     <div class="small muted" id="perfInfo"></div>
   </div>
-  <div class="row small muted" style="margin-bottom:10px;align-items:center">
-    <div id="trainInfo"></div>
+  <div class="row" style="margin-bottom:10px;align-items:center">
+    <div>
+      <label style="margin:0">Time of day</label>
+      <div class="seg" data-envseg>
+        <button type="button" data-env="sunrise">Sunrise</button>
+        <button type="button" data-env="day">Day</button>
+        <button type="button" data-env="night">Night</button>
+      </div>
+    </div>
+    <div class="small muted" id="trainInfo" style="flex:1"></div>
     <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn">Fullscreen</button><button class="btn" id="startBtn">Start drill</button></div>
   </div>
   <div id="stageHost"></div>
@@ -209,10 +217,18 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 
 <section class="tab" id="t-finder">
   <h2>Sensitivity finder</h2>
-  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Frame-rate and quality settings from the Train tab apply here too.</p>
+  <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Pick Sunrise, Day or Night for the arena; the Range tab is unchanged. Frame-rate and quality settings from the Train tab apply here too.</p>
   <p class="touchnote warn">The finder needs a desktop mouse (Chrome or Edge).</p>
-  <div class="row small muted" style="margin-bottom:10px;align-items:center">
-    <div id="finderInfo"></div>
+  <div class="row" style="margin-bottom:10px;align-items:center">
+    <div>
+      <label style="margin:0">Time of day</label>
+      <div class="seg" data-envseg>
+        <button type="button" data-env="sunrise">Sunrise</button>
+        <button type="button" data-env="day">Day</button>
+        <button type="button" data-env="night">Night</button>
+      </div>
+    </div>
+    <div class="small muted" id="finderInfo" style="flex:1"></div>
     <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtn2">Fullscreen</button><button class="btn" id="finderBtn">Start finder</button></div>
   </div>
   <div id="stageHost2"></div>
@@ -308,7 +324,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Menu rounding is only applied where we know the game's step (THE FINALS whole numbers; ARC Raiders whole numbers to be safe). Other games show the exact value — type the closest the game accepts.</li>
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
-      <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor.</li>
+      <li><b>Finder time of day:</b> Sunrise, Day and Night change the arena sky, fog, light and ground tint (Night is the original dark look). The choice is remembered in this browser. Train uses the same arena, so it follows the same setting. The Range look is unchanged.</li>
+      <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
       <li><b>Crosshairs:</b> each game has its own profile, used in Train and the Range. Style (cross, dot, circle, T), color, length, thickness, gap, outline, center dot, opacity and an optional dynamic open-on-shot. Export an EZX1 code, copy from another game, or import a classic <code>CSGO-…</code> share code. Newer dash-free CS2 codes are not imported yet.</li>
     </ul>

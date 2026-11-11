@@ -93,6 +93,23 @@ const finderIdle=await pg.evaluate(()=>({ov:document.querySelector('#ov').innerT
 console.log('finder idle', finderIdle);
 if(/Micro|Flick 1|on target|19\/20/.test(finderIdle.ov) || finderIdle.hud) throw new Error('finder tab leaked the previous drill HUD/overlay: '+JSON.stringify(finderIdle));
 if(!/Sens Finder|Start finder/i.test(finderIdle.ov)) throw new Error('finder idle overlay should mention the finder: '+finderIdle.ov);
+const envT=await pg.evaluate(()=>{
+  const d0=EZ.env();
+  const night=(()=>{EZ.setEnv('night');return EZ.envInfo();})();
+  const day=(()=>{EZ.setEnv('day');return EZ.envInfo();})();
+  const rise=(()=>{EZ.setEnv('sunrise');return EZ.envInfo();})();
+  const saved=JSON.parse(localStorage.getItem('ezsens.v1')).settings.env;
+  EZ.setEnv('nope');
+  const bad=EZ.env();
+  EZ.setEnv('night');
+  return {d0,night,day,rise,saved,bad,tgt:[night.tgt,day.tgt,rise.tgt]};
+});
+console.log('env modes', envT.d0, envT.saved, envT.bad, 'suns', envT.night.sunDisc, envT.day.sunDisc, envT.rise.sunDisc);
+if(envT.d0!=='night') throw new Error('default env should be night');
+if(!(envT.day.fog!==envT.night.fog && envT.rise.fog!==envT.day.fog)) throw new Error('env fog colors should differ');
+if(!envT.day.sunDisc||!envT.rise.sunDisc||envT.night.sunDisc) throw new Error('sun disc visibility is wrong');
+if(envT.saved!=='sunrise') throw new Error('env did not persist');
+if(envT.bad!=='night') throw new Error('invalid env should fall back to night');
 await pg.click('nav button[data-t=custom]'); await pg.type('#cname','My Game'); await pg.type('#cyaw','0.05');
 await pg.click('#csave'); console.log('custom saved', await pg.$eval('#clist',e=>e.innerText.replace(/\s+/g,' ')));
 await pg.click('nav button[data-t=about]'); console.log('about rows', await pg.$$eval('#yawTbl tr',r=>r.length));
