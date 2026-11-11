@@ -105,11 +105,11 @@ const envT=await pg.evaluate(()=>{
   return {d0,night,day,rise,saved,bad,tgt:[night.tgt,day.tgt,rise.tgt]};
 });
 console.log('env modes', envT.d0, envT.saved, envT.bad, 'suns', envT.night.sunDisc, envT.day.sunDisc, envT.rise.sunDisc);
-if(envT.d0!=='night') throw new Error('default env should be night');
+if(envT.d0!=='retro') throw new Error('default env should be retro');
 if(!(envT.day.fog!==envT.night.fog && envT.rise.fog!==envT.day.fog)) throw new Error('env fog colors should differ');
 if(!envT.day.sunDisc||!envT.rise.sunDisc||envT.night.sunDisc) throw new Error('sun disc visibility is wrong');
 if(envT.saved!=='sunrise') throw new Error('env did not persist');
-if(envT.bad!=='night') throw new Error('invalid env should fall back to night');
+if(envT.bad!=='retro') throw new Error('invalid env should fall back to retro');
 await pg.click('nav button[data-t=custom]'); await pg.type('#cname','My Game'); await pg.type('#cyaw','0.05');
 await pg.click('#csave'); console.log('custom saved', await pg.$eval('#clist',e=>e.innerText.replace(/\s+/g,' ')));
 await pg.click('nav button[data-t=about]'); console.log('about rows', await pg.$$eval('#yawTbl tr',r=>r.length));
