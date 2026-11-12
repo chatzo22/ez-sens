@@ -521,6 +521,46 @@ fs.mkdirSync(OUT,{recursive:true});
   if(fair.inside) fail('random pops must not land in solids: '+JSON.stringify(fair));
   if(fair.short) fail('random fuse must be >= difficulty minimum: '+JSON.stringify(fair));
 
+  // random sides: coverage, no 3-in-a-row, no solids
+  const sides=await pg.evaluate(()=>{
+    const ids=(EZ.SCN_IDS||[]).filter(id=>id!=='mix');
+    const out={by:{}, badSolid:[], triples:[], short:[]};
+    for(const scn of ids){
+      EZ.S.flash.warned=true; EZ.S.flash.rand=true; EZ.S.flash.preset='val'; EZ.S.flash.diff='normal'; EZ.S.flash.scn=scn; EZ.S.flash.wasd=false;
+      EZ.startFlash(); EZ.forceFlashRun();
+      EZ.setScn(scn);
+      EZ.flashSeed(9100+scn.length*31);
+      const fl=EZ.flash(); fl.rand=true; fl.busyUntil=1e15;
+      const meta=EZ.scnMeta();
+      const z=EZ.popZonesOf(meta)||[];
+      const allowed=new Set(z.map(x=>x.side));
+      const seq=[];
+      const inside=[];
+      for(let i=0;i<40;i++){
+        EZ.spawnFlash(performance.now());
+        const b=fl.bomb;
+        const side=b&&(b.side||EZ.classifyPopSide(b.pos, meta&&meta.start));
+        seq.push(side);
+        const p=b.pos;
+        if(EZ.pointInWall(p,0.18)) inside.push({scn,side,pos:p.toArray().map(n=>+n.toFixed(3))});
+        fl.bomb=null;
+      }
+      const uniq=[...new Set(seq)];
+      let trip=0;
+      for(let i=2;i<seq.length;i++) if(seq[i]&&seq[i]===seq[i-1]&&seq[i]===seq[i-2]) trip++;
+      out.by[scn]={uniq, n:seq.length, zones:allowed.size, trip, inside:inside.length, sample:seq.slice(0,12)};
+      if(inside.length) out.badSolid.push({scn, n:inside.length, sample:inside[0]});
+      if(trip) out.triples.push({scn, trip, seq});
+      if(uniq.length<Math.min(3, allowed.size||3)) out.short.push({scn, uniq, zones:[...allowed]});
+      EZ.abandonFlash();
+    }
+    return out;
+  });
+  console.log('flash sides', JSON.stringify(sides.by));
+  if(sides.badSolid.length) fail('random side pops must not land in solids: '+JSON.stringify(sides.badSolid));
+  if(sides.triples.length) fail('the same flash side must not repeat more than twice in a row: '+JSON.stringify(sides.triples.map(t=>({scn:t.scn,trip:t.trip,seq:t.seq.slice(0,24)}))));
+  if(sides.short.length) fail('seeded runs should cover at least three sides per scenario where geometry allows: '+JSON.stringify(sides.short));
+
   const pushes=await pg.evaluate(()=>{
     const all=[];
     for(const id of EZ.SCN_IDS){
@@ -1004,6 +1044,137 @@ fs.mkdirSync(OUT,{recursive:true});
   if(retreat.error) fail('retreat setup failed: '+retreat.error);
   if(retreat.stillOut) fail('bots should retreat behind cover after the peek window: '+JSON.stringify(retreat));
 
+  // swing starts within 150 ms of the pop in every scenario
+  const startWin=await pg.evaluate(()=>{
+    const ids=(EZ.SCN_IDS||['hall','hold','anchor','entry','retake','overwall','mid','ramp']).filter(id=>id!=='mix');
+    const maxStart=EZ.PEEK_START_MAX||150;
+    const rows=[];
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val';
+    EZ.S.flash.rand=false; EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    for(const id of ids){
+      EZ.S.flash.scn=id; EZ.setScn(id);
+      const fl=EZ.flash(); fl.busyUntil=1e15; fl.n=8; fl.i=0;
+      const st=(EZ.scnMeta()&&EZ.scnMeta().start)||{x:0,y:0,z:4.5,yaw:0,pitch:4};
+      EZ.camEye.set(st.x,st.y,st.z); EZ.view.yaw=st.yaw||0; EZ.view.pitch=st.pitch||4; EZ.applyCams();
+      EZ.spawnFlash(performance.now());
+      EZ.lookAway();
+      const t0=performance.now();
+      EZ.detonateFlash(t0);
+      const pop=fl.popAt!=null?fl.popAt:t0;
+      const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+      const delays=bots.map(b=>(b.move&&b.move.goAt!=null)?(b.move.goAt-pop):9999);
+      rows.push({id, n:bots.length, delays:delays.map(d=>+d.toFixed(1)), max:delays.length?Math.max(...delays):-1, min:delays.length?Math.min(...delays):-1, outcome:fl.peekOutcome});
+    }
+    const bad=rows.filter(r=>!r.n || r.max>maxStart+1e-6);
+    return {maxStart, rows, bad};
+  });
+  console.log('swing start', startWin);
+  if(startWin.bad && startWin.bad.length) fail('swing must start within '+startWin.maxStart+' ms of the pop: '+JSON.stringify(startWin.bad));
+
+  // dodge-case peek window is at least the turn-back allowance on each difficulty
+  const holdWin=await pg.evaluate(()=>{
+    const diffs=['easy','normal','hard'];
+    const rows=[];
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val';
+    EZ.S.flash.rand=false; EZ.S.flash.scn='hall'; EZ.S.bot.shape='bot';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    for(const diff of diffs){
+      EZ.S.flash.diff=diff;
+      const fl=EZ.flash(); fl.diff=diff; fl.busyUntil=1e15; fl.n=8; fl.i=0;
+      EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+      EZ.spawnFlash(performance.now());
+      EZ.lookAway();
+      const t0=performance.now();
+      EZ.detonateFlash(t0);
+      const allow=EZ.turnBackAllowanceMs(fl.popAng, diff);
+      const hold=fl.peekHoldMs;
+      const win=(fl.retreatAt||0)-(fl.popAt||t0);
+      rows.push({diff, ang:+(+fl.popAng||0).toFixed(1), allow, hold, win, outcome:fl.peekOutcome, peekUntil:fl.peekUntil-fl.popAt});
+    }
+    const bad=rows.filter(r=>r.outcome!=='dodged' || r.hold<r.allow-1 || r.win<r.allow-1);
+    return {rows, bad};
+  });
+  console.log('dodge hold', holdWin);
+  if(holdWin.bad && holdWin.bad.length) fail('dodge peek window must be at least the turn-back allowance: '+JSON.stringify(holdWin.bad));
+
+  // bots stay hittable for the whole dodge peek window
+  const hittable=await pg.evaluate(()=>{
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val';
+    EZ.S.flash.rand=false; EZ.S.flash.scn='hall'; EZ.S.flash.diff='normal';
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    const fl=EZ.flash(); fl.diff='normal'; fl.busyUntil=1e15; fl.n=8; fl.i=0;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    const t0=performance.now();
+    EZ.detonateFlash(t0);
+    const pop=fl.popAt||t0;
+    const hold=fl.peekHoldMs;
+    const retreatAt=fl.retreatAt;
+    // swing out into the open
+    EZ.stepPeekBots(1.05, pop+1050);
+    const mid=(EZ.peekBots()||[]).filter(b=>b&&!b.dead&&b.move&&b.move.phase!=='gone');
+    const midVis=mid.filter(b=>b.group.visible);
+    const midHittable=midVis.filter(b=>{
+      const head=b.head.getWorldPosition(new (EZ.camEye.constructor)());
+      return !!EZ.losOpen(EZ.camEye, head);
+    });
+    // still in the open just before the hold ends
+    const remain=Math.max(0.05, ((retreatAt-40)-(pop+1050))/1000);
+    EZ.stepPeekBots(remain, retreatAt-40);
+    const late=(EZ.peekBots()||[]).filter(b=>b&&!b.dead&&b.move&&b.move.phase!=='gone'&&b.group.visible);
+    const lateHittable=late.filter(b=>{
+      const head=b.head.getWorldPosition(new (EZ.camEye.constructor)());
+      return !!EZ.losOpen(EZ.camEye, head);
+    });
+    const canShoot=fl.peekUntil>(retreatAt-40);
+    return {outcome:fl.peekOutcome, hold, mid:mid.length, midVis:midVis.length, midHittable:midHittable.length, late:late.length, lateHittable:lateHittable.length, canShoot, peekUntil:fl.peekUntil-pop, retreatAt:retreatAt-pop};
+  });
+  console.log('hittable window', hittable);
+  if(hittable.outcome!=='dodged') fail('hittable test expected a dodge: '+JSON.stringify(hittable));
+  if(!(hittable.midHittable>=1)) fail('bots should be hittable mid-window after the swing: '+JSON.stringify(hittable));
+  if(!(hittable.lateHittable>=1 && hittable.canShoot)) fail('bots should stay hittable until the end of the peek window: '+JSON.stringify(hittable));
+
+  // turn-back time is recorded on the first hit after a dodge
+  const tb=await pg.evaluate(()=>{
+    // continue from current dodge peeks if any, else fresh
+    EZ.S.hint=true;
+    const fl=EZ.flash();
+    if(!fl||fl.peekOutcome!=='dodged'){
+      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+      const f=EZ.flash(); f.busyUntil=1e15;
+      EZ.spawnFlash(performance.now()); EZ.lookAway(); EZ.detonateFlash(performance.now());
+    }
+    const f=EZ.flash();
+    const pop=f.popAt;
+    EZ.stepPeekBots(0.6, pop+600);
+    // look at a live bot and shoot
+    const bot=(EZ.peekBots()||[]).find(b=>b&&!b.dead&&b.group.visible);
+    if(!bot) return {error:'no bot', st:f.st};
+    const V=EZ.camEye.constructor;
+    const head=bot.head.getWorldPosition(new V());
+    const p=head.clone().sub(EZ.camEye); const len=p.length()||1;
+    EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+    EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+    EZ.applyCams();
+    f.st.turnBack=f.st.turnBack||[];
+    const before=f.st.turnBack.length;
+    EZ.flashShoot();
+    const after=f.st.turnBack;
+    return {before, n:after.length, val:after[after.length-1], pop, outcome:f.peekOutcome};
+  });
+  console.log('turn-back', tb);
+  if(!(tb&&tb.n>tb.before && tb.val>=0)) fail('first hit after a dodge should record turn-back time: '+JSON.stringify(tb));
+
   // retro-flash.png — hallway in Retro Horizon
   await pg.evaluate(()=>{
     EZ.setEnv('retro'); EZ.setTheme('dark');
@@ -1122,6 +1293,97 @@ fs.mkdirSync(OUT,{recursive:true});
   await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   await stage.screenshot({path:path.join(OUT,'flash-swing-v2.png')});
   console.log('shot', path.join(OUT,'flash-swing-v2.png'));
+
+  // flash-turnback.png — bots out after a dodge, off-screen hint visible
+  const tbShot=await pg.evaluate(()=>{
+    if(EZ.abandonFlash) EZ.abandonFlash();
+    if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.hint=true;
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.flash.diff='normal'; EZ.S.flash.wasd=false; EZ.S.flash.count=8;
+    EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+    EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    const fl=EZ.flash();
+    fl.busyUntil=1e15; fl.path=null; fl.pathT=null;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway();
+    EZ.detonateFlash(performance.now());
+    fl.busyUntil=1e15; fl.path=null; fl.pathT=null;
+    fl.peekUntil=performance.now()+30000;
+    fl.retreatAt=performance.now()+30000;
+    fl.peekOutcome='dodged';
+    fl.phase='run';
+    const fy=EZ.FLOOR_Y+0.05;
+    const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    const poses=[
+      {x:0.50,z:-5.62,crouch:0,fromX:1.65},
+      {x:-0.40,z:-5.72,crouch:1,fromX:-1.65},
+      {x:1.18,z:-5.52,crouch:0,fromX:1.65}
+    ];
+    bots.forEach((bot,i)=>{
+      const pose=poses[i]||poses[0];
+      bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
+      const from={x:pose.fromX,y:fy,z:-6.5}, to={x:pose.x,y:fy,z:pose.z};
+      bot.move=Object.assign(bot.move||{},{phase:'hold',goAt:0,style:'swing',u:0.85,overshoot:1.1,settled:true,from,to});
+      bot.group.position.set(pose.x, fy, pose.z);
+      bot.crouchWant=pose.crouch; EZ.applyCrouch(bot,pose.crouch);
+      bot.group.updateMatrixWorld(true);
+    });
+    EZ.camEye.set(0.15,0,2.4);
+    EZ.view.pitch=2;
+    const yaws=[];
+    for(let y=36;y<=62;y+=2) yaws.push(y,-y);
+    let pick=null;
+    for(const yaw of yaws){
+      EZ.view.yaw=yaw; EZ.applyCams();
+      const hints=EZ.hintSample?EZ.hintSample():[];
+      const glow=hints.filter(h=>h.alpha>0.15);
+      const on=hints.filter(h=>h.inside && !h.behind);
+      const strong=glow.length && Math.max(...glow.map(h=>h.alpha))>=0.45;
+      if(strong && on.length>=2){
+        pick={yaw,glow:glow.length,on:on.length,hints:hints.map(h=>({a:+(h.alpha||0).toFixed(2),inside:!!h.inside,behind:!!h.behind}))};
+        break;
+      }
+    }
+    if(!pick){ EZ.view.yaw=44; EZ.applyCams(); pick={yaw:44,fallback:true}; }
+    window.__tbYaw=pick.yaw;
+    if(EZ.paintHint) EZ.paintHint(performance.now());
+    const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+    const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+    const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+    const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+    return {n:bots.length, outcome:fl.peekOutcome, ...pick};
+  });
+  console.log('turnback setup', JSON.stringify(tbShot));
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await pg.evaluate(()=>{
+    const fl=EZ.flash();
+    if(fl){ fl.path=null; fl.pathT=null; fl.busyUntil=1e15; fl.peekUntil=performance.now()+30000; fl.retreatAt=performance.now()+30000; fl.peekOutcome='dodged'; fl.phase='run'; }
+    const fy=EZ.FLOOR_Y+0.05;
+    const poses=[{x:0.50,z:-5.62,c:0},{x:-0.40,z:-5.72,c:1},{x:1.18,z:-5.52,c:0}];
+    (EZ.peekBots()||[]).forEach((bot,i)=>{
+      if(!bot) return;
+      const pose=poses[i]||poses[0];
+      bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
+      bot.move=Object.assign(bot.move||{},{phase:'hold',u:0.85,settled:true,style:'swing',goAt:0,from:{x:pose.x>0?1.65:-1.65,y:fy,z:-6.5},to:{x:pose.x,y:fy,z:pose.z}});
+      bot.group.position.set(pose.x,fy,pose.z);
+      bot.crouchWant=pose.c; EZ.applyCrouch(bot,pose.c);
+      bot.group.updateMatrixWorld(true);
+    });
+    EZ.camEye.set(0.15,0,2.4);
+    EZ.view.yaw=window.__tbYaw||44;
+    EZ.view.pitch=2;
+    EZ.applyCams();
+    if(EZ.paintHint) EZ.paintHint(performance.now());
+    const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+    const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+  });
+  await stage.screenshot({path:path.join(OUT,'flash-turnback.png')});
+  console.log('shot', path.join(OUT,'flash-turnback.png'));
   await pg.evaluate(()=>EZ.abandonFlash());
 
   // retro-walls-*.png for every flash map

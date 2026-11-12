@@ -430,7 +430,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <h3>Range — timed challenge history</h3>
   <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
   <h3>Flash dodge history</h3>
-  <div class="card tw"><table><thead><tr><th>When</th><th>Scenario</th><th>Timing</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Covered</th><th>Dodge %</th><th>Bots killed</th><th>First hit</th><th>Accuracy</th><th>HS%</th><th>STK</th><th>TTK</th><th>Avg dodge reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Scenario</th><th>Timing</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Covered</th><th>Dodge %</th><th>Bots killed</th><th>First hit</th><th>Turn-back</th><th>Accuracy</th><th>HS%</th><th>STK</th><th>TTK</th><th>Avg dodge reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
@@ -1487,8 +1487,8 @@ function renderFlashHist(){ const el=$('#fhist'); if(!el)return; const ms=v=>Num
   const rows=(store.flashHistory||[]).map(h=>{
     const kills=h.dots!=null?`${h.botKills||0}/${h.dots}`:(h.kills||0);
     const acc=h.dotShots?pct(100*(h.dotHits||0)/h.dotShots):(h.acc!=null?pct(h.acc*100):'—');
-    return `<tr><td>${new Date(h.at).toLocaleString()}</td><td>${esc(scnName(h.scn))}</td><td>${h.preset==='cs2'?'CS2-style':'Valorant-style'}</td><td><b>${Math.round(h.score)}</b></td><td>${h.dodged}</td><td>${h.partial}</td><td>${h.full}</td><td>${h.covered||0}</td><td>${Math.round(h.dodgePct)}%</td><td>${kills}</td><td>${ms(h.firstHit)}</td><td>${acc}</td><td>${pct(h.hsPct)}</td><td>${Number.isFinite(h.stk)?(+h.stk).toFixed(1):'—'}</td><td>${ms(h.ttk)}</td><td>${ms(h.react)}</td><td>${fmt(h.cm,1)}</td></tr>`;
-  }).join(''); el.innerHTML=rows||'<tr><td colspan="17" class="muted">No flash rounds yet.</td></tr>'; }
+    return `<tr><td>${new Date(h.at).toLocaleString()}</td><td>${esc(scnName(h.scn))}</td><td>${h.preset==='cs2'?'CS2-style':'Valorant-style'}</td><td><b>${Math.round(h.score)}</b></td><td>${h.dodged}</td><td>${h.partial}</td><td>${h.full}</td><td>${h.covered||0}</td><td>${Math.round(h.dodgePct)}%</td><td>${kills}</td><td>${ms(h.firstHit)}</td><td>${ms(h.turnBack)}</td><td>${acc}</td><td>${pct(h.hsPct)}</td><td>${Number.isFinite(h.stk)?(+h.stk).toFixed(1):'—'}</td><td>${ms(h.ttk)}</td><td>${ms(h.react)}</td><td>${fmt(h.cm,1)}</td></tr>`;
+  }).join(''); el.innerHTML=rows||'<tr><td colspan="18" class="muted">No flash rounds yet.</td></tr>'; }
 function bestFlash(key, kind){ // kind: 'preset' | 'scn'
   return (store.flashHistory||[]).filter(h=>kind==='scn'?h.scn===key:h.preset===key).reduce((m,h)=>Math.max(m,+h.score||0),0); }
 function renderFlashBests(){ $$('#flashPresets .best').forEach(el=>{ const b=bestFlash(el.dataset.fbest,'preset'); el.textContent=b?('Best '+Math.round(b)):''; }); $$('#flashScn .best').forEach(el=>{ const b=bestFlash(el.dataset.sbest,'scn'); el.textContent=b?('Best '+Math.round(b)):''; }); }
@@ -1817,7 +1817,7 @@ function RANGE_INIT(){ buildRange(); $('#rpanelBody').addEventListener('input',o
   renderPanel(); RG=null; rhud(); setMode('range'); }
 
 /* ---------- off-screen target hint (original edge glow, updated every frame) ---------- */
-const _hintV=new THREE.Vector3(), _hintCv=$('#edgeHint');
+const _hintV=new THREE.Vector3(), _hintHead=new THREE.Vector3(), _hintCv=$('#edgeHint');
 let _hintHad=false, _lastHints=[];
 function clearHint(){ if(!_hintCv)return; const c=_hintCv.getContext('2d'); c.clearRect(0,0,_hintCv.width,_hintCv.height); _hintHad=false; _lastHints=[]; }
 function worldToHint(pos,cam){
@@ -1837,6 +1837,16 @@ function sampleHints(){
     if(RG&&RG.phase==='run') for(const t of rTargets){ const vis=t.bot?(t.bot.group.visible&&!t.bot.dead):(t.mesh&&t.mesh.visible); if(vis) out.push(Object.assign(worldToHint(rTgtHead(t),rangeCam),{r:S.range.size})); }
   } else if(R&&R.phase==='run'&&(tgt.visible||(useBots()&&trainBot&&trainBot.group.visible))){
     const pos=(useBots()&&trainBot)?trainBot.head.getWorldPosition(new THREE.Vector3()):tgt.position; out.push(Object.assign(worldToHint(pos,camera),{r:tgt.scale.x}));
+  } else if(MODE==='flash'&&FL&&FL.phase==='run'&&FL.peekUntil&&performance.now()<=FL.peekUntil){
+    const kind=FL.peekOutcome;
+    if(kind==='dodged'||kind==='covered'){
+      for(const bot of peekBots){
+        if(!bot||bot.dead||!bot.group) continue;
+        if(bot.move&&bot.move.phase==='gone') continue;
+        const pos=bot.head?bot.head.getWorldPosition(_hintHead):bot.group.position;
+        out.push(Object.assign(worldToHint(pos,camera),{r:BOT_HEAD_R||0.16}));
+      }
+    }
   }
   return out.map(s=>{ const h=M.offscreenHint(s.x,s.y,s.behind); return Object.assign(s,h); });
 }
@@ -2545,6 +2555,13 @@ function buildHall(){
     {id:'corner-bounce',throw:{pos:[5.5,1.4,-18.5],vel:[-6.5,4.5,5.5]},pop:{pos:[0.4,1.6,-14]},peeks:[[1.48,fy,-14.2],[1.55,fy,-16.5],[-1.48,fy,-15.2]]},
     {id:'ceiling-pop',throw:{pos:[0.8,1.6,-11],vel:[-0.4,5.5,3.2]},pop:{pos:[0.2,2.4,-8.2]},peeks:[[0,fy,-11.6],[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
     {id:'close-pop',throw:{pos:[2.2,1.2,-10.5],vel:[-4,3.5,2]},pop:{pos:[0.3,1.1,-10.2]},peeks:[[1.48,fy,-12.2],[-1.48,fy,-9.6],[0,fy,-15.8]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0.2,1.5,-8.2],jitter:[0.7,0.35,1.2],throw:[0.6,1.5,-12],vel:[0,4.2,5],peeks:[[0,fy,-11.6],[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
+    {side:'left',id:'left',pop:[-1.05,1.55,-9.5],jitter:[0.25,0.35,1.1],throw:[-1.1,1.3,-14],vel:[0.3,4,5],peeks:[[-1.48,fy,-6.25],[-1.48,fy,-9.6],[-1.48,fy,-15.2]]},
+    {side:'right',id:'right',pop:[5.2,1.5,-18.0],jitter:[1.1,0.35,0.8],throw:[8.6,1.4,-18.5],vel:[-5.5,3.8,1.5],peeks:[[1.48,fy,-14.2],[1.55,fy,-16.5],[1.48,fy,-6.25]]},
+    {side:'above',id:'above',pop:[0.15,2.55,-7.4],jitter:[0.6,0.25,0.9],throw:[0.5,1.6,-11],vel:[-0.2,5.6,3.2],peeks:[[1.48,fy,-6.25],[-1.48,fy,-6.25],[0,fy,-11.6]]},
+    {side:'behind',id:'behind',pop:[0.15,1.45,7.1],jitter:[0.6,0.3,0.5],throw:[0.2,1.3,8.2],vel:[0,3.6,-4.2],peeks:[[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
+    {side:'offangle',id:'offangle',pop:[1.2,1.65,-5.4],jitter:[0.35,0.3,0.7],throw:[2.0,1.3,-10.2],vel:[-2,4,4],peeks:[[1.48,fy,-6.25],[1.48,fy,-12.2]]}
   ]};
 }
 function buildHold(){
@@ -2562,6 +2579,13 @@ function buildHold(){
     {id:'over-wall',throw:{pos:[0,1.4,-8],vel:[0,8.2,6.2]},pop:{pos:[0,1.4,-1.7]},peeks:[[0,fy,-2.62],[1.05,fy,-2.62],[-1.05,fy,-2.62],[0,fy,-7.5]]},
     {id:'through-door',throw:{pos:[0,1.15,-10],vel:[0,3.2,8]},pop:{pos:[0,0.6,-3.2]},peeks:[[0,fy,-2.62],[0.95,fy,-4.5],[-0.95,fy,-4.5]]},
     {id:'side-cubby',throw:{pos:[3.2,1.2,-6.2],vel:[-5,3.4,3]},pop:{pos:[0.3,0.7,-3.0]},peeks:[[2.15,fy,-4.6],[0,fy,-2.62],[-1.05,fy,-2.62]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,0.95,-3.3],jitter:[0.45,0.25,0.6],throw:[0,1.15,-10],vel:[0,3.4,7.5],peeks:[[0,fy,-2.62],[0.95,fy,-4.5],[-0.95,fy,-4.5]]},
+    {side:'above',id:'above',pop:[0,2.35,-1.5],jitter:[0.7,0.3,0.5],throw:[0,1.4,-8],vel:[0,8.0,6.0],peeks:[[0,fy,-2.62],[1.05,fy,-2.62],[-1.05,fy,-2.62]]},
+    {side:'left',id:'left',pop:[-2.9,1.5,-3.6],jitter:[0.5,0.35,0.8],throw:[-3.4,1.3,-8],vel:[1.2,4,5],peeks:[[-1.05,fy,-2.62],[-1.05,fy,-4.5],[0,fy,-2.62]]},
+    {side:'right',id:'right',pop:[2.35,1.15,-4.8],jitter:[0.5,0.3,0.7],throw:[3.2,1.2,-6.2],vel:[-4.5,3.4,3],peeks:[[2.15,fy,-4.6],[1.05,fy,-2.62],[0,fy,-2.62]]},
+    {side:'behind',id:'behind',pop:[0,1.4,6.0],jitter:[0.8,0.3,0.45],throw:[0,1.3,7.2],vel:[0,3.4,-4.5],peeks:[[0,fy,-2.62],[1.05,fy,-2.62],[-1.05,fy,-2.62]]},
+    {side:'offangle',id:'offangle',pop:[3.1,1.4,0.3],jitter:[0.45,0.3,0.6],throw:[3.5,1.2,-3],vel:[-3,3.5,2],peeks:[[2.15,fy,-4.6],[1.05,fy,-2.62]]}
   ]};
 }
 function buildAnchor(){
@@ -2578,6 +2602,12 @@ function buildAnchor(){
     {id:'mid-entry',throw:{pos:[0,1.3,-11],vel:[0,4,7]},pop:{pos:[0,1.5,-7.2]},peeks:[[0,fy,-8.85],[-1.35,fy,-8.85],[1.35,fy,-8.85]]},
     {id:'left-entry',throw:{pos:[-11,1.3,-0.2],vel:[7,4,0.4]},pop:{pos:[-6.6,1.4,-0.2]},peeks:[[-7.85,fy,-0.2],[-7.85,fy,1.0],[-7.85,fy,-1.15]]},
     {id:'right-entry',throw:{pos:[11,1.3,-0.2],vel:[-7,4,0.4]},pop:{pos:[6.6,1.4,-0.2]},peeks:[[7.85,fy,-0.2],[7.85,fy,1.0],[7.85,fy,-1.15]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,1.5,-7.2],jitter:[0.8,0.35,0.8],throw:[0,1.3,-11],vel:[0,4,7],peeks:[[0,fy,-8.85],[-1.35,fy,-8.85],[1.35,fy,-8.85]]},
+    {side:'left',id:'left',pop:[-6.6,1.4,-0.2],jitter:[0.7,0.35,0.8],throw:[-11,1.3,-0.2],vel:[7,4,0.4],peeks:[[-7.85,fy,-0.2],[-7.85,fy,1.0],[-7.85,fy,-1.15]]},
+    {side:'right',id:'right',pop:[6.6,1.4,-0.2],jitter:[0.7,0.35,0.8],throw:[11,1.3,-0.2],vel:[-7,4,0.4],peeks:[[7.85,fy,-0.2],[7.85,fy,1.0],[7.85,fy,-1.15]]},
+    {side:'above',id:'above',pop:[0,2.7,-3.2],jitter:[0.8,0.25,0.8],throw:[0,1.6,-8],vel:[0,6.5,5],peeks:[[0,fy,-8.85],[1.35,fy,-8.85],[-1.35,fy,-8.85]]},
+    {side:'offangle',id:'offangle',pop:[4.2,1.6,-4.6],jitter:[0.6,0.3,0.7],throw:[6,1.4,-7],vel:[-4,4,3],peeks:[[1.35,fy,-8.85],[7.85,fy,-0.2]]}
   ]};
 }
 function buildEntry(){
@@ -2596,6 +2626,13 @@ function buildEntry(){
     {id:'over-front',throw:{pos:[0,1.6,-8],vel:[0,6.5,5]},pop:{pos:[0,2.7,-3.6]},peeks:[[0,fy,-9.0],[-1.2,fy,-4.55],[1.2,fy,-4.55],[-1.5,fy,-9.0]]},
     {id:'rafter',throw:{pos:[3.6,2.6,-8.2],vel:[-3,2,4]},pop:{pos:[1.2,2.4,-5]},peeks:[[1.2,fy,-4.55],[-1.2,fy,-4.55],[0,fy,-11]]},
     {id:'site-box',throw:{pos:[-2,1.4,-11],vel:[2,5,4]},pop:{pos:[-0.4,2.1,-6.4]},peeks:[[-1.2,fy,-4.55],[1.2,fy,-4.55],[0,fy,-11.5]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,1.6,-7.2],jitter:[0.8,0.35,0.9],throw:[0,1.4,-11],vel:[0,4.5,6],peeks:[[0,fy,-9.0],[-1.2,fy,-4.55],[1.2,fy,-4.55]]},
+    {side:'above',id:'above',pop:[0,2.7,-3.6],jitter:[0.7,0.25,0.6],throw:[0,1.6,-8],vel:[0,6.5,5],peeks:[[-1.2,fy,-4.55],[1.2,fy,-4.55],[0,fy,-9.0]]},
+    {side:'left',id:'left',pop:[-3.4,1.6,-7.2],jitter:[0.6,0.35,0.8],throw:[-4.2,1.3,-11],vel:[2,4.5,5],peeks:[[-1.2,fy,-4.55],[-1.5,fy,-9.0],[0,fy,-11.5]]},
+    {side:'right',id:'right',pop:[3.4,1.6,-7.2],jitter:[0.6,0.35,0.8],throw:[3.6,2.2,-8.2],vel:[-2.5,3,4],peeks:[[1.2,fy,-4.55],[0,fy,-11]]},
+    {side:'behind',id:'behind',pop:[0,1.45,7.4],jitter:[0.5,0.3,0.4],throw:[0,1.3,8.2],vel:[0,3.2,-4],peeks:[[-1.2,fy,-4.55],[1.2,fy,-4.55]]},
+    {side:'offangle',id:'offangle',pop:[1.3,2.3,-5.0],jitter:[0.45,0.3,0.6],throw:[3.2,2.4,-8],vel:[-3,2.5,4],peeks:[[1.2,fy,-4.55],[0,fy,-11]]}
   ]};
 }
 function buildRetake(){
@@ -2612,6 +2649,13 @@ function buildRetake(){
     {id:'side-alley',throw:{pos:[6.2,1.3,-2.4],vel:[-5.5,3.2,1.5]},pop:{pos:[3.2,1.4,-1.6]},peeks:[[3.85,fy,-2.0],[5.5,fy,-2.6],[3.85,fy,0.35]]},
     {id:'rear-hall',throw:{pos:[0,1.3,8],vel:[0,3.5,-6]},pop:{pos:[0.3,1.4,4.6]},peeks:[[0,fy,6.0],[1.15,fy,6.0],[-1.15,fy,6.0]]},
     {id:'front-swing',throw:{pos:[0,1.3,-12],vel:[0,4,6]},pop:{pos:[0,1.5,-7.6]},peeks:[[0,fy,-9.55],[-1.2,fy,-9.55],[1.2,fy,-9.55]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,1.5,-7.6],jitter:[0.8,0.35,0.9],throw:[0,1.3,-12],vel:[0,4,6],peeks:[[0,fy,-9.55],[-1.2,fy,-9.55],[1.2,fy,-9.55]]},
+    {side:'right',id:'right',pop:[3.2,1.4,-1.6],jitter:[0.7,0.3,0.7],throw:[6.2,1.3,-2.4],vel:[-5.5,3.2,1.5],peeks:[[3.85,fy,-2.0],[5.5,fy,-2.6],[3.85,fy,0.35]]},
+    {side:'behind',id:'behind',pop:[0.3,1.4,4.6],jitter:[0.7,0.3,0.6],throw:[0,1.3,8],vel:[0,3.5,-6],peeks:[[0,fy,6.0],[1.15,fy,6.0],[-1.15,fy,6.0]]},
+    {side:'left',id:'left',pop:[-3.6,1.5,-2.4],jitter:[0.6,0.35,0.8],throw:[-4.4,1.3,-6],vel:[2,4,4],peeks:[[-1.2,fy,-9.55],[-1.15,fy,6.0]]},
+    {side:'above',id:'above',pop:[0,2.6,-3.4],jitter:[0.7,0.25,0.8],throw:[0,1.6,-8],vel:[0,6,5],peeks:[[0,fy,-9.55],[1.2,fy,-9.55],[-1.2,fy,-9.55]]},
+    {side:'offangle',id:'offangle',pop:[4.4,1.5,1.2],jitter:[0.5,0.3,0.6],throw:[7,1.3,0.5],vel:[-5,3.2,-1],peeks:[[3.85,fy,0.35],[3.85,fy,-2.0]]}
   ]};
 }
 function buildOverwall(){
@@ -2627,6 +2671,13 @@ function buildOverwall(){
     {id:'over-top',throw:{pos:[0,1.6,-8],vel:[0,8,5]},pop:{pos:[0,3.35,-4.9]},peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
     {id:'through-window',throw:{pos:[0,1.5,-8],vel:[0,2.2,6]},pop:{pos:[0,fy+1.45,-5]},peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
     {id:'drop-over',throw:{pos:[0.8,2.4,-6.2],vel:[-0.6,3,4]},pop:{pos:[0.2,2.5,-4.6]},peeks:[[1.25,fy,-5.6],[-1.25,fy,-5.6],[0,fy,-5.6]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,fy+1.45,-5],jitter:[0.45,0.2,0.35],throw:[0,1.5,-8],vel:[0,2.2,6],peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
+    {side:'above',id:'above',pop:[0,3.2,-4.8],jitter:[0.7,0.2,0.5],throw:[0,1.6,-8],vel:[0,8,5],peeks:[[0,fy,-5.6],[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
+    {side:'left',id:'left',pop:[-3.2,1.6,-3.4],jitter:[0.6,0.35,0.7],throw:[-4.5,1.4,-8],vel:[2,5,5],peeks:[[-1.25,fy,-5.6],[0,fy,-5.6]]},
+    {side:'right',id:'right',pop:[3.2,1.6,-3.4],jitter:[0.6,0.35,0.7],throw:[4.5,1.4,-8],vel:[-2,5,5],peeks:[[1.25,fy,-5.6],[0,fy,-5.6]]},
+    {side:'behind',id:'behind',pop:[0,1.45,5.0],jitter:[0.8,0.3,0.4],throw:[0,1.3,6.4],vel:[0,3.2,-4],peeks:[[1.25,fy,-5.6],[-1.25,fy,-5.6]]},
+    {side:'offangle',id:'offangle',pop:[2.4,2.5,-4.2],jitter:[0.45,0.3,0.5],throw:[3.2,2.2,-7],vel:[-2,4,3],peeks:[[1.25,fy,-5.6],[0,fy,-5.6]]}
   ]};
 }
 function buildMid(){
@@ -2647,6 +2698,12 @@ function buildMid(){
     {id:'mid-air',throw:{pos:[0,1.6,-11],vel:[0,6,6]},pop:{pos:[0,2.2,-3]},peeks:[[0,fy,-12.7],[-4.15,fy,-5.2],[3.0,fy,-8.4]]},
     {id:'far-window',throw:{pos:[0,1.8,-13.5],vel:[0,4,7]},pop:{pos:[0,1.8,-7]},peeks:[[0,fy,-12.7],[1.15,fy,-12.7],[-1.15,fy,-12.7]]},
     {id:'side-connector',throw:{pos:[6,1.4,-2],vel:[-7,4,0.5]},pop:{pos:[2.4,1.8,-1.5]},peeks:[[5.5,fy,-2.2],[-4.15,fy,-5.2],[0,fy,-12.7]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,1.8,-7],jitter:[0.7,0.35,0.9],throw:[0,1.8,-13.5],vel:[0,4,7],peeks:[[0,fy,-12.7],[1.15,fy,-12.7],[-1.15,fy,-12.7]]},
+    {side:'above',id:'above',pop:[0,2.5,-3.0],jitter:[0.8,0.25,0.8],throw:[0,1.6,-11],vel:[0,6,6],peeks:[[0,fy,-12.7],[-4.15,fy,-5.2],[3.0,fy,-8.4]]},
+    {side:'right',id:'right',pop:[2.4,1.8,-1.5],jitter:[0.7,0.3,0.7],throw:[6,1.4,-2],vel:[-7,4,0.5],peeks:[[5.5,fy,-2.2],[3.0,fy,-8.4]]},
+    {side:'left',id:'left',pop:[-3.6,1.7,-5.0],jitter:[0.7,0.35,0.8],throw:[-6,1.4,-6],vel:[5,4,2],peeks:[[-4.15,fy,-5.2],[-1.15,fy,-12.7]]},
+    {side:'offangle',id:'offangle',pop:[4.6,1.7,-6.0],jitter:[0.6,0.3,0.8],throw:[6,1.5,-9],vel:[-4,4,3],peeks:[[3.0,fy,-8.4],[1.15,fy,-12.7]]}
   ]};
 }
 function buildRamp(){
@@ -2671,6 +2728,13 @@ function buildRamp(){
     {id:'bounce-down',throw:{pos:[0,2.4,-10.5],vel:[0,2,7]},pop:{pos:[0,1.8,-5.2]},peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[1.05,fy+1.125,-6.2]]},
     {id:'lip-pop',throw:{pos:[0,2.2,-9.5],vel:[0,3,5]},pop:{pos:[0,2.3,-6.6]},peeks:[[0,fy+1.125,-8.05],[1.05,fy+1.125,-6.2],[-1.05,fy+1.125,-6.2]]},
     {id:'frame-bounce',throw:{pos:[1.1,2.3,-9],vel:[-2.2,3.5,4]},pop:{pos:[0.2,2.1,-7.2]},peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[0,fy+1.125,-8.9]]}
+  ],popZones:[
+    {side:'front',id:'front',pop:[0,1.9,-5.4],jitter:[0.35,0.3,0.7],throw:[0,2.2,-10.5],vel:[0,2.4,7],peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[1.05,fy+1.125,-6.2]]},
+    {side:'above',id:'above',pop:[0,2.45,-6.5],jitter:[0.35,0.2,0.6],throw:[0,2.2,-9.5],vel:[0,3.2,5],peeks:[[0,fy+1.125,-8.05],[1.05,fy+1.125,-6.2],[-1.05,fy+1.125,-6.2]]},
+    {side:'left',id:'left',pop:[-1.05,2.0,-6.4],jitter:[0.2,0.3,0.6],throw:[-1.1,2.2,-9.5],vel:[0.6,3,5],peeks:[[-1.05,fy+1.125,-6.2],[0,fy+1.125,-8.05]]},
+    {side:'right',id:'right',pop:[1.05,2.0,-6.4],jitter:[0.2,0.3,0.6],throw:[1.1,2.3,-9],vel:[-0.8,3.2,4],peeks:[[1.05,fy+1.125,-6.2],[0,fy+1.125,-8.05]]},
+    {side:'behind',id:'behind',pop:[0,1.4,7.4],jitter:[0.45,0.25,0.4],throw:[0,1.3,8.4],vel:[0,3,-4],peeks:[[0,fy+1.125,-8.05],[-1.05,fy+1.125,-6.2],[1.05,fy+1.125,-6.2]]},
+    {side:'offangle',id:'offangle',pop:[0.9,2.2,-7.1],jitter:[0.25,0.25,0.5],throw:[1.1,2.3,-9],vel:[-2.0,3.5,4],peeks:[[1.05,fy+1.125,-6.2],[0,fy+1.125,-8.9]]}
   ]};
 }
 
@@ -3165,7 +3229,10 @@ function stepPeekBots(dt,now){
     stepBotStance(bot,now);
     stepCrouch(bot,dt);
     if(!mv) continue;
-    if(now>=retreatAt && retreatAt>0 && mv.phase!=='retreat' && mv.phase!=='gone' && mv.phase!=='wait'){ mv.phase='retreat'; mv.settled=false; }
+    if(mv.repeek && !mv.didRepeek && mv.repeekAt!=null && now>=mv.repeekAt && now<(retreatAt||0)-220 && (mv.phase==='hold'||mv.phase==='go')){
+      if((mv.u||0)>0.2){ mv.phase='repeekIn'; mv.settled=false; }
+    }
+    if(now>=retreatAt && retreatAt>0 && mv.phase!=='retreat' && mv.phase!=='gone' && mv.phase!=='wait' && mv.phase!=='repeekIn'){ mv.phase='retreat'; mv.settled=false; }
     if(now<mv.goAt && mv.phase==='wait') continue;
     if(mv.phase==='wait'){ mv.phase='go'; mv.t=0; mv.v=0; }
     if(mv.phase==='gone') continue;
@@ -3174,11 +3241,16 @@ function stepPeekBots(dt,now){
     const maxV=(mv.speed||5)/dist; // u per second at cruise
     let targetU=mv.u||0;
     mv.t=(mv.t||0)+dt;
-    if(mv.phase==='retreat'){
+    if(mv.phase==='retreat'||mv.phase==='repeekIn'){
       mv.v=(mv.v||0)-Math.max(8,mv.speed||5)*dt/dist;
       if(mv.v>-0.4) mv.v=-Math.max(2.8, (mv.speed||5)*0.85)/dist;
       targetU=(mv.u||0)+mv.v*dt;
-      if(targetU<=0.02){
+      if(mv.phase==='repeekIn' && targetU<=0.14){
+        mv.u=Math.max(0.04,targetU); mv.v=0; mv.phase='go'; mv.t=0; mv.didRepeek=true;
+        mv.style=mv.style==='shoulder'?'swing':'reswing';
+        mv.settled=false; mv.useAlt=!!mv.alt && (Math.random()<0.5);
+        targetU=mv.u;
+      }else if(mv.phase==='retreat' && targetU<=0.02){
         mv.u=0; mv.v=0; mv.phase='gone'; bot.moving=false; mv.settled=true;
         placeBotFeet(bot,from.x,from.y,from.z);
         bot.group.visible=false; // back in cover
@@ -3192,6 +3264,8 @@ function stepPeekBots(dt,now){
       const e=t<0.5?(t*2)*(t*2)*(3-2*(t*2)):((1-t)*2)*((1-t)*2)*(3-2*((1-t)*2));
       targetU=e*(mv.ampU||0.55);
     }else if(mv.style==='jiggle'){
+      const cycle=0.56;
+      if(mv.t>=cycle && now<(retreatAt||Infinity)-80) mv.t=mv.t%cycle;
       const t=mv.t;
       let goal=0;
       if(t<0.16) goal=(t/0.16)*0.62;
@@ -3204,6 +3278,7 @@ function stepPeekBots(dt,now){
     }else if(mv.style==='stop' && (mv.u||0)>=(mv.stopAt||0.62)){
       mv.u=mv.stopAt||0.62; bot.moving=false; mv.settled=true; targetU=mv.u;
     }else if(mv.style==='reswing'){
+      if(mv.t>1.16 && now<(retreatAt||Infinity)-200){ mv.t=0; mv.useAlt=false; }
       const t=mv.t, over=mv.overshoot||1.16;
       let dest=to, goal=0;
       if(t<0.34){ dest=mv.to; goal=over*(t/0.34); }
@@ -3366,6 +3441,21 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keyup',e=>{ keysHeld[e.code]=false; });
 
 function peekWindowMs(){ const d=FL&&FL.diff||S.flash.diff; return d==='hard'?850:d==='easy'?1400:1100; }
+const PEEK_START_MAX=150; // ms after the pop; bots begin swinging in this window
+function turnBackAllowanceMs(ang, diff){
+  const d=diff||(FL&&FL.diff)||S.flash.diff||'normal';
+  const a=Math.max(0, Math.min(180, Math.abs(+ang||0)));
+  const t=Math.max(0, Math.min(1, (Math.max(a,90)-90)/90));
+  const lo=d==='hard'?1200:d==='easy'?2000:1600;
+  const hi=d==='hard'?1800:d==='easy'?2500:2200;
+  return Math.round(lo+t*(hi-lo));
+}
+function peekHoldMs(kind, ang, whiteDur, diff){
+  const d=diff||(FL&&FL.diff)||S.flash.diff||'normal';
+  if(kind==='dodged'||kind==='covered') return turnBackAllowanceMs(ang, d);
+  const recover=d==='hard'?200:d==='easy'?500:350;
+  return Math.max(peekWindowMs(), Math.round((+whiteDur||0)+recover));
+}
 function spawnPeekBots(factor,peeks,now){
   clearPeekBots();
   const list=peeks&&peeks.length?peeks.slice():[[0,FY(),-6]];
@@ -3389,10 +3479,11 @@ function spawnPeekBots(factor,peeks,now){
       style=r<0.36?'swing':r<0.54?'jiggle':r<0.72?'reswing':r<0.86?'shoulder':'run';
     }else style=styles[i%styles.length];
     let delay;
+    const maxD=PEEK_START_MAX;
     if(rand){
-      delay=frange(0,520);
-      for(let g=0;g<6 && usedDelay.some(d=>Math.abs(d-delay)<90);g++) delay=frange(0,560);
-    }else delay=70+i*170;
+      delay=frange(0,maxD);
+      for(let g=0;g<8 && usedDelay.some(d=>Math.abs(d-delay)<18);g++) delay=frange(0,maxD);
+    }else delay=Math.min(maxD, i*48);
     usedDelay.push(delay);
     const speed=rand?frange(3.6,6.6):5.0;
     const swing=style==='swing'||style==='reswing'||style==='run';
@@ -3403,7 +3494,7 @@ function spawnPeekBots(factor,peeks,now){
       period:rand?frange(0.48,0.82):0.64,stopAt:rand?frange(0.52,0.78):0.65,
       strafe:style==='strafe',
       overshoot:swing?(rand?frange(1.10,1.28):1.16):1,
-      settled:false,mom:0};
+      settled:false,mom:0,repeek:false,didRepeek:false};
     bot.moving=false;
     peekBots.push(bot);
     staged.push({bot,delay});
@@ -3415,7 +3506,7 @@ function spawnPeekBots(factor,peeks,now){
     kinds[slot]='switch';
     if(!kinds.some(k=>k==='stand')) kinds[standI>=0?standI:kinds.length-1]='stand';
   }
-  const win=peekWindowMs();
+  const win=(FL&&FL.peekHoldMs!=null)?FL.peekHoldMs:peekWindowMs();
   staged.forEach((row,i)=>{
     const kind=kinds[i];
     const plan=planStanceToggles(kind, now, row.delay, win, null, {max:4,auto:false});
@@ -3430,11 +3521,22 @@ function spawnPeekBots(factor,peeks,now){
     if(row.bot.move) row.bot.move.stanceKind=plan.kind;
   });
   if(FL){
-    const outMs=peekWindowMs();
+    const outMs=(FL.peekHoldMs!=null)?FL.peekHoldMs:peekWindowMs();
     FL.retreatAt=now+outMs;
     FL.peekUntil=now+outMs+600; // shoot window includes the retreat
     FL.peekT0=now;
     FL.st.dots=(FL.st.dots||0)+peekBots.length;
+    const outcome=FL.peekOutcome;
+    if(outcome==='dodged'||outcome==='covered'){
+      peekBots.forEach((bot,i)=>{
+        if(!bot.move) return;
+        const take=useFlashRand()?(frand()<0.34):i===peekBots.length-1;
+        if(take&&peekBots.length>=1){
+          bot.move.repeek=true;
+          bot.move.repeekAt=now+outMs*0.42;
+        }
+      });
+    }
   }
 }
 function flashShoot(){
@@ -3448,7 +3550,14 @@ function flashShoot(){
   showDmg(res);
   if(res.miss){ hitFx('miss'); beep(180,0.05,'square',0.03); return; }
   const now=performance.now();
-  if(pick.bot.firstHit==null){ pick.bot.firstHit=now; if(FL.peekT0!=null) FL.st.dotFirst.push(now-FL.peekT0); }
+  if(pick.bot.firstHit==null){
+    pick.bot.firstHit=now;
+    if(FL.peekT0!=null) FL.st.dotFirst.push(now-FL.peekT0);
+    if((FL.peekOutcome==='dodged'||FL.peekOutcome==='covered') && FL.popAt!=null){
+      FL.st.turnBack=FL.st.turnBack||[];
+      FL.st.turnBack.push(now-FL.popAt);
+    }
+  }
   FL.st.dotHits=(FL.st.dotHits||0)+1;
   if(pick.zone==='head') FL.st.hs=(FL.st.hs||0)+1;
   if(res.killed){
@@ -3472,8 +3581,9 @@ function newFlashRound(){
   const id=scn0==='mix'?'hall':scn0;
   loadScn(id); placeStart();
   FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,scn:scn0,mix:scn0==='mix',rand:S.flash.rand!==false,
-    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,standKills:0,crouchKills:0,pushTtk:[],by:{}}};
+    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,standKills:0,crouchKills:0,pushTtk:[],turnBack:[],by:{}}};
   flashSeed();
+  FL.sideHist=[];
   flashHud();
   const scn=SCN[scn0]||SCN.hall;
   showOv(`<div class="big">${S.flash.preset==='cs2'?'CS2-style':'Valorant-style'}</div><div class="muted">${esc(scn.name)} · click here to lock your mouse and start</div><div class="small muted">${n} flashes · ${S.flash.diff}${(S.flash.rand!==false)?' · random':''} · Esc to pause</div>`);
@@ -3505,6 +3615,79 @@ function pickValPop(v){
   }
   return tries.length?tries[Math.floor(frand()*tries.length)]:null;
 }
+function classifyPopSide(p, start){
+  const sx=(start&&start.x)||0, sy=(start&&start.y)||0, sz=(start&&start.z)||0;
+  const yaw=((start&&start.yaw)||0)*Math.PI/180;
+  const arr=Array.isArray(p)?p:[p.x,p.y,p.z];
+  const dx=arr[0]-sx, dy=(arr[1]||0)-sy, dz=arr[2]-sz;
+  const fwd=-dz*Math.cos(yaw)-dx*Math.sin(yaw);
+  const right=dx*Math.cos(yaw)-dz*Math.sin(yaw);
+  if(dy>2.15 && fwd>-0.4) return 'above';
+  if(fwd<-1.15) return 'behind';
+  if(Math.abs(right)>1.15 && Math.abs(right)>=Math.abs(fwd)*0.72) return right<0?'left':'right';
+  if(fwd>0.9) return 'front';
+  if(Math.abs(right)>0.7) return right<0?'left':'right';
+  if(dy>1.8) return 'above';
+  return 'offangle';
+}
+function popZonesOf(meta){
+  if(meta&&meta.popZones&&meta.popZones.length) return meta.popZones;
+  const start=(meta&&meta.start)||{x:0,y:0,z:0,yaw:0};
+  return ((meta&&meta.variants)||[]).map(v=>{
+    const pop=((v.pop||v.throw||{}).pos)||[0,1.4,-8];
+    const th=v.throw||{pos:pop,vel:[0,4,6]};
+    return {side:classifyPopSide(pop,start), pop, throw:th.pos||pop, vel:th.vel||[0,4,6], peeks:v.peeks||[], jitter:[0.6,0.35,0.6], id:v.id};
+  });
+}
+function pointInWall(p, r){
+  r=r==null?0.18:r;
+  const walls=(scnWalls||[]).filter(w=>w.role!=='decal'&&w.role!=='floor');
+  const x=p.x, y=p.y, z=p.z;
+  return walls.some(w=>{
+    const cx=Math.max(w.min.x,Math.min(x,w.max.x)), cy=Math.max(w.min.y,Math.min(y,w.max.y)), cz=Math.max(w.min.z,Math.min(z,w.max.z));
+    const dx=x-cx,dy=y-cy,dz=z-cz; return dx*dx+dy*dy+dz*dz<r*r;
+  });
+}
+function pickFlashZone(zones){
+  zones=(zones&&zones.length)?zones:[{side:'front',pop:[0,1.5,-8],throw:[0,1.3,-11],vel:[0,4,6],peeks:[[0,FY(),-8]],jitter:[0.5,0.3,0.5],id:'front'}];
+  const hist=FL.sideHist||[];
+  const blocked=(hist.length>=2 && hist[hist.length-1]===hist[hist.length-2])?hist[hist.length-1]:null;
+  let pool=zones.filter(z=>z.side!==blocked);
+  if(!pool.length) pool=zones.slice();
+  const counts={}; hist.forEach(s=>{ counts[s]=(counts[s]||0)+1; });
+  const weights=pool.map(z=>(1/(1+(counts[z.side]||0)))*(z.weight||1)*(0.72+frand()*0.56));
+  let sum=weights.reduce((a,b)=>a+b,0)||1, r=frand()*sum, pick=pool[0];
+  for(let i=0;i<pool.length;i++){ r-=weights[i]; if(r<=0){ pick=pool[i]; break; } }
+  FL.sideHist=hist.concat([pick.side]);
+  return pick;
+}
+function placeInZone(zone, eye, rad){
+  const j=zone.jitter||[0.7,0.35,0.7];
+  const base=zone.pop;
+  const er=rad==null?0.22:rad;
+  for(let i=0;i<14;i++){
+    const p=new THREE.Vector3(
+      base[0]+frange(-j[0],j[0]),
+      Math.max(FLOOR_Y+0.28, base[1]+frange(-j[1],j[1])),
+      base[2]+frange(-j[2],j[2])
+    );
+    nudgeOutOfSolid(p, er);
+    const dist=Math.hypot(p.x-eye.x, p.y-eye.y, p.z-eye.z);
+    if(dist<1.6) continue;
+    if(pointInWall(p,0.18)) continue;
+    return p;
+  }
+  const fb=new THREE.Vector3(base[0], Math.max(FLOOR_Y+0.28, base[1]), base[2]);
+  nudgeOutOfSolid(fb, er);
+  return fb;
+}
+function peeksForZone(zone, zones){
+  if(zones&&zones.length>1 && frand()<0.18){
+    const others=zones.filter(z=>z.side!==zone.side && z.peeks&&z.peeks.length);
+    if(others.length) return others[Math.floor(frand()*others.length)].peeks.slice();
+  }
+  return (zone.peeks&&zone.peeks.length)?zone.peeks.slice():null;
+}
 function spawnFlash(now){
   const d=FDIFF[FL.diff]||FDIFF.normal, g=ensureGrenade();
   const rand=useFlashRand();
@@ -3515,17 +3698,21 @@ function spawnFlash(now){
   const auto=!!(scnMeta&&scnMeta.path&&scnMeta.auto)&&!S.flash.wasd;
   if(auto){ FL.path=scnMeta.path; FL.pathDur=scnMeta.pathDur||2.4; FL.pathT=0; placeStart(scnMeta); }
   else { FL.path=null; FL.pathT=null; if(!S.flash.wasd) placeStart(scnMeta); }
-  const bomb={kind:FL.preset,t0:now,appeared:now,safeAt:null,firstSafe:null,detonated:false,factor:null,fuse:0,pos:new THREE.Vector3(),vel:new THREE.Vector3(),peeks:v.peeks||[],variant:v.id,bounces:0,early:false,minFuse:0};
+  const zones=rand?popZonesOf(scnMeta):null;
+  const zone=rand?pickFlashZone(zones):null;
+  const zonePeeks=zone?peeksForZone(zone, zones):null;
+  const bomb={kind:FL.preset,t0:now,appeared:now,safeAt:null,firstSafe:null,detonated:false,factor:null,fuse:0,pos:new THREE.Vector3(),vel:new THREE.Vector3(),peeks:(zonePeeks&&zonePeeks.length)?zonePeeks:(v.peeks||[]),variant:zone?(zone.id||zone.side):v.id,side:zone?zone.side:null,bounces:0,early:false,minFuse:0};
   const jitter=(a,w)=>a+(rand?frange(-w,w):(frand()-0.5)*0.2);
   if(FL.preset==='cs2'){
-    const th=v.throw||{pos:(v.pop||{}).pos||[0,1.2,-10],vel:[0,5,4]};
+    const th=zone?{pos:zone.throw||zone.pop,vel:zone.vel||[0,5,4]}:(v.throw||{pos:(v.pop||{}).pos||[0,1.2,-10],vel:[0,5,4]});
     const range=d.cs2Range;
     bomb.minFuse=range[0]*1000;
     bomb.fuse=rand?frange(range[0],range[1])*1000:d.cs2*1000;
     bomb.early=rand&&frand()<0.3;
     bomb.pos.set(jitter(th.pos[0],rand?0.45:0.1), th.pos[1], jitter(th.pos[2],rand?0.45:0.1));
     nudgeOutOfSolid(bomb.pos,0.2);
-    let vel=th.vel.slice();
+    if(pointInWall(bomb.pos,0.18)){ nudgeOutOfSolid(bomb.pos,0.28); }
+    let vel=(th.vel||[0,5,4]).slice();
     if(rand){
       const sc=frange(0.82,1.22);
       vel=rotateYaw(vel[0]*sc, vel[1]*sc+frange(-0.7,1.3), vel[2]*sc, frange(-14,14));
@@ -3538,12 +3725,11 @@ function spawnFlash(now){
     const range=d.valRange;
     bomb.minFuse=range[0]*1000;
     bomb.fuse=rand?frange(range[0],range[1])*1000:d.val*1000;
-    const p=(v.pop||v.throw).pos;
-    if(rand){
-      const rp=pickValPop(v);
-      if(rp) bomb.pos.copy(rp);
-      else { bomb.pos.set(jitter(p[0],0.35), Math.max(FLOOR_Y+0.28,p[1]+frange(-0.2,0.9)), jitter(p[2],0.35)); nudgeOutOfSolid(bomb.pos,0.22); }
+    if(rand && zone){
+      const rp=placeInZone(zone, camEye, 0.22);
+      bomb.pos.copy(rp);
     }else{
+      const p=(v.pop||v.throw).pos;
       bomb.pos.set(jitter(p[0],0.1),p[1],jitter(p[2],0.1));
       if(bomb.pos.y<FLOOR_Y+0.2) bomb.pos.y=FLOOR_Y+0.2;
       nudgeOutOfSolid(bomb.pos,0.22);
@@ -3551,6 +3737,8 @@ function spawnFlash(now){
     if(bomb.pos.y<FLOOR_Y+0.25) bomb.pos.y=FLOOR_Y+0.25;
     flashCue('pop',1,bomb.pos);
   }
+  if(!bomb.side) bomb.side=classifyPopSide(bomb.pos, (scnMeta&&scnMeta.start)||{x:camEye.x,y:camEye.y,z:camEye.z,yaw:view.yaw});
+  FL.flashSide=bomb.side;
   g.position.copy(bomb.pos); g.visible=true; g.scale.setScalar(FL.preset==='val'?0.3:1);
   FL.bomb=bomb;
 }
@@ -3601,6 +3789,11 @@ function detonateFlash(now){
   FL.st[kind]++;
   if(kind==='dodged') FL.st.react.push((bomb.firstSafe!=null?bomb.firstSafe:now)-bomb.appeared);
   noteScn(kind);
+  FL.peekOutcome=kind;
+  FL.popAt=now;
+  FL.popAng=ang;
+  FL.whiteOutDur=dur;
+  FL.peekHoldMs=peekHoldMs(kind, ang, dur, FL.diff);
   spawnPeekBots(factor,bomb.peeks,now);
   FL.i++; FL.bomb=null;
   const dd=FDIFF[FL.diff]||FDIFF.normal;
@@ -3620,7 +3813,8 @@ function flashScore(st,n){
   const stk=avg(st.stk), ttk=avg(st.ttkArr), firstHit=avg(st.dotFirst);
   const acc=st.dotShots?st.dotHits/st.dotShots:NaN;
   const moveKills=st.moveKills||0, standKills=st.standKills||0, crouchKills=st.crouchKills||0, pushTtk=avg(st.pushTtk);
-  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,standKills,crouchKills,pushTtk};
+  const turnBack=avg(st.turnBack);
+  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,standKills,crouchKills,pushTtk,turnBack};
 }
 function flashHud(){
   if(!FL)return;
@@ -3634,20 +3828,20 @@ function flashHud(){
 function flashFinish(){
   const res=flashScore(FL.st,FL.n); res.cm=FL.cm; res.preset=FL.preset; res.diff=FL.diff; res.scn=FL.mix?'mix':(FL.scn||S.flash.scn);
   const prev=bestFlash(res.scn,'scn'); res.isBest=res.score>prev&&res.score>0;
-  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,standKills:res.standKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,dmg:S.bot.dmg,rand:!!FL.rand});
+  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,standKills:res.standKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,turnBack:res.turnBack,dmg:S.bot.dmg,rand:!!FL.rand});
   store.flashHistory=store.flashHistory.slice(0,200); save();
   FL.phase='done'; hideGrenade(); clearPeekBots(); clearHud();
   if(document.pointerLockElement===stage)document.exitPointerLock();
   const pct=v=>Number.isFinite(v)?Math.round(v)+'%':'—';
   const ms=v=>Number.isFinite(v)?Math.round(v)+' ms':'—';
-  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Standing kills',String(res.standKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
+  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Standing kills',String(res.standKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Turn-back time',ms(res.turnBack)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
   let mixLine='';
   if(FL.mix&&FL.st.by){ const parts=Object.keys(FL.st.by).map(id=>{ const b=FL.st.by[id]; return `${(SCN[id]||{}).name||id}: ${b.dodged+b.covered}/${b.n} safe`; }); if(parts.length) mixLine=`<div class="small muted" style="margin-top:8px">${parts.join(' · ')}</div>`; }
   const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
   const title=flashRunTitle(res,FL);
   showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div>${mixLine}<div class="small muted">Click Start to go again</div>`);
   const last=$('#lastFlash');
-  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Standing kills',res.standKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
+  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Turn-back time',ms(res.turnBack)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Standing kills',res.standKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
     .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('');
   renderFlashBests(); renderFlashHist();
   FL=null;
@@ -3668,7 +3862,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); ensureGrain(); syncGrain(); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';
