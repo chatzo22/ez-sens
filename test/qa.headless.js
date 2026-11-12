@@ -176,8 +176,13 @@ const note=(s)=>{ console.log('!',s); issues.push(s); };
 
   // --- flick, track, micro ---
   async function runDrill(drill, nShots){
-    await pg.click(`#drills button[data-d=${drill}]`);
-    await pg.click('#startBtn');
+    await pg.evaluate((drill)=>{
+      const tab=document.querySelector('nav button[data-t=train], nav button[data-t=setup]');
+      const drillBtn=document.querySelector('#drills button[data-d="'+drill+'"]');
+      const start=document.querySelector('#startBtn');
+      if(drillBtn){ drillBtn.scrollIntoView({block:'center'}); drillBtn.click(); }
+      if(start){ start.scrollIntoView({block:'center'}); start.click(); }
+    }, drill);
     return evalJ(async({drill,nShots})=>{
       EZ.forceRun();
       const dpc=0.022;
@@ -225,7 +230,7 @@ const note=(s)=>{ console.log('!',s); issues.push(s); };
   await shot('07-train-track-results');
 
   // floor clamp + hint (again, as regression)
-  await pg.click('#drills button[data-d=track]'); await pg.click('#startBtn');
+  await pg.evaluate(()=>{ const b=document.querySelector('#drills button[data-d=track]'); const s=document.querySelector('#startBtn'); if(b){b.scrollIntoView({block:'center'}); b.click();} if(s){s.scrollIntoView({block:'center'}); s.click();} });
   const floorHint=await evalJ(()=>{
     EZ.forceRun();
     const T=EZ.state().tr; T.pitch=-80; T.vp=-120; T.tp=-120;

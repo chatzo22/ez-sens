@@ -125,7 +125,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 .themeseg{margin-left:auto;display:flex;gap:4px}
 .themeseg button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
 .themeseg button.on{border-color:var(--acc);color:var(--acc)}
-#flashFx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+#flashFx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6;mix-blend-mode:normal}
 #dmgFx{position:absolute;inset:0;pointer-events:none;z-index:7;overflow:hidden}
 #dmgFx span{position:absolute;left:50%;top:46%;font:800 18px/1 system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000,0 0 8px #0008;animation:dmgPop .55s ease-out forwards;transform:translate(-50%,-50%);white-space:nowrap}
 #dmgFx span.hs{color:#7ff6ff;font-size:22px}
@@ -1164,15 +1164,17 @@ function makeBot(sceneRef){
 function paintBot(bot,dim){
   if(!bot)return; dim=dim==null?bot.dim||0:dim; bot.dim=dim;
   const c=botCols(), body=new THREE.Color(c.body), head=new THREE.Color(c.head), dark=new THREE.Color(0x2a3036);
-  if(dim>0){ body.lerp(dark,dim*0.85); head.lerp(dark,dim*0.8); }
+  // Dim color when flashed, but never go transparent — the flash overlay washes the screen.
+  if(dim>0){ body.lerp(dark,dim*0.55); head.lerp(dark,dim*0.5); }
   bot.bodyMat.fog=false; bot.headMat.fog=false;
   bot.bodyMat.color.copy(body); bot.headMat.color.copy(head); bot.headMat.emissive.copy(head);
   bot.headMat.emissiveIntensity=0.45*(1-dim*0.92);
   const lift=(S.env==='retro')?0.34:0.12;
   bot.bodyMat.emissive.copy(body);
   bot.bodyMat.emissiveIntensity=lift*(1-dim*0.85);
-  const op=dim>0.5?0.38+0.5*(1-dim):1;
-  bot.bodyMat.transparent=bot.headMat.transparent=op<1; bot.bodyMat.opacity=bot.headMat.opacity=op;
+  for(const m of [bot.bodyMat,bot.headMat]){
+    m.transparent=false; m.opacity=1; m.depthWrite=true; m.depthTest=true; m.alphaTest=0; m.side=THREE.FrontSide;
+  }
 }
 function armBot(bot,now){ if(!bot)return; bot.dead=false; bot.state=M.newBotState(currentDmg()); bot.shots=0; bot.t0=now||performance.now(); bot.firstHit=null; bot.group.visible=true; paintBot(bot,bot.dim||0); }
 function scaleBot(bot,s){ bot.scale=s; bot.group.scale.setScalar(s); }
@@ -2034,6 +2036,7 @@ function whiteOut(factor){
   const total=(S.flash.reduced?800:1900)*(0.5+0.5*factor);
   const fade=Math.max(300,total*0.55), hold=Math.max(80,total-fade);
   el.style.transition='opacity 70ms linear';
+  el.style.mixBlendMode='normal';
   el.style.background=S.flash.reduced?'rgb(255,255,236)':'#fff';
   el.style.opacity=String(peak);
   clearTimeout(whiteOut._t);
@@ -2124,7 +2127,9 @@ function addBox(x,y,z,sx,sy,sz,hex,role,opts){
   const surf=S.env==='retro' && role && role!=='decal' && role!=='floor' && !o.em;
   const mat=surf?retroSurfMat(hex,sx,sy,role):matOf(hex,{rough:o.rough,em:o.em,metal:o.metal,role:role});
   const m=new THREE.Mesh(boxGeo(sx,sy,sz), mat);
-  m.position.set(x,y,z); if(o.rotY) m.rotation.y=o.rotY; m.userData.shared=true; scnGroup.add(m);
+  m.position.set(x,y,z); if(o.rotY) m.rotation.y=o.rotY;
+  m.userData.shared=true; m.userData.boxes=1; m.userData.role=role||'wall'; m.userData.closed=true;
+  scnGroup.add(m);
   if(role!=='decal'){
     pushWall(x,y,z,sx,sy,sz,role||'wall');
     if(role!=='floor') scnMeshes.push({mesh:m,x,y,z,sx,sy,sz,role:role||'wall'});
@@ -2251,24 +2256,37 @@ function addSitePlate(x,z,letter,C){
   }
 }
 
+function geoTriCount(g){
+  if(!g) return 0;
+  if(g.index&&g.index.count) return (g.index.count/3)|0;
+  const a=g.getAttribute('position');
+  return a?((a.count/3)|0):0;
+}
 function concatGeos(parts){
   if(!parts.length) return null;
   if(parts.length===1) return parts[0];
+  // BoxGeometry (and most built-ins) are indexed. Concatenating attributes
+  // without expanding or remapping the index drops faces and leaves holes.
+  const flat=[], temps=[];
+  for(const g of parts){
+    if(g.index&&g.index.count){ const n=g.toNonIndexed(); flat.push(n); temps.push(n); }
+    else flat.push(g);
+  }
   if(THREE.BufferGeometryUtils&&THREE.BufferGeometryUtils.mergeGeometries){
-    const m=THREE.BufferGeometryUtils.mergeGeometries(parts,false);
-    if(m){ parts.forEach(g=>{ if(g!==m) g.dispose(); }); return m; }
+    const m=THREE.BufferGeometryUtils.mergeGeometries(flat,false);
+    if(m){ parts.forEach(g=>{ if(g!==m) g.dispose(); }); temps.forEach(g=>{ if(g!==m) g.dispose(); }); return m; }
   }
   const attrs=['position','normal','uv'];
   const arrays={}, counts={};
   for(const name of attrs){
     let n=0, ok=true;
-    for(const g of parts){ const a=g.getAttribute(name); if(!a){ ok=false; break; } n+=a.count*a.itemSize; }
+    for(const g of flat){ const a=g.getAttribute(name); if(!a){ ok=false; break; } n+=a.count*a.itemSize; }
     if(!ok) continue;
     arrays[name]=new Float32Array(n); counts[name]=0;
   }
   if(!arrays.position) return parts[0];
-  const item=name=>((parts[0].getAttribute(name)||{}).itemSize)||3;
-  for(const g of parts){
+  const item=name=>((flat[0].getAttribute(name)||{}).itemSize)||3;
+  for(const g of flat){
     for(const name of Object.keys(arrays)){
       const a=g.getAttribute(name); if(!a) continue;
       arrays[name].set(a.array, counts[name]); counts[name]+=a.array.length;
@@ -2277,6 +2295,7 @@ function concatGeos(parts){
   const geo=new THREE.BufferGeometry();
   for(const name of Object.keys(arrays)) geo.setAttribute(name, new THREE.BufferAttribute(arrays[name], item(name)));
   parts.forEach(g=>{ if(g!==geo) g.dispose(); });
+  temps.forEach(g=>{ if(g!==geo) g.dispose(); });
   return geo;
 }
 function edgeGeoFor(it){
@@ -2345,11 +2364,22 @@ function mergeStaticByMaterial(){
       g.applyMatrix4(o.matrixWorld);
       parts.push(g);
     }
+    const expectTris=arr.reduce((n,o)=>n+geoTriCount(o.geometry),0);
     const merged=concatGeos(parts);
     if(!merged) continue;
+    const got=geoTriCount(merged);
+    if(expectTris && got<expectTris){
+      // keep originals rather than ship a holed merge
+      merged.dispose();
+      arr.forEach(o=>{ o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true; });
+      continue;
+    }
     merged.computeBoundingSphere();
     const mesh=new THREE.Mesh(merged, arr[0].material);
     mesh.userData.shared=true; mesh.userData.merged=true;
+    mesh.userData.boxes=arr.reduce((n,o)=>n+(o.userData&&o.userData.boxes||1),0);
+    mesh.userData.role=(arr[0].userData&&arr[0].userData.role)||'wall';
+    mesh.userData.closed=true;
     mesh.matrixAutoUpdate=false; mesh.updateMatrix(); mesh.frustumCulled=true;
     scnGroup.add(mesh); scnTemps.push(merged);
     arr.forEach(o=>scnGroup.remove(o));
@@ -2364,12 +2394,44 @@ function freezeStaticMatrices(){
   });
 }
 function scnStats(){
-  let meshes=0, lines=0, pts=0;
+  let meshes=0, lines=0, pts=0, tris=0;
   if(scnGroup) scnGroup.traverse(o=>{
-    if(o.isMesh){ meshes++; const a=o.geometry&&o.geometry.getAttribute('position'); pts+=a?a.count:0; }
+    if(o.isMesh){ meshes++; const a=o.geometry&&o.geometry.getAttribute('position'); pts+=a?a.count:0; tris+=geoTriCount(o.geometry); }
     if(o.isLineSegments||o.isLine){ lines++; const a=o.geometry&&o.geometry.getAttribute('position'); pts+=a?a.count:0; }
   });
-  return {meshes, lines, children:scnGroup?scnGroup.children.length:0, walls:scnWalls.length, pts};
+  return {meshes, lines, children:scnGroup?scnGroup.children.length:0, walls:scnWalls.length, pts, tris};
+}
+function concatSelfTest(){
+  const a=boxGeo(1,1,1).clone(), b=boxGeo(1.5,2,0.7).clone();
+  const ea=geoTriCount(a), eb=geoTriCount(b);
+  const m=concatGeos([a,b]);
+  const got=geoTriCount(m);
+  return {ea,eb,expect:ea+eb, got, ok:got===ea+eb && got===24};
+}
+function wallClosureReport(){
+  const items=[];
+  if(scnGroup) scnGroup.traverse(o=>{
+    if(!o.isMesh||!o.geometry) return;
+    if(o.userData&&o.userData.dynamic) return;
+    const boxes=o.userData&&o.userData.boxes;
+    if(!boxes) return;
+    const tris=geoTriCount(o.geometry);
+    const expect=12*boxes;
+    const mat=o.material;
+    const opaque=!(mat&&(mat.transparent||(mat.opacity!=null&&mat.opacity<1)));
+    const g=o.geometry, pos=g&&g.getAttribute('position'), idx=g&&g.index;
+    items.push({role:(o.userData&&o.userData.role)||'', boxes, tris, expect, ok:tris>=expect && (tris%12===0), opaque, pos:pos?pos.count:0, idx:idx?idx.count:0, merged:!!(o.userData&&o.userData.merged)});
+  });
+  const bad=items.filter(it=>!it.ok||!it.opaque);
+  // wall bottoms should reach the floor (no hovering slabs)
+  const fy=FY();
+  const floaters=(scnWalls||[]).filter(w=>w.role==='wall'||w.role==='trim'||w.role==='crate').filter(w=>w.min.y>fy+0.2);
+  return {n:items.length, boxes:items.reduce((s,it)=>s+it.boxes,0), tris:items.reduce((s,it)=>s+it.tris,0), expect:items.reduce((s,it)=>s+it.expect,0), bad, floaters:floaters.length, scn:scnId};
+}
+function botMatInfo(bot){
+  if(!bot) return null;
+  const pack=m=>({transparent:!!m.transparent, opacity:+m.opacity, depthWrite:m.depthWrite!==false, depthTest:m.depthTest!==false});
+  return {dim:bot.dim||0, body:pack(bot.bodyMat), head:pack(bot.headMat)};
 }
 function finishScnLook(meta){
   if(!scnGroup) return;
@@ -3660,7 +3722,7 @@ function findSlidePoint(from,eyes,opts){
     for(const across of [0.9,1.2,1.5,1.8,2.2,2.6]){
       for(const out of [0.35,0.55,0.8,1.1,1.35]){
         const x=fx+ox*out+sx*across, z=fz+oz*out+sz*across;
-        if(!bodyClearFeet(x,fy,z) || !pathClear(fx,fy,fz,x,fy,z,10)) continue;
+        if(!bodyClearFeet(x,fy,z) || !pathClear(fx,fy,fz,x,fy,z,16)) continue;
         const along=visAlong(x,z);
         if(!along.ok || !along.visible) continue;
         const dist=Math.hypot(x-fx,z-fz);
@@ -3671,7 +3733,7 @@ function findSlidePoint(from,eyes,opts){
     }
   }
   if(best&&best.lat>=0.7&&best.dist>=0.85) return best;
-  if(open.dist>=0.9&&pathClear(fx,fy,fz,open.pos[0],open.pos[1],open.pos[2],10)){
+  if(open.dist>=0.9&&pathClear(fx,fy,fz,open.pos[0],open.pos[1],open.pos[2],16)){
     const along=visAlong(open.pos[0],open.pos[2]);
     if(along.ok&&along.visible) return {pos:open.pos,visible:true,frac:along.frac,dist:open.dist,lat:0,clear:true,fallback:true};
   }
@@ -4115,7 +4177,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,peekTypeOf,peekStyleMode,peekSpeedScale,assignGroupPeekStyles,findSlidePoint,shortenPeekTarget,PEEK_STYLE_IDS,scnStats,rendererInfo:()=>renderer?{calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geoms:renderer.info.memory.geometries,frame:renderer.info.render.frame}:null,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,peekTypeOf,peekStyleMode,peekSpeedScale,assignGroupPeekStyles,findSlidePoint,shortenPeekTarget,PEEK_STYLE_IDS,scnStats,wallClosureReport,concatSelfTest,botMatInfo,concatGeos,geoTriCount,rendererInfo:()=>renderer?{calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geoms:renderer.info.memory.geometries,frame:renderer.info.render.frame}:null,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); ensureGrain(); syncGrain(); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

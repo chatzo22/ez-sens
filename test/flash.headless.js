@@ -278,7 +278,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.lookAtBomb();
     const vis=EZ.flashVisible(bomb.pos), ang=EZ.flashAngle(bomb.pos), fac=EZ.flashFactor(ang);
     EZ.detonateFlash(performance.now());
-    const flashed=(EZ.peekBots()||[]).map(b=>({dim:b.dim,op:b.headMat.opacity,em:b.headMat.emissiveIntensity}));
+    const flashed=(EZ.peekBots()||[]).map(b=>({dim:b.dim,op:b.headMat.opacity,em:b.headMat.emissiveIntensity,transparent:!!b.headMat.transparent,depthWrite:b.headMat.depthWrite!==false,info:EZ.botMatInfo?EZ.botMatInfo(b):null}));
     const visInfo={vis,ang,fac,covered:EZ.flash()&&EZ.flash().st.covered};
     const fl=EZ.flash();
     if(fl.bomb){ EZ.lookAway(); EZ.detonateFlash(performance.now()); }
@@ -290,7 +290,8 @@ fs.mkdirSync(OUT,{recursive:true});
   if(!peek.dodged.length) fail('peek bots should spawn after a detonation');
   if(!(peek.dodged[0].visible && peek.dodged[0].hp===100)) fail('dodged peek bot should be visible at full HP');
   if(!peek.flashed.length) fail('peek bots should spawn after a full flash too');
-  if(!(peek.flashed[0].dim>0.5 && peek.flashed[0].op<0.95)) fail('flashed peek bots should be dimmed / harder to see: '+JSON.stringify(peek.flashed[0]));
+  if(!(peek.flashed[0].dim>0.5)) fail('flashed peek bots should still record a flash dim factor: '+JSON.stringify(peek.flashed[0]));
+  if(!(peek.flashed[0].op===1 && peek.flashed[0].transparent===false && peek.flashed[0].depthWrite!==false)) fail('flashed bots must stay fully opaque: '+JSON.stringify(peek.flashed[0]));
   if(!/Bots killed|Headshot|STK|TTK|Dodge/i.test(peek.ov)) fail('recap should include bot and dodge stats: '+peek.ov);
 
 
@@ -1662,6 +1663,133 @@ fs.mkdirSync(OUT,{recursive:true});
     const dest=path.join(OUT,'retro-walls-'+id+'.png');
     await stage.screenshot({path:dest});
     console.log('shot', dest);
+  }
+  await pg.evaluate(()=>EZ.abandonFlash());
+
+
+  // v1.11.0: opaque bots during whiteout, closed wall faces
+  const matCheck=await pg.evaluate(()=>{
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=false; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.bot.shape='bot';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+    const fl=EZ.flash(); fl.busyUntil=1e15; fl.path=null;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway(); EZ.detonateFlash(performance.now());
+    // force a full-flash paint like spawnPeekBots(factor=1)
+    const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    bots.forEach(b=>EZ.paintBot(b,1));
+    const mats=bots.map(b=>EZ.botMatInfo(b));
+    const fx=document.getElementById('flashFx');
+    const wash=fx?{op:+getComputedStyle(fx).opacity, bg:getComputedStyle(fx).backgroundColor, blend:getComputedStyle(fx).mixBlendMode}:null;
+    return {n:bots.length, mats, wash};
+  });
+  console.log('bot opacity', JSON.stringify(matCheck));
+  if(!matCheck.n) fail('expected peek bots for opacity check');
+  if(matCheck.mats.some(m=>!m || m.body.opacity!==1 || m.head.opacity!==1 || m.body.transparent || m.head.transparent || !m.body.depthWrite || !m.head.depthWrite))
+    fail('bots must stay opaque with depthWrite during a flash: '+JSON.stringify(matCheck.mats));
+
+  const walls=await pg.evaluate(()=>{
+    const self=EZ.concatSelfTest();
+    const out=[];
+    for(const id of EZ.SCN_IDS){
+      EZ.setScn(id);
+      const r=EZ.wallClosureReport();
+      r.self=self;
+      out.push(r);
+    }
+    return out;
+  });
+  console.log('wall closure', walls.map(r=>({scn:r.scn,n:r.n,boxes:r.boxes,tris:r.tris,expect:r.expect,bad:(r.bad||[]).length,self:r.self})));
+  if(!walls.length) fail('wallClosureReport returned nothing');
+  if(!walls[0].self || !walls[0].self.ok) fail('concatGeos should keep all box faces: '+JSON.stringify(walls[0].self));
+  for(const r of walls){
+    if(!r.n) fail('no boxed meshes reported on '+r.scn);
+    if(r.bad && r.bad.length) fail('merged/static boxes dropped faces on '+r.scn+': '+JSON.stringify(r.bad.slice(0,4)));
+    if(!(r.tris>=r.expect && r.tris%12===0)) fail('triangle count should cover every box face on '+r.scn+': '+JSON.stringify({tris:r.tris,expect:r.expect,boxes:r.boxes}));
+  }
+
+  // flash-during-whiteout.png — solid bots under a visible wash
+  const wo=await pg.evaluate(()=>{
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    if(EZ.abandonFlash) EZ.abandonFlash();
+    if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+    EZ.S.env='retro'; EZ.S.hint=false;
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.flash.diff='easy'; EZ.S.flash.wasd=false; EZ.S.flash.peek='mix';
+    EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot'; EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+    const fl=EZ.flash();
+    fl.busyUntil=1e15; fl.path=null; fl.pathT=null;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway(); EZ.detonateFlash(performance.now());
+    fl.busyUntil=1e15; fl.path=null; fl.peekUntil=performance.now()+30000; fl.retreatAt=performance.now()+30000; fl.phase='run';
+    const fy=EZ.FLOOR_Y+0.05;
+    const poses=[{x:0.98,z:-5.92,c:0},{x:-0.55,z:-5.28,c:0},{x:0.22,z:-5.62,c:1}];
+    const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    bots.slice(0,3).forEach((bot,i)=>{
+      const p=poses[i]||poses[0];
+      bot.dead=false; bot.group.visible=true; bot.dim=1; EZ.paintBot(bot,1);
+      bot.move={phase:'hold',settled:true,u:1,style:['peek','swing','slide'][i],peekType:['peek','swing','slide'][i],from:{x:p.x,y:fy,z:p.z},to:{x:p.x,y:fy,z:p.z},speed:0};
+      bot.group.position.set(p.x,fy,p.z);
+      bot.crouchWant=p.c; EZ.applyCrouch(bot,p.c);
+      bot.group.updateMatrixWorld(true);
+    });
+    (EZ.peekBots()||[]).forEach((b,i)=>{ if(i>=3&&b){ b.dead=true; b.group.visible=false; } });
+    EZ.camEye.set(0,0,-1.15); EZ.view.yaw=0; EZ.view.pitch=3; EZ.applyCams();
+    const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+    const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+    const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+    const fx=document.getElementById('flashFx');
+    if(fx){ fx.style.transition='none'; fx.style.mixBlendMode='normal'; fx.style.background='#fff'; fx.style.opacity='0.45'; }
+    return {n:bots.slice(0,3).length, mats:(bots.slice(0,3).map(b=>EZ.botMatInfo(b))), fx:fx?fx.style.opacity:null};
+  });
+  console.log('whiteout setup', JSON.stringify(wo));
+  if(wo.mats.some(m=>m.body.transparent||m.body.opacity!==1)) fail('whiteout stills need opaque bots: '+JSON.stringify(wo));
+  await stage.screenshot({path:path.join(OUT,'flash-during-whiteout.png')});
+  console.log('shot', path.join(OUT,'flash-during-whiteout.png'));
+  await pg.evaluate(()=>{ const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0'; EZ.abandonFlash(); });
+
+  // walls-closed-<map>.png from start and a corner/up angle on a few maps
+  const closedMaps=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
+  for(const id of closedMaps){
+    await pg.evaluate((id)=>{
+      EZ.setEnv('retro'); EZ.setTheme('dark');
+      if(EZ.abandonFlash) EZ.abandonFlash();
+      if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+      EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn=id;
+      EZ.S.flash.rand=false; EZ.setMode('flash','flash');
+      EZ.setScn(id); EZ.previewScn();
+      const s=(EZ.scnMeta()&&EZ.scnMeta().start)||{x:0,y:0,z:4.5,yaw:0,pitch:4};
+      EZ.camEye.set(s.x,s.y,s.z);
+      EZ.view.yaw=s.yaw||0; EZ.view.pitch=8;
+      EZ.applyCams();
+      const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+      const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+      const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+    }, id);
+    await stage.screenshot({path:path.join(OUT,'walls-closed-'+id+'.png')});
+    console.log('shot', path.join(OUT,'walls-closed-'+id+'.png'));
+  }
+  // extra angles: hall corner + hold looking up at ceiling join
+  for(const shot of [
+    {id:'hall', name:'walls-closed-hall-corner', eye:[0.85,0.15,-1.2], yaw:38, pitch:12},
+    {id:'hold', name:'walls-closed-hold-up', eye:[0,0,2.4], yaw:-18, pitch:22},
+    {id:'mid', name:'walls-closed-mid-corner', eye:[1.2,0,2.0], yaw:-32, pitch:8}
+  ]){
+    await pg.evaluate((shot)=>{
+      EZ.setEnv('retro'); EZ.setTheme('dark');
+      EZ.setScn(shot.id); EZ.previewScn();
+      EZ.camEye.set(shot.eye[0],shot.eye[1],shot.eye[2]);
+      EZ.view.yaw=shot.yaw; EZ.view.pitch=shot.pitch; EZ.applyCams();
+      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+      const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+    }, shot);
+    await stage.screenshot({path:path.join(OUT,shot.name+'.png')});
+    console.log('shot', path.join(OUT,shot.name+'.png'));
   }
   await pg.evaluate(()=>EZ.abandonFlash());
 
