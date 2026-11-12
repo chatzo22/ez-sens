@@ -352,6 +352,17 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
           <option value="switch">Switching only</option>
         </select>
       </div>
+      <div><label for="flashPeek">Peek style</label>
+        <select id="flashPeek">
+          <option value="mix" selected>Mix (default)</option>
+          <option value="peek">Peeks only</option>
+          <option value="swing">Wide swings only</option>
+          <option value="slide">Slides only</option>
+        </select>
+      </div>
+      <div><label for="flashBotSpeed">Bot speed <span class="muted" id="flashBotSpeedLab">1.0×</span></label>
+        <input id="flashBotSpeed" type="range" min="0.5" max="1.5" step="0.05" value="1">
+      </div>
       <div><label>Bot body</label><input type="color" data-bot="body" value="#f4f6f8"></div>
       <div><label>Bot head</label><input type="color" data-bot="head" value="#00e8ff"></div>
     </div>
@@ -430,7 +441,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <h3>Range — timed challenge history</h3>
   <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
   <h3>Flash dodge history</h3>
-  <div class="card tw"><table><thead><tr><th>When</th><th>Scenario</th><th>Timing</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Covered</th><th>Dodge %</th><th>Bots killed</th><th>First hit</th><th>Turn-back</th><th>Accuracy</th><th>HS%</th><th>STK</th><th>TTK</th><th>Avg dodge reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Scenario</th><th>Timing</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Covered</th><th>Dodge %</th><th>Bots killed</th><th>Peek / swing / slide</th><th>First hit</th><th>Turn-back</th><th>Accuracy</th><th>HS%</th><th>STK</th><th>TTK</th><th>Avg dodge reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
@@ -765,7 +776,7 @@ const THREE = await import(URL.createObjectURL(new Blob([document.getElementById
 const M = window.EZMath;
 const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
 const LS='ezsens.v1';
-const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'retro',theme:'dark',flash:{preset:'val',diff:'normal',count:8,audio:true,tVol:0.4,reduced:false,warned:false,safe:90,scn:'hall',wasd:false,rand:true},afov:''};
+const DEF={range:{size:0.22,speed:1.2,count:3,moving:false,dur:60,viewmodel:true,xh:{style:'dot',color:'#ffffff',size:6,gap:3,outline:true}},xh:{style:'cross',color:'#36f1a6',size:8,thick:2,gap:2,outline:true,outlineW:1,dot:false,opacity:1,dynamic:false},xhs:{},dpi:800,game:'cs2',sens:1,params:{},fav:['cs2','finals','arc'],custom:[],fps:'auto',fpsCustom:165,showFps:true,scale:'1',lowq:false,sound:true,hint:true,env:'retro',theme:'dark',flash:{preset:'val',diff:'normal',count:8,audio:true,tVol:0.4,reduced:false,warned:false,safe:90,scn:'hall',wasd:false,rand:true,peek:'mix',botSpeed:1},afov:''};
 const store = Object.assign({settings:{},history:[],finder:null}, JSON.parse(localStorage.getItem(LS)||'{}'));
 const S = store.settings = Object.assign({},DEF,store.settings);
 S.range=Object.assign({},DEF.range,S.range); S.range.xh=Object.assign({},DEF.range.xh,S.range.xh);
@@ -784,6 +795,9 @@ S.flash.tVol=Math.max(0,Math.min(1,S.flash.tVol==null?0.4:+S.flash.tVol));
 if(!['hall','hold','anchor','entry','retake','overwall','mid','ramp','mix'].includes(S.flash.scn)) S.flash.scn='hall';
 S.flash.wasd=!!S.flash.wasd;
 S.flash.rand=S.flash.rand!==false;
+const PEEK_STYLE_IDS=['mix','peek','swing','slide'];
+if(!PEEK_STYLE_IDS.includes(S.flash.peek)) S.flash.peek='mix';
+S.flash.botSpeed=Math.max(0.5,Math.min(1.5,S.flash.botSpeed==null?1:+S.flash.botSpeed));
 S.bot=Object.assign({shape:'dot',dmg:'hs',body:'#f4f6f8',head:'#00e8ff',stance:'mix'},S.bot||{});
 if(S.bot.shape!=='bot') S.bot.shape='dot';
 if(!M.DMG_IDS.includes(S.bot.dmg)) S.bot.dmg='hs';
@@ -1250,7 +1264,7 @@ function pickBots(list,cam){
   const blocked=firstSolidHit(_rc.ray.origin,_rc.ray.direction,h.distance-0.01,cam);
   if(blocked) return null;
   const bot=h.object.userData.bot; let zone=h.object.userData.zone||'body';
-  if(zone==='body'){ const loc=bot.body.worldToLocal(h.point.clone()); if(loc.y<bot.legLocalY) zone='legs'; }
+  if(zone==='body'){ const loc=bot.body.worldToLocal(_losB.copy(h.point)); if(loc.y<bot.legLocalY) zone='legs'; }
   return {bot,zone,dist:h.distance,point:h.point,blocked:false};
 }
 function showDmg(res){
@@ -1298,16 +1312,17 @@ function syncTrainBot(){
 function clearPeekBots(){ peekBots.splice(0).forEach(disposeBot); }
 
 const DIST=M.ARENA.dist, FLOOR_Y=M.ARENA.floorY, CEIL_Y=M.ARENA.ceilY;
-function scaleRatio(){ return S.scale==='native'?Math.min(2,devicePixelRatio):(+S.scale||1)*(S.lowq?Math.min(1,devicePixelRatio):1); }
+function scaleRatio(){ if(S.scale==='native') return Math.min(1.5, devicePixelRatio||1); const s=+S.scale||1; return Math.max(0.5, Math.min(1, s)); }
 function resize(){ if(!renderer)return; const w=stage.clientWidth||960,h=stage.clientHeight||540; renderer.setPixelRatio(scaleRatio()); renderer.setSize(w,h,false); camera.aspect=w/h; setFov(); if(typeof rangeCam!=='undefined'){rangeCam.aspect=w/h; setRangeFov();} const hc=$('#edgeHint'); if(hc){ hc.width=w; hc.height=h; } }
 addEventListener('resize',resize); document.addEventListener('fullscreenchange',()=>setTimeout(resize,50));
 function arenaHFov(){ if(+S.afov>=60)return +S.afov; const g=M.get(S.game); if(g.hfovFn)return g.hfovFn(P(g.id)); return g.hfov||103; }
 function setFov(){const h=arenaHFov()*Math.PI/180; camera.fov=2*Math.atan(Math.tan(h/2)/camera.aspect)*180/Math.PI; camera.updateProjectionMatrix();}
 const view={yaw:0,pitch:0};
 const D2R=Math.PI/180;
-function dirFrom(yaw,pitch){const y=yaw*D2R,p=pitch*D2R;return new THREE.Vector3(-Math.sin(y)*Math.cos(p),Math.sin(p),-Math.cos(y)*Math.cos(p));}
+const _dirA=new THREE.Vector3(), _dirB=new THREE.Vector3(), _faTo=new THREE.Vector3();
+function dirFrom(yaw,pitch,out){const y=yaw*D2R,p=pitch*D2R; const v=out||new THREE.Vector3(); return v.set(-Math.sin(y)*Math.cos(p),Math.sin(p),-Math.cos(y)*Math.cos(p));}
 const wrap=a=>((a+540)%360)-180;
-function angErr(ty,tp){ const a=dirFrom(view.yaw,view.pitch),b=dirFrom(ty,tp); const ang=Math.acos(Math.min(1,a.dot(b)))/D2R;
+function angErr(ty,tp){ const a=dirFrom(view.yaw,view.pitch,_dirA),b=dirFrom(ty,tp,_dirB); const ang=Math.acos(Math.min(1,a.dot(b)))/D2R;
   return {ang,dx:wrap(ty-view.yaw)*Math.cos(tp*D2R),dy:tp-view.pitch};}
 function placeTarget(ty,tp,radDeg){ tp=M.clampPitch(tp,DIST,radDeg,FLOOR_Y,CEIL_Y); const d=dirFrom(ty,tp).multiplyScalar(DIST); tgt.position.copy(d); tgt.scale.setScalar(M.targetRadius(DIST,radDeg)); tgt.visible=true; if(useBots()&&MODE!=='range'&&MODE!=='flash'){ const b=ensureTrainBot(); if(R&&R.t&&R.t._armed!==R.t){ armBot(b); paintBot(b,0); R.t._armed=R.t; R.t.nShots=0; applyBotStance(b, planStanceToggles(pickStanceKind(), performance.now(), 0, 4000, null, {auto:true,max:8}), performance.now()); } if(R&&R.tr&&!R.t){ if(R.tr._armed!==R.tr){ armBot(b); paintBot(b,0); R.tr._armed=R.tr; applyBotStance(b, planStanceToggles(pickStanceKind(), performance.now(), 0, (R.segments[R.si]&&R.segments[R.si].dur||8)*1000+800, null, {auto:true,max:12}), performance.now()); } } let sc=Math.max(0.12,tgt.scale.x/BOT_HEAD_R); const maxS=(tgt.position.y-FLOOR_Y-0.02)/BOT_HEAD_Y; if(maxS>0.2) sc=Math.min(sc,maxS); scaleBot(b,sc); placeBotHead(b,tgt.position.x,tgt.position.y,tgt.position.z); b.group.visible=true; tgt.visible=false; } else if(trainBot) hideBot(trainBot); return tp;}
 
@@ -1487,8 +1502,9 @@ function renderFlashHist(){ const el=$('#fhist'); if(!el)return; const ms=v=>Num
   const rows=(store.flashHistory||[]).map(h=>{
     const kills=h.dots!=null?`${h.botKills||0}/${h.dots}`:(h.kills||0);
     const acc=h.dotShots?pct(100*(h.dotHits||0)/h.dotShots):(h.acc!=null?pct(h.acc*100):'—');
-    return `<tr><td>${new Date(h.at).toLocaleString()}</td><td>${esc(scnName(h.scn))}</td><td>${h.preset==='cs2'?'CS2-style':'Valorant-style'}</td><td><b>${Math.round(h.score)}</b></td><td>${h.dodged}</td><td>${h.partial}</td><td>${h.full}</td><td>${h.covered||0}</td><td>${Math.round(h.dodgePct)}%</td><td>${kills}</td><td>${ms(h.firstHit)}</td><td>${ms(h.turnBack)}</td><td>${acc}</td><td>${pct(h.hsPct)}</td><td>${Number.isFinite(h.stk)?(+h.stk).toFixed(1):'—'}</td><td>${ms(h.ttk)}</td><td>${ms(h.react)}</td><td>${fmt(h.cm,1)}</td></tr>`;
-  }).join(''); el.innerHTML=rows||'<tr><td colspan="18" class="muted">No flash rounds yet.</td></tr>'; }
+    const pss=`${h.peekKills||0} / ${h.swingKills||0} / ${h.slideKills||0}`;
+    return `<tr><td>${new Date(h.at).toLocaleString()}</td><td>${esc(scnName(h.scn))}</td><td>${h.preset==='cs2'?'CS2-style':'Valorant-style'}</td><td><b>${Math.round(h.score)}</b></td><td>${h.dodged}</td><td>${h.partial}</td><td>${h.full}</td><td>${h.covered||0}</td><td>${Math.round(h.dodgePct)}%</td><td>${kills}</td><td>${pss}</td><td>${ms(h.firstHit)}</td><td>${ms(h.turnBack)}</td><td>${acc}</td><td>${pct(h.hsPct)}</td><td>${Number.isFinite(h.stk)?(+h.stk).toFixed(1):'—'}</td><td>${ms(h.ttk)}</td><td>${ms(h.react)}</td><td>${fmt(h.cm,1)}</td></tr>`;
+  }).join(''); el.innerHTML=rows||'<tr><td colspan="19" class="muted">No flash rounds yet.</td></tr>'; }
 function bestFlash(key, kind){ // kind: 'preset' | 'scn'
   return (store.flashHistory||[]).filter(h=>kind==='scn'?h.scn===key:h.preset===key).reduce((m,h)=>Math.max(m,+h.score||0),0); }
 function renderFlashBests(){ $$('#flashPresets .best').forEach(el=>{ const b=bestFlash(el.dataset.fbest,'preset'); el.textContent=b?('Best '+Math.round(b)):''; }); $$('#flashScn .best').forEach(el=>{ const b=bestFlash(el.dataset.sbest,'scn'); el.textContent=b?('Best '+Math.round(b)):''; }); }
@@ -1930,7 +1946,7 @@ function makeGrenade(){
 }
 function ensureGrenade(){ if(grenade)return grenade; grenade=makeGrenade(); grenade.visible=false; scene.add(grenade); return grenade; }
 function hideGrenade(){ if(grenade)grenade.visible=false; }
-function flashAngle(pos){ const dir=dirFrom(view.yaw,view.pitch); const to=pos.clone().sub(camEye); if(to.lengthSq()<1e-8)return 180; to.normalize(); return Math.acos(Math.min(1,Math.max(-1,dir.dot(to))))/D2R; }
+function flashAngle(pos){ const dir=dirFrom(view.yaw,view.pitch,_dirA); _faTo.set(pos.x,pos.y,pos.z).sub(camEye); if(_faTo.lengthSq()<1e-8)return 180; _faTo.normalize(); return Math.acos(Math.min(1,Math.max(-1,dir.dot(_faTo))))/D2R; }
 function flashFactor(ang){ const safe=+S.flash.safe||90; if(ang>=safe)return 0; if(ang<=20)return 1; const t=(ang-20)/(safe-20); return Math.max(0,1-t*t); }
 function flashIdleOv(){
   const sc=SCN[S.flash.scn]||SCN.hall;
@@ -1948,6 +1964,9 @@ function syncFlashUI(){
   const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(f.tVol*100)+'%';
   const w=$('#flashWasd'); if(w)w.checked=!!f.wasd;
   const rnd=$('#flashRand'); if(rnd)rnd.checked=f.rand!==false;
+  const pk=$('#flashPeek'); if(pk)pk.value=PEEK_STYLE_IDS.includes(f.peek)?f.peek:'mix';
+  const sp=$('#flashBotSpeed'); if(sp)sp.value=f.botSpeed==null?1:f.botSpeed;
+  const spl=$('#flashBotSpeedLab'); if(spl)spl.textContent=(+f.botSpeed||1).toFixed(1)+'×';
   renderFlashBests();
 }
 function persistFlash(){ save(); syncFlashUI(); }
@@ -1963,6 +1982,8 @@ $('#flashAudio').onchange=()=>{S.flash.audio=$('#flashAudio').checked;persistFla
 $('#flashReduced').onchange=()=>{S.flash.reduced=$('#flashReduced').checked;persistFlash();};
 $('#flashWasd').onchange=()=>{S.flash.wasd=$('#flashWasd').checked;persistFlash();};
 const _fr=$('#flashRand'); if(_fr)_fr.onchange=()=>{S.flash.rand=_fr.checked;persistFlash();};
+const _fp=$('#flashPeek'); if(_fp)_fp.onchange=()=>{S.flash.peek=PEEK_STYLE_IDS.includes(_fp.value)?_fp.value:'mix';persistFlash();};
+const _fbs=$('#flashBotSpeed'); if(_fbs)_fbs.oninput=()=>{S.flash.botSpeed=Math.max(0.5,Math.min(1.5,+_fbs.value||1)); const lab=$('#flashBotSpeedLab'); if(lab)lab.textContent=S.flash.botSpeed.toFixed(1)+'×'; save();};
 $('#flashTvol').oninput=()=>{S.flash.tVol=Math.max(0,Math.min(1,+$('#flashTvol').value||0)); const lab=$('#flashTvolLab'); if(lab)lab.textContent=Math.round(S.flash.tVol*100)+'%'; save();};
 
 function flashCue(kind,factor,pos){
@@ -2230,34 +2251,125 @@ function addSitePlate(x,z,letter,C){
   }
 }
 
-function mergeEdgeLines(items,hex,foggy){
-  if(!items.length||!scnGroup) return null;
-  const parts=[];
-  for(const it of items){
-    const g=new THREE.EdgesGeometry(it.mesh.geometry, 20);
-    const m=new THREE.Matrix4();
-    m.makeTranslation(it.x,it.y,it.z);
-    if(it.mesh.rotation&&it.mesh.rotation.y){ const r=new THREE.Matrix4().makeRotationY(it.mesh.rotation.y); m.multiply(r); }
-    g.applyMatrix4(m);
-    parts.push(g);
+function concatGeos(parts){
+  if(!parts.length) return null;
+  if(parts.length===1) return parts[0];
+  if(THREE.BufferGeometryUtils&&THREE.BufferGeometryUtils.mergeGeometries){
+    const m=THREE.BufferGeometryUtils.mergeGeometries(parts,false);
+    if(m){ parts.forEach(g=>{ if(g!==m) g.dispose(); }); return m; }
   }
-  const merged=parts.length===1?parts[0]:(THREE.BufferGeometryUtils&&THREE.BufferGeometryUtils.mergeGeometries
-    ?THREE.BufferGeometryUtils.mergeGeometries(parts,false)
-    :null);
-  let geo=merged;
-  if(!geo){
-    // manual merge
-    let n=0; parts.forEach(g=>n+=(g.getAttribute('position')||{count:0}).count);
-    const arr=new Float32Array(n*3); let o=0;
-    parts.forEach(g=>{ const a=g.getAttribute('position'); if(!a)return; arr.set(a.array,o); o+=a.array.length; });
-    geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(arr,3));
-    parts.forEach(g=>{ if(g!==geo) g.dispose(); });
-  }else{
-    parts.forEach(g=>{ if(g!==geo) g.dispose(); });
+  const attrs=['position','normal','uv'];
+  const arrays={}, counts={};
+  for(const name of attrs){
+    let n=0, ok=true;
+    for(const g of parts){ const a=g.getAttribute(name); if(!a){ ok=false; break; } n+=a.count*a.itemSize; }
+    if(!ok) continue;
+    arrays[name]=new Float32Array(n); counts[name]=0;
   }
-  const lines=new THREE.LineSegments(geo, lineMat(hex,foggy));
-  lines.userData.shared=true; scnGroup.add(lines); scnTemps.push(geo);
+  if(!arrays.position) return parts[0];
+  const item=name=>((parts[0].getAttribute(name)||{}).itemSize)||3;
+  for(const g of parts){
+    for(const name of Object.keys(arrays)){
+      const a=g.getAttribute(name); if(!a) continue;
+      arrays[name].set(a.array, counts[name]); counts[name]+=a.array.length;
+    }
+  }
+  const geo=new THREE.BufferGeometry();
+  for(const name of Object.keys(arrays)) geo.setAttribute(name, new THREE.BufferAttribute(arrays[name], item(name)));
+  parts.forEach(g=>{ if(g!==geo) g.dispose(); });
+  return geo;
+}
+function edgeGeoFor(it){
+  const g=new THREE.EdgesGeometry(it.mesh.geometry, 20);
+  const m=new THREE.Matrix4();
+  m.makeTranslation(it.x,it.y,it.z);
+  if(it.mesh.rotation&&it.mesh.rotation.y){ const r=new THREE.Matrix4().makeRotationY(it.mesh.rotation.y); m.multiply(r); }
+  g.applyMatrix4(m);
+  return g;
+}
+function mergeEdgeLineGroups(groups,foggy){
+  // one LineSegments for the whole map, vertex colors preserve pink/cyan (or env tint)
+  if(!scnGroup) return null;
+  let n=0; const chunks=[];
+  for(const g of groups){
+    if(!g.items||!g.items.length) continue;
+    const col=new THREE.Color(g.hex);
+    const parts=g.items.map(edgeGeoFor);
+    const geo=concatGeos(parts);
+    if(!geo) continue;
+    const pos=geo.getAttribute('position'); if(!pos) continue;
+    const ca=new Float32Array(pos.count*3);
+    for(let i=0;i<pos.count;i++){ ca[i*3]=col.r; ca[i*3+1]=col.g; ca[i*3+2]=col.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(ca,3));
+    chunks.push(geo); n+=pos.count;
+  }
+  if(!chunks.length) return null;
+  // concat positions + colors
+  const pos=new Float32Array(n*3), col=new Float32Array(n*3); let o=0;
+  for(const g of chunks){
+    const p=g.getAttribute('position'), c=g.getAttribute('color');
+    pos.set(p.array,o*3); col.set(c.array,o*3); o+=p.count;
+    g.dispose();
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+  geo.computeBoundingSphere();
+  const mat=new THREE.LineBasicMaterial({vertexColors:true, fog:!!foggy});
+  const lines=new THREE.LineSegments(geo, mat);
+  lines.userData.shared=true; lines.frustumCulled=true; lines.matrixAutoUpdate=false; lines.updateMatrix();
+  scnGroup.add(lines); scnTemps.push(geo);
   return lines;
+}
+function mergeStaticByMaterial(){
+  if(!scnGroup) return;
+  const groups=new Map();
+  const kids=scnGroup.children.slice();
+  for(const o of kids){
+    if(!o.isMesh || o.userData.dynamic || o.userData.merged) continue;
+    const mat=o.material;
+    if(!mat || Array.isArray(mat)) continue;
+    const k=mat.uuid;
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(o);
+  }
+  for(const arr of groups.values()){
+    if(arr.length<2){
+      arr.forEach(o=>{ o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true; if(o.geometry&&o.geometry.computeBoundingSphere) o.geometry.computeBoundingSphere(); });
+      continue;
+    }
+    const parts=[];
+    for(const o of arr){
+      o.updateMatrixWorld(true);
+      const g=o.geometry.clone();
+      g.applyMatrix4(o.matrixWorld);
+      parts.push(g);
+    }
+    const merged=concatGeos(parts);
+    if(!merged) continue;
+    merged.computeBoundingSphere();
+    const mesh=new THREE.Mesh(merged, arr[0].material);
+    mesh.userData.shared=true; mesh.userData.merged=true;
+    mesh.matrixAutoUpdate=false; mesh.updateMatrix(); mesh.frustumCulled=true;
+    scnGroup.add(mesh); scnTemps.push(merged);
+    arr.forEach(o=>scnGroup.remove(o));
+  }
+}
+function freezeStaticMatrices(){
+  if(!scnGroup) return;
+  scnGroup.traverse(o=>{
+    if(!o.isMesh && !o.isLineSegments && !o.isLine) return;
+    if(o.userData&&o.userData.dynamic) return;
+    o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true;
+  });
+}
+function scnStats(){
+  let meshes=0, lines=0, pts=0;
+  if(scnGroup) scnGroup.traverse(o=>{
+    if(o.isMesh){ meshes++; const a=o.geometry&&o.geometry.getAttribute('position'); pts+=a?a.count:0; }
+    if(o.isLineSegments||o.isLine){ lines++; const a=o.geometry&&o.geometry.getAttribute('position'); pts+=a?a.count:0; }
+  });
+  return {meshes, lines, children:scnGroup?scnGroup.children.length:0, walls:scnWalls.length, pts};
 }
 function finishScnLook(meta){
   if(!scnGroup) return;
@@ -2266,11 +2378,10 @@ function finishScnLook(meta){
   const walls=scnMeshes.filter(it=>(it.role==='wall'||it.role==='trim')&&it.sy>=0.35);
   const crates=scnMeshes.filter(it=>it.role==='crate');
   if(retro){
-    mergeEdgeLines(walls, C.neon||0xff3cb0, true);
-    mergeEdgeLines(crates, C.neon2||0x00e8ff, true);
+    mergeEdgeLineGroups([{items:walls,hex:C.neon||0xff3cb0},{items:crates,hex:C.neon2||0x00e8ff}], true);
   }else{
     const col=S.env==='day'?0x9aa8b4:S.env==='sunrise'?0x8a7060:0x8a96a4;
-    mergeEdgeLines(walls.concat(crates), col, true);
+    mergeEdgeLineGroups([{items:walls.concat(crates),hex:col}], true);
   }
   addPeekCornerNeons(meta,C);
 }
@@ -2428,7 +2539,7 @@ function unloadScn(){
     });
     scene.remove(scnGroup);
   }
-  scnGroup=null; scnWalls=[]; scnMeshes=[]; scnMeta=null; scnId=null;
+  scnGroup=null; scnWalls=[]; scnMeshes=[]; scnMeta=null; scnId=null; invalidateWallCache();
   setArenaDecor(true);
   if(typeof syncSceneFog==='function') syncSceneFog();
 }
@@ -2445,7 +2556,7 @@ function loadScn(id){
   if(!SCN[id]||id==='mix') id='hall';
   const keep=scnId===id&&scnGroup;
   if(scnGroup){ const eye=camEye.clone(); unloadScn(); /* unload clears id */ camEye.copy(eye); }
-  scnGroup=new THREE.Group(); scene.add(scnGroup); scnWalls=[]; scnMeshes=[]; scnTemps=[]; scnId=id; setArenaDecor(false);
+  scnGroup=new THREE.Group(); scene.add(scnGroup); scnWalls=[]; scnMeshes=[]; scnTemps=[]; scnId=id; invalidateWallCache(); setArenaDecor(false);
   if(typeof syncSceneFog==='function') syncSceneFog();
   const builders={hall:buildHall,hold:buildHold,anchor:buildAnchor,entry:buildEntry,retake:buildRetake,overwall:buildOverwall,mid:buildMid,ramp:buildRamp};
   scnMeta=(builders[id]||buildHall)();
@@ -2455,6 +2566,9 @@ function loadScn(id){
   fixPeekVisibility(scnMeta);
   _peekVisCache=null;
   finishScnLook(scnMeta);
+  mergeStaticByMaterial();
+  freezeStaticMatrices();
+  invalidateWallCache();
   placeStart(scnMeta);
   return scnMeta;
 }
@@ -2748,6 +2862,17 @@ function rayAABBt(orig,dir,box,maxT){
   return (tmax>=tmin && tmin<=maxT) ? tmin : null;
 }
 function rayAABB(orig,dir,box,maxT){ return rayAABBt(orig,dir,box,maxT)!=null; }
+let _blockWalls=null, _losWalls=null, _losChecks=0;
+function invalidateWallCache(){ _blockWalls=null; _losWalls=null; }
+function cachedWalls(kind){
+  const src=MODE==='flash'?scnWalls:(MODE==='range'?rangeWalls:arenaWalls);
+  if(kind==='los'){
+    if(!_losWalls||_losWalls._src!==src){ _losWalls=src.filter(w=>w.role!=='decal'&&w.role!=='floor'); _losWalls._src=src; }
+    return _losWalls;
+  }
+  if(!_blockWalls||_blockWalls._src!==src){ _blockWalls=src.filter(w=>w.role!=='decal'); _blockWalls._src=src; }
+  return _blockWalls;
+}
 function worldSolids(cam){
   if(cam&&cam===rangeCam) return rangeWalls;
   if(MODE==='range') return rangeWalls;
@@ -2756,26 +2881,29 @@ function worldSolids(cam){
 }
 function firstSolidHit(orig,dir,maxT,cam,skip){
   let best=maxT, hit=null;
-  const walls=cam?worldSolids(cam):(MODE==='flash'?scnWalls:worldSolids());
+  _losChecks++;
+  const skipFloor=skip&&(skip.has?skip.has('floor'):skip.floor);
+  const walls=cam&&cam===rangeCam?rangeWalls.filter(w=>w.role!=='decal'&&(!skipFloor||w.role!=='floor')):(skipFloor?cachedWalls('los'):cachedWalls('block'));
   for(const w of walls){
-    if(w.role==='decal') continue;
-    if(skip&&skip.has(w.role)) continue;
+    if(skip&&skip.has&&skip.has(w.role)&&w.role!=='floor'&&w.role!=='decal') continue;
     const t=rayAABBt(orig,dir,w,best);
     if(t!=null && t>=0 && t<best){ best=t; hit=w; }
   }
   return hit?{t:best,wall:hit}:null;
 }
+const _losDir=new THREE.Vector3(), _losA=new THREE.Vector3(), _losB=new THREE.Vector3(), _hvP=new THREE.Vector3();
+const SKIP_LOS=(function(){ const s=new Set(['decal','floor']); return s; })();
 function losOpen(a,b,slack){
-  const dir=b.clone?b.clone().sub(a):new THREE.Vector3(b.x-a.x,b.y-a.y,b.z-a.z);
-  const dist=dir.length();
+  _losDir.set(b.x-a.x,b.y-a.y,b.z-a.z);
+  const dist=_losDir.length();
   if(dist<(slack||0.08)) return true;
-  dir.multiplyScalar(1/dist);
-  const hit=firstSolidHit(a,dir,dist-(slack||0.04),null,new Set(['decal','floor']));
+  _losDir.multiplyScalar(1/dist);
+  const hit=firstSolidHit(a,_losDir,dist-(slack||0.04),null,SKIP_LOS);
   return !hit;
 }
 function flashVisible(pos){
-  const orig=camEye.clone(), tgt=pos.clone?pos.clone():new THREE.Vector3(pos.x,pos.y,pos.z);
-  return losOpen(orig,tgt,0.12);
+  _losA.copy(camEye); _losB.set(pos.x,pos.y,pos.z);
+  return losOpen(_losA,_losB,0.12);
 }
 function pointInSolid(x,y,z,r){
   for(const w of scnWalls){
@@ -2813,13 +2941,12 @@ function nudgeOutOfSolid(pos,r){
 }
 const HEAD_SAMPLES=[[0,0,0],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1],[0.7,0.7,0],[-0.7,0.7,0],[0.7,0,0.7],[-0.7,0,0.7]];
 function headVisibleFrom(eye,head,rad){
-  const V=eye.constructor||THREE.Vector3;
   let ok=0, center=false;
   const n=HEAD_SAMPLES.length;
   for(let i=0;i<n;i++){
     const s=HEAD_SAMPLES[i];
-    const p=new V(head.x+s[0]*rad, head.y+s[1]*rad, head.z+s[2]*rad);
-    const vis=losOpen(eye,p,0.03);
+    _hvP.set(head.x+s[0]*rad, head.y+s[1]*rad, head.z+s[2]*rad);
+    const vis=losOpen(eye,_hvP,0.03);
     if(vis) ok++;
     if(i===0) center=vis;
   }
@@ -3205,20 +3332,24 @@ function pushPathReport(meta){
   }
   return out;
 }
+function peekTypeOf(bot){
+  const st=(bot&&bot.peekType)||(bot&&bot.move&&(bot.move.peekType||bot.move.style))||'swing';
+  if(st==='slide') return 'slide';
+  if(st==='peek'||st==='shoulder'||st==='jiggle') return 'peek';
+  return 'swing';
+}
 function botIsMoving(bot){
   if(!bot||bot.dead) return false;
   const mv=bot.move;
-  if(bot.moving) return true;
-  if(!mv) return false;
+  if(!mv) return !!bot.moving;
   if(mv.phase==='wait'||mv.phase==='gone'||mv.phase==='hold') return false;
-  if(mv.phase==='retreat') return (mv.u||0)>0.03;
+  if(mv.phase==='retreat'||mv.phase==='repeekIn') return (mv.u||0)>0.03;
   if(mv.style==='stop' && mv.settled) return false;
-  if(mv.style==='shoulder'||mv.style==='jiggle'||mv.style==='reswing') return mv.phase==='go';
   if(mv.phase==='go'){
     if(mv.settled) return false;
-    return (mv.u||0)>0.03 && (mv.u||0)<0.98 || !!mv.overshooting;
+    return (mv.u||0)>0.02 && (mv.u||0)<0.99 || !!mv.overshooting;
   }
-  return false;
+  return !!bot.moving;
 }
 function stepPeekBots(dt,now){
   if(!peekBots.length) return;
@@ -3236,6 +3367,20 @@ function stepPeekBots(dt,now){
     if(now<mv.goAt && mv.phase==='wait') continue;
     if(mv.phase==='wait'){ mv.phase='go'; mv.t=0; mv.v=0; }
     if(mv.phase==='gone') continue;
+    if(mv.phase==='hold' && (mv.style==='peek'||mv.style==='slide'||mv.style==='swing'||mv.style==='reswing')){
+      mv.settled=true; mv.u=mv.u==null?1:Math.min(1, Math.max(mv.stopAt||0, mv.u>0.92?1:mv.u));
+      const fromH=mv.from, destH=(mv.useAlt&&mv.alt)?mv.alt:mv.to;
+      const distH=Math.hypot(destH.x-fromH.x,destH.z-fromH.z)||0.001;
+      let px=fromH.x+(destH.x-fromH.x)*mv.u, pz=fromH.z+(destH.z-fromH.z)*mv.u, py=fromH.y+(destH.y-fromH.y)*mv.u;
+      if((mv.strafe||mv.style==='swing') && mv.amp){
+        const sx=-(destH.z-fromH.z)/distH, sz=(destH.x-fromH.x)/distH;
+        const amp=(mv.amp||0.16)*0.55*Math.sin((now*0.001)*Math.PI*(mv.sway||1.1));
+        px+=sx*amp; pz+=sz*amp;
+      }
+      if(bodyClearFeet(px,py,pz)) placeBotFeet(bot,px,py,pz);
+      bot.moving=false;
+      continue;
+    }
     const from=mv.from, to=(mv.useAlt&&mv.alt)?mv.alt:mv.to;
     const dist=Math.hypot(to.x-from.x,to.z-from.z)||0.001;
     const maxV=(mv.speed||5)/dist; // u per second at cruise
@@ -3247,7 +3392,7 @@ function stepPeekBots(dt,now){
       targetU=(mv.u||0)+mv.v*dt;
       if(mv.phase==='repeekIn' && targetU<=0.14){
         mv.u=Math.max(0.04,targetU); mv.v=0; mv.phase='go'; mv.t=0; mv.didRepeek=true;
-        mv.style=mv.style==='shoulder'?'swing':'reswing';
+        if(mv.style!=='peek'&&mv.style!=='slide') mv.style=mv.style==='shoulder'?'swing':'reswing';
         mv.settled=false; mv.useAlt=!!mv.alt && (Math.random()<0.5);
         targetU=mv.u;
       }else if(mv.phase==='retreat' && targetU<=0.02){
@@ -3292,10 +3437,28 @@ function stepPeekBots(dt,now){
       mv._dest=dest;
       const k=Math.min(1,dt*12);
       targetU=(mv.u||0)+(goal-(mv.u||0))*k;
-    }else if(mv.style==='swing' || (mv.overshoot&&mv.overshoot>1 && mv.style!=='shoulder' && mv.style!=='stop' && mv.style!=='jiggle')){
+    }else if(mv.style==='peek'){
+      const T=Math.max(0.58, dist/Math.max(1.35,mv.speed||2.0));
+      const s=Math.min(1, mv.t/T);
+      const e=s*s*(3-2*s);
+      targetU=e;
+      mv.settled=s>=0.98;
+      if(mv.settled){ targetU=1; mv.phase='hold'; }
+    }else if(mv.style==='slide'){
+      const T=Math.max(0.52, dist/Math.max(2.2,mv.speed||3.2));
+      const s=Math.min(1.02, mv.t/T);
+      let goal;
+      if(s<0.22){ const k=s/0.22; goal=(k*k)*0.26; }
+      else if(s<0.72){ const k=(s-0.22)/0.50; goal=0.26+k*0.54; }
+      else { const k=Math.min(1,(s-0.72)/0.28); const e=k*k*(3-2*k); goal=0.80+0.20*e; }
+      if(!mv.settled) bot.crouchWant=1;
+      if(s>=1){ goal=1; mv.settled=true; mv.phase='hold'; if(mv.slideStand) bot.crouchWant=0; }
+      const blend=Math.min(1,dt*14);
+      targetU=(mv.u||0)+(goal-(mv.u||0))*blend;
+    }else if(mv.style==='swing' || (mv.overshoot&&mv.overshoot>1 && mv.style!=='shoulder' && mv.style!=='stop' && mv.style!=='jiggle' && mv.style!=='peek' && mv.style!=='slide')){
       // accelerate out, overshoot, decelerate to a stop at u=1
       const over=mv.overshoot||1.16;
-      const T=Math.max(0.38, dist/Math.max(2.8,mv.speed||5));
+      const T=Math.max(0.48, dist/Math.max(2.4,mv.speed||3.6));
       const s=Math.min(1.15, mv.t/T);
       let goal;
       if(s<0.78){
@@ -3442,6 +3605,79 @@ document.addEventListener('keyup',e=>{ keysHeld[e.code]=false; });
 
 function peekWindowMs(){ const d=FL&&FL.diff||S.flash.diff; return d==='hard'?850:d==='easy'?1400:1100; }
 const PEEK_START_MAX=150; // ms after the pop; bots begin swinging in this window
+function peekStyleMode(){ const v=(S.flash&&S.flash.peek)||'mix'; return PEEK_STYLE_IDS.includes(v)?v:'mix'; }
+function peekSpeedScale(){
+  const d=(FL&&FL.diff)||(S.flash&&S.flash.diff)||'normal';
+  const diff=d==='easy'?0.62:d==='hard'?0.92:0.70; // ~38% / 8% / 30% slower than 1.9.0
+  const slider=Math.max(0.5, Math.min(1.5, +((S.flash&&S.flash.botSpeed)!=null?S.flash.botSpeed:1)));
+  return diff*slider;
+}
+function assignGroupPeekStyles(n, rng){
+  const unit=()=>rng?+rng():((typeof frand==='function')?frand():Math.random());
+  const mode=peekStyleMode();
+  n=Math.max(0,n|0);
+  if(!n) return [];
+  if(mode==='peek'||mode==='swing'||mode==='slide') return Array(n).fill(mode);
+  if(n===1){ const r=unit(); return [r<0.40?'peek':r<0.75?'swing':'slide']; }
+  if(n===2){
+    const pairs=[['peek','swing'],['peek','slide'],['swing','slide']];
+    const p=pairs[Math.floor(unit()*pairs.length)].slice();
+    if(unit()<0.5) p.reverse();
+    return p;
+  }
+  const third=unit()<0.55?'slide':'swing';
+  const base=['peek','swing',third];
+  while(base.length<n){ const r=unit(); base.push(r<0.38?'peek':r<0.72?'swing':'slide'); }
+  for(let i=base.length-1;i>0;i--){ const j=Math.floor(unit()*(i+1)); const t=base[i]; base[i]=base[j]; base[j]=t; }
+  return base.slice(0,n);
+}
+function shortenPeekTarget(from,to,lo,hi){
+  const dx=to[0]-from[0], dz=to[2]-from[2], d=Math.hypot(dx,dz)||1;
+  const want=Math.max(lo||0.36, Math.min(hi||0.78, d*0.48));
+  const k=Math.min(1, want/d);
+  return [from[0]+dx*k, from[1], from[2]+dz*k];
+}
+function findSlidePoint(from,eyes,opts){
+  const open=findOpenPoint(from,eyes,opts||{});
+  const fx=+from[0], fy=+from[1], fz=+from[2];
+  const tx=open.pos[0], tz=open.pos[2];
+  const odx=tx-fx, odz=tz-fz, oL=Math.hypot(odx,odz)||1;
+  const ox=odx/oL, oz=odz/oL;
+  const sides=[[-oz,ox],[oz,-ox]];
+  let best=null, bestScore=-1;
+  const visAlong=(x,z)=>{
+    const steps=5;
+    let ok=0, last=null;
+    for(let i=1;i<=steps;i++){
+      const t=i/steps, px=fx+(x-fx)*t, pz=fz+(z-fz)*t;
+      if(!bodyClearFeet(px,fy,pz)) return {ok:false,frac:0,visible:false};
+      const vis=headVisibleAt(px,fy,pz,eyes,true);
+      last=vis; if(vis.visible||vis.frac>=0.4) ok++;
+    }
+    return {ok:ok>=3, frac:last?last.frac:0, visible:!!(last&&last.visible), midOk:ok>=3};
+  };
+  for(const [sx,sz] of sides){
+    for(const across of [0.9,1.2,1.5,1.8,2.2,2.6]){
+      for(const out of [0.35,0.55,0.8,1.1,1.35]){
+        const x=fx+ox*out+sx*across, z=fz+oz*out+sz*across;
+        if(!bodyClearFeet(x,fy,z) || !pathClear(fx,fy,fz,x,fy,z,10)) continue;
+        const along=visAlong(x,z);
+        if(!along.ok || !along.visible) continue;
+        const dist=Math.hypot(x-fx,z-fz);
+        const lat=Math.abs((x-fx)*sx+(z-fz)*sz);
+        const score=lat*2.2+dist*0.35+along.frac;
+        if(score>bestScore){ bestScore=score; best={pos:[x,fy,z],visible:true,frac:along.frac,dist,lat,clear:true}; }
+      }
+    }
+  }
+  if(best&&best.lat>=0.7&&best.dist>=0.85) return best;
+  if(open.dist>=0.9&&pathClear(fx,fy,fz,open.pos[0],open.pos[1],open.pos[2],10)){
+    const along=visAlong(open.pos[0],open.pos[2]);
+    if(along.ok&&along.visible) return {pos:open.pos,visible:true,frac:along.frac,dist:open.dist,lat:0,clear:true,fallback:true};
+  }
+  return best;
+}
+
 function turnBackAllowanceMs(ang, diff){
   const d=diff||(FL&&FL.diff)||S.flash.diff||'normal';
   const a=Math.max(0, Math.min(180, Math.abs(+ang||0)));
@@ -3463,21 +3699,24 @@ function spawnPeekBots(factor,peeks,now){
   const rand=useFlashRand();
   const n=rand?fint(1,Math.min(3,list.length)):list.length;
   const picks=rand?fshuffle(list).slice(0,n):list;
-  const styles=rand?null:['swing','jiggle','reswing'];
+  const peekStyles=assignGroupPeekStyles(picks.length);
   const staged=[];
   const usedDelay=[];
   for(let i=0;i<picks.length;i++){
     const p=picks[i];
     const bot=makeBot(scene); scaleBot(bot,1); placeBotFeet(bot,p[0],p[1],p[2]); bot.dim=factor; armBot(bot,now); paintBot(bot,factor);
+    let style=peekStyles[i]||'swing';
     const open=findOpenPoint(p,eyes);
-    const to=open.pos;
+    let to=open.pos;
     const altOpen=findOpenPoint(p,eyes,{flip:true,avoid:to});
     const alt=(altOpen&&altOpen.visible&&altOpen.dist>=0.45&&Math.hypot(altOpen.pos[0]-to[0],altOpen.pos[2]-to[2])>=0.7)?altOpen.pos:null;
-    let style;
-    if(rand){
-      const r=frand();
-      style=r<0.36?'swing':r<0.54?'jiggle':r<0.72?'reswing':r<0.86?'shoulder':'run';
-    }else style=styles[i%styles.length];
+    if(style==='slide'){
+      const sl=findSlidePoint(p,eyes);
+      if(sl&&sl.pos&&sl.dist>=0.8&&(sl.clear!==false)) to=sl.pos;
+      else style='swing';
+    }else if(style==='peek'){
+      to=shortenPeekTarget(p,to,0.36,0.80);
+    }
     let delay;
     const maxD=PEEK_START_MAX;
     if(rand){
@@ -3485,27 +3724,30 @@ function spawnPeekBots(factor,peeks,now){
       for(let g=0;g<8 && usedDelay.some(d=>Math.abs(d-delay)<18);g++) delay=frange(0,maxD);
     }else delay=Math.min(maxD, i*48);
     usedDelay.push(delay);
-    const speed=rand?frange(3.6,6.6):5.0;
-    const swing=style==='swing'||style==='reswing'||style==='run';
+    const scale=peekSpeedScale();
+    let speed=(rand?frange(3.6,6.6):5.0)*scale;
+    if(style==='peek') speed*=0.58;
+    else if(style==='slide') speed*=0.88;
+    const swing=style==='swing';
+    bot.peekType=style;
     bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},
-      alt:alt?{x:alt[0],y:alt[1],z:alt[2]}:null,
-      u:0,v:0,t:0,speed,style,goAt:now+delay,phase:'wait',
-      amp:rand?frange(0.16,0.38):0.22,ampU:rand?frange(0.48,0.78):0.62,
-      period:rand?frange(0.48,0.82):0.64,stopAt:rand?frange(0.52,0.78):0.65,
-      strafe:style==='strafe',
-      overshoot:swing?(rand?frange(1.10,1.28):1.16):1,
+      alt:alt&&style!=='slide'?{x:alt[0],y:alt[1],z:alt[2]}:null,
+      u:0,v:0,t:0,speed,style,peekType:style,goAt:now+delay,phase:'wait',
+      amp:style==='swing'?(rand?frange(0.14,0.28):0.18):(rand?frange(0.10,0.20):0.14),
+      ampU:style==='peek'?(rand?frange(0.85,1):1):1,
+      period:rand?frange(0.48,0.82):0.64,stopAt:1,
+      strafe:style==='swing',
+      overshoot:swing?(rand?frange(1.08,1.18):1.12):1,
+      slideStand:false,
       settled:false,mom:0,repeek:false,didRepeek:false};
+    if(style==='slide'){
+      applyCrouch(bot,1); bot.crouchWant=1;
+    }
     bot.moving=false;
     peekBots.push(bot);
     staged.push({bot,delay});
   }
   const kinds=assignGroupStances(peekBots.length);
-  if(botStanceMode()==='mix' && kinds.length>=2){
-    const standI=kinds.findIndex(k=>k==='stand');
-    const slot=standI===0?1:0;
-    kinds[slot]='switch';
-    if(!kinds.some(k=>k==='stand')) kinds[standI>=0?standI:kinds.length-1]='stand';
-  }
   const win=(FL&&FL.peekHoldMs!=null)?FL.peekHoldMs:peekWindowMs();
   staged.forEach((row,i)=>{
     const kind=kinds[i];
@@ -3519,6 +3761,11 @@ function spawnPeekBots(factor,peeks,now){
     }
     applyBotStance(row.bot, plan, now);
     if(row.bot.move) row.bot.move.stanceKind=plan.kind;
+    if(row.bot.peekType==='slide' || (row.bot.move&&row.bot.move.style==='slide')){
+      const stay=plan.kind==='crouch' || (plan.kind==='switch'&&plan.startWant===1&&!(plan.times||[]).length);
+      row.bot.move.slideStand=!stay && plan.kind!=='crouch';
+      applyCrouch(row.bot,1); row.bot.crouchWant=1;
+    }
   });
   if(FL){
     const outMs=(FL.peekHoldMs!=null)?FL.peekHoldMs:peekWindowMs();
@@ -3530,6 +3777,7 @@ function spawnPeekBots(factor,peeks,now){
     if(outcome==='dodged'||outcome==='covered'){
       peekBots.forEach((bot,i)=>{
         if(!bot.move) return;
+        if(bot.peekType==='slide'||(bot.move&&bot.move.style==='slide')) return;
         const take=useFlashRand()?(frand()<0.34):i===peekBots.length-1;
         if(take&&peekBots.length>=1){
           bot.move.repeek=true;
@@ -3567,6 +3815,10 @@ function flashShoot(){
     if(Number.isFinite(ttk)) FL.st.ttkArr.push(ttk);
     if((pick.bot.crouch||0)>0.45) FL.st.crouchKills=(FL.st.crouchKills||0)+1; else FL.st.standKills=(FL.st.standKills||0)+1;
     if(botIsMoving(pick.bot)) FL.st.moveKills=(FL.st.moveKills||0)+1;
+    const typ=peekTypeOf(pick.bot);
+    if(typ==='peek') FL.st.peekKills=(FL.st.peekKills||0)+1;
+    else if(typ==='slide') FL.st.slideKills=(FL.st.slideKills||0)+1;
+    else FL.st.swingKills=(FL.st.swingKills||0)+1;
     if(Number.isFinite(ttk)) FL.st.pushTtk.push(ttk);
     hideBot(pick.bot); hitFx('hit'); beep(1320,0.05,'triangle');
   }else{ hitFx('hit'); beep(880,0.04,'triangle',0.04); }
@@ -3581,7 +3833,7 @@ function newFlashRound(){
   const id=scn0==='mix'?'hall':scn0;
   loadScn(id); placeStart();
   FL={phase:'ready',preset:S.flash.preset,diff:S.flash.diff,n,i:0,bomb:null,busyUntil:0,cm:currentCm(),last:0,scn:scn0,mix:scn0==='mix',rand:S.flash.rand!==false,
-    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,standKills:0,crouchKills:0,pushTtk:[],turnBack:[],by:{}}};
+    st:{dodged:0,partial:0,full:0,covered:0,react:[],dots:0,dotHits:0,dotShots:0,dotFirst:[],botKills:0,hs:0,stk:[],ttkArr:[],moveKills:0,standKills:0,crouchKills:0,peekKills:0,swingKills:0,slideKills:0,pushTtk:[],turnBack:[],by:{}}};
   flashSeed();
   FL.sideHist=[];
   flashHud();
@@ -3814,7 +4066,8 @@ function flashScore(st,n){
   const acc=st.dotShots?st.dotHits/st.dotShots:NaN;
   const moveKills=st.moveKills||0, standKills=st.standKills||0, crouchKills=st.crouchKills||0, pushTtk=avg(st.pushTtk);
   const turnBack=avg(st.turnBack);
-  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,standKills,crouchKills,pushTtk,turnBack};
+  const peekKills=st.peekKills||0, swingKills=st.swingKills||0, slideKills=st.slideKills||0;
+  return {score,dodgePct,react,dodged:st.dodged,partial:st.partial,full:st.full,covered:st.covered||0,n,dots:spawned,dotHits:st.dotHits||0,dotShots:st.dotShots||0,botKills:kills,hsPct,stk,ttk,firstHit,acc,moveKills,standKills,crouchKills,peekKills,swingKills,slideKills,pushTtk,turnBack};
 }
 function flashHud(){
   if(!FL)return;
@@ -3828,20 +4081,20 @@ function flashHud(){
 function flashFinish(){
   const res=flashScore(FL.st,FL.n); res.cm=FL.cm; res.preset=FL.preset; res.diff=FL.diff; res.scn=FL.mix?'mix':(FL.scn||S.flash.scn);
   const prev=bestFlash(res.scn,'scn'); res.isBest=res.score>prev&&res.score>0;
-  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,standKills:res.standKills,crouchKills:res.crouchKills,pushTtk:res.pushTtk,turnBack:res.turnBack,dmg:S.bot.dmg,rand:!!FL.rand});
+  store.flashHistory.unshift({at:Date.now(),preset:FL.preset,diff:FL.diff,cm:FL.cm,scn:res.scn,score:res.score,dodged:res.dodged,partial:res.partial,full:res.full,covered:res.covered,dodgePct:res.dodgePct,react:res.react,dots:res.dots,dotHits:res.dotHits,dotShots:res.dotShots,botKills:res.botKills,hsPct:res.hsPct,stk:res.stk,ttk:res.ttk,firstHit:res.firstHit,acc:res.acc,moveKills:res.moveKills,standKills:res.standKills,crouchKills:res.crouchKills,peekKills:res.peekKills,swingKills:res.swingKills,slideKills:res.slideKills,pushTtk:res.pushTtk,turnBack:res.turnBack,dmg:S.bot.dmg,rand:!!FL.rand,peek:S.flash.peek,botSpeed:S.flash.botSpeed});
   store.flashHistory=store.flashHistory.slice(0,200); save();
   FL.phase='done'; hideGrenade(); clearPeekBots(); clearHud();
   if(document.pointerLockElement===stage)document.exitPointerLock();
   const pct=v=>Number.isFinite(v)?Math.round(v)+'%':'—';
   const ms=v=>Number.isFinite(v)?Math.round(v)+' ms':'—';
-  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Moving kills',String(res.moveKills||0)),cell('Standing kills',String(res.standKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Turn-back time',ms(res.turnBack)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
+  const cells=[cell('Dodged',res.dodged+' / '+res.n),cell('Partial',String(res.partial)),cell('Full flash',String(res.full)),cell('Covered',String(res.covered)),cell('Dodge %',Math.round(res.dodgePct)+'%'),cell('Bots killed',res.botKills+' / '+res.dots),cell('Peek kills',String(res.peekKills||0)),cell('Wide-swing kills',String(res.swingKills||0)),cell('Slide kills',String(res.slideKills||0)),cell('Moving kills',String(res.moveKills||0)),cell('Standing kills',String(res.standKills||0)),cell('Crouch kills',String(res.crouchKills||0)),cell('First hit',ms(res.firstHit)),cell('Turn-back time',ms(res.turnBack)),cell('Accuracy',pct(res.acc*100)),cell('Headshot %',pct(res.hsPct)),cell('Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'),cell('Avg TTK',ms(res.ttk)),cell('Avg push TTK',ms(res.pushTtk)),cell('Avg dodge reaction',ms(res.react))];
   let mixLine='';
   if(FL.mix&&FL.st.by){ const parts=Object.keys(FL.st.by).map(id=>{ const b=FL.st.by[id]; return `${(SCN[id]||{}).name||id}: ${b.dodged+b.covered}/${b.n} safe`; }); if(parts.length) mixLine=`<div class="small muted" style="margin-top:8px">${parts.join(' · ')}</div>`; }
   const badge=res.isBest?'<div class="badge">NEW BEST</div>':(prev?`<div class="subscore">Best ${Math.round(prev)}</div>`:'');
   const title=flashRunTitle(res,FL);
   showOv(`<div class="subscore">${esc(title)}</div><div class="big">${Math.round(res.score)}</div>${badge}<div class="resgrid">${cells.join('')}</div>${mixLine}<div class="small muted">Click Start to go again</div>`);
   const last=$('#lastFlash');
-  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['First hit',ms(res.firstHit)],['Turn-back time',ms(res.turnBack)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Standing kills',res.standKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
+  if(last) last.innerHTML=[['Score',Math.round(res.score)],['Dodged',res.dodged+' / '+res.n],['Partial / full / covered',res.partial+' / '+res.full+' / '+res.covered],['Dodge %',Math.round(res.dodgePct)+'%'],['Bots killed',res.botKills+' / '+res.dots],['Peek kills',res.peekKills||0],['Wide-swing kills',res.swingKills||0],['Slide kills',res.slideKills||0],['First hit',ms(res.firstHit)],['Turn-back time',ms(res.turnBack)],['Accuracy',pct(res.acc*100)],['Headshot %',pct(res.hsPct)],['Avg STK',Number.isFinite(res.stk)?res.stk.toFixed(1):'—'],['Avg TTK',ms(res.ttk)],['Moving kills',res.moveKills||0],['Standing kills',res.standKills||0],['Crouch kills',res.crouchKills||0],['Avg push TTK',ms(res.pushTtk)],['Best',Math.round(Math.max(prev,res.score))||'—']]
     .map(([k,v])=>`<div class="card stat"><div class="k">${k}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('');
   renderFlashBests(); renderFlashHist();
   FL=null;
@@ -3862,7 +4115,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,peekTypeOf,peekStyleMode,peekSpeedScale,assignGroupPeekStyles,findSlidePoint,shortenPeekTarget,PEEK_STYLE_IDS,scnStats,rendererInfo:()=>renderer?{calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geoms:renderer.info.memory.geometries,frame:renderer.info.render.frame}:null,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); ensureGrain(); syncGrain(); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

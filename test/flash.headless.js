@@ -561,6 +561,183 @@ fs.mkdirSync(OUT,{recursive:true});
   if(sides.triples.length) fail('the same flash side must not repeat more than twice in a row: '+JSON.stringify(sides.triples.map(t=>({scn:t.scn,trip:t.trip,seq:t.seq.slice(0,24)}))));
   if(sides.short.length) fail('seeded runs should cover at least three sides per scenario where geometry allows: '+JSON.stringify(sides.short));
 
+  // peek-type mix, speed scale, slide paths, start still <=150 ms
+  const styles=await pg.evaluate(()=>{
+    const out={groups:[], types:{}, only:{}, slides:[], speeds:{}, starts:[], badStart:[], badSlide:[]};
+    const run=(opts)=>{
+      EZ.S.flash.warned=true; EZ.S.flash.rand=true; EZ.S.flash.preset='val'; EZ.S.flash.diff=opts.diff||'normal';
+      EZ.S.flash.scn=opts.scn||'hall'; EZ.S.flash.peek=opts.peek||'mix'; EZ.S.flash.botSpeed=opts.speed==null?1:opts.speed;
+      EZ.S.bot.stance=opts.stance||'mix'; EZ.S.bot.shape='bot';
+      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn(opts.scn||'hall');
+      const fl=EZ.flash(); fl.rand=true; fl.busyUntil=1e15; fl.path=null; fl.pathT=null;
+      if(opts.seed!=null) EZ.flashSeed(opts.seed);
+      EZ.spawnFlash(performance.now());
+      EZ.lookAway();
+      const t0=performance.now();
+      EZ.detonateFlash(t0);
+      const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+      const rows=bots.map(b=>{
+        const mv=b.move||{};
+        const typ=EZ.peekTypeOf?EZ.peekTypeOf(b):(b.peekType||mv.style);
+        const delay=Math.max(0,(mv.goAt||t0)-t0);
+        return {typ, style:mv.style, delay, speed:mv.speed, from:mv.from, to:mv.to, slideStand:!!mv.slideStand, crouch:b.crouch||0};
+      });
+      EZ.abandonFlash();
+      return {n:rows.length, rows, t0};
+    };
+    // mixed groups of 3 (force 3 peeks by authored+rand off list length? use slides/hall with seed and count)
+    for(let i=0;i<24;i++){
+      // temporarily force n by spawning on hall with rand and retry until 3
+      let g=null;
+      for(let t=0;t<6 && !(g&&g.n>=2);t++){
+        g=run({peek:'mix', seed:4400+i*17+t, scn:['hall','hold','entry','retake'][i%4]});
+      }
+      if(g&&g.n){
+        out.groups.push(g.rows.map(r=>r.typ));
+        g.rows.forEach(r=>out.types[r.typ]=(out.types[r.typ]||0)+1);
+      }
+    }
+    for(const only of ['peek','swing','slide']){
+      const g=run({peek:only, seed:8801, scn:'hall'});
+      out.only[only]={n:g.n, types:[...new Set(g.rows.map(r=>r.typ))], rows:g.rows.map(r=>r.typ)};
+    }
+    // slide paths on maps
+    const maps=(EZ.SCN_IDS||[]).filter(id=>id!=='mix');
+    for(const scn of maps){
+      const g=run({peek:'slide', seed:12000+scn.length, scn, stance:'crouch'});
+      const rows=[];
+      // re-run in-page to inspect path with live helpers — already abandoned. Use a dedicated pass:
+    }
+    // dedicated live pass for slides + start delays + speeds
+    return out;
+  });
+  // more thorough evaluate for slides/speed/start
+  const motion=await pg.evaluate(()=>{
+    const maps=(EZ.SCN_IDS||[]).filter(id=>id!=='mix');
+    const out={slides:[], badSlide:[], starts:[], badStart:[], speeds:{}, holdOk:true};
+    for(const scn of maps){
+      EZ.S.flash.warned=true; EZ.S.flash.rand=false; EZ.S.flash.preset='val'; EZ.S.flash.diff='normal';
+      EZ.S.flash.scn=scn; EZ.S.flash.peek='slide'; EZ.S.flash.botSpeed=1;
+      EZ.S.bot.stance='crouch'; EZ.S.bot.shape='bot';
+      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn(scn);
+      const fl=EZ.flash(); fl.rand=false; fl.busyUntil=1e15; fl.path=null;
+      EZ.spawnFlash(performance.now()); EZ.lookAway();
+      const t0=performance.now(); EZ.detonateFlash(t0);
+      const eyes=EZ.scnMeta&&EZ.peekEyes?null:null;
+      const meta=EZ.scnMeta();
+      for(const b of (EZ.peekBots()||[])){
+        if(!b||!b.move) continue;
+        const typ=EZ.peekTypeOf(b);
+        const delay=Math.max(0,(b.move.goAt||t0)-t0);
+        out.starts.push({scn,delay,typ});
+        if(delay>150.5) out.badStart.push({scn,delay,typ});
+        if(typ!=='slide') continue;
+        const f=b.move.from, to=b.move.to;
+        const clear=EZ.pathClear(f.x,f.y,f.z,to.x,to.y,to.z,12);
+        const mid={x:(f.x+to.x)/2,y:f.y,z:(f.z+to.z)/2};
+        // step through and require crouched head visible at some mid/end
+        let visMid=false, visEnd=false, solid=false;
+        const steps=8;
+        for(let i=1;i<=steps;i++){
+          const t=i/steps, x=f.x+(to.x-f.x)*t, y=f.y, z=f.z+(to.z-f.z)*t;
+          if(!EZ.bodyClearFeet(x,y,z)) solid=true;
+        }
+        out.slides.push({scn,clear,solid,dist:Math.hypot(to.x-f.x,to.z-f.z),delay});
+        if(!clear||solid) out.badSlide.push({scn,clear,solid});
+      }
+      EZ.abandonFlash();
+    }
+    // start delays also on mix + all maps
+    for(const scn of maps){
+      EZ.S.flash.peek='mix'; EZ.S.flash.rand=true; EZ.S.flash.scn=scn;
+      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn(scn);
+      const fl=EZ.flash(); fl.rand=true; fl.busyUntil=1e15; fl.path=null;
+      EZ.flashSeed(3300+scn.length);
+      EZ.spawnFlash(performance.now()); EZ.lookAway();
+      const t0=performance.now(); EZ.detonateFlash(t0);
+      for(const b of (EZ.peekBots()||[])){
+        if(!b||!b.move) continue;
+        const delay=Math.max(0,(b.move.goAt||t0)-t0);
+        out.starts.push({scn,delay,typ:EZ.peekTypeOf(b)});
+        if(delay>150.5) out.badStart.push({scn,delay,typ:EZ.peekTypeOf(b)});
+      }
+      EZ.abandonFlash();
+    }
+    // speed multiplier: same seed, 0.5 vs 1.5, compare u after 0.45s
+    const stepSpeed=(spd)=>{
+      EZ.S.flash.peek='swing'; EZ.S.flash.botSpeed=spd; EZ.S.flash.diff='normal'; EZ.S.flash.rand=false; EZ.S.flash.scn='hall';
+      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+      const fl=EZ.flash(); fl.rand=false; fl.busyUntil=1e15; fl.path=null; fl.peekUntil=1e15; fl.retreatAt=1e15;
+      EZ.flashSeed(42);
+      EZ.spawnFlash(performance.now()); EZ.lookAway();
+      const t0=performance.now(); EZ.detonateFlash(t0);
+      fl.peekUntil=t0+30000; fl.retreatAt=t0+30000; fl.path=null;
+      (EZ.peekBots()||[]).forEach(b=>{ if(b.move){ b.move.goAt=t0; b.move.phase='wait'; b.move.u=0; b.move.t=0; }});
+      // simulate 450 ms
+      let now=t0;
+      for(let i=0;i<27;i++){ now+=16.67; EZ.stepPeekBots(0.01667, now); }
+      const us=(EZ.peekBots()||[]).filter(b=>b&&b.move).map(b=>({u:b.move.u,speed:b.move.speed,style:b.move.style,scale:EZ.peekSpeedScale()}));
+      EZ.abandonFlash();
+      return us;
+    };
+    const slow=stepSpeed(0.5), fast=stepSpeed(1.5);
+    out.speeds={slow,fast, scale05:null, scale15:null};
+    return out;
+  });
+  console.log('peek types', JSON.stringify(styles.types), 'groups', styles.groups.slice(0,8), 'only', JSON.stringify(styles.only));
+  console.log('peek motion', {slides:motion.slides, badSlide:motion.badSlide, badStart:motion.badStart, speeds:motion.speeds, startMax:Math.max(0,...motion.starts.map(s=>s.delay))});
+  const typeSet=new Set(Object.keys(styles.types||{}));
+  if(!(typeSet.has('peek')&&typeSet.has('swing')&&typeSet.has('slide'))) fail('mix should produce peek, wide swing and slide: '+JSON.stringify(styles.types));
+  const tri=styles.groups.filter(g=>g.length>=3);
+  if(tri.length){
+    const bad=tri.filter(g=>!(g.includes('peek')&&g.includes('swing')));
+    if(bad.length>tri.length*0.35) fail('groups of 3 should usually include a peek and a wide swing: '+JSON.stringify({bad:bad.slice(0,5),n:tri.length}));
+  }
+  for(const only of ['peek','swing','slide']){
+    const row=styles.only[only];
+    if(!row||!row.n) fail('forced '+only+' spawned no bots');
+    if(row.types.some(t=>t!==only)) fail('Peeks/swings/slides only leaked other types: '+JSON.stringify(row));
+  }
+  if(motion.badStart.length) fail('swing start must stay <=150 ms: '+JSON.stringify(motion.badStart));
+  if(motion.badSlide.length) fail('slide paths must stay clear of solids: '+JSON.stringify(motion.badSlide));
+  if(!motion.slides.length) fail('slides-only should produce at least one slide path');
+  // some slides should have visible heads — checked via pathClear + bodyClear; deeper vis in a follow-up
+  const visCheck=await pg.evaluate(()=>{
+    EZ.S.flash.warned=true; EZ.S.flash.rand=false; EZ.S.flash.peek='slide'; EZ.S.flash.scn='hall'; EZ.S.flash.diff='normal';
+    EZ.S.bot.stance='crouch'; EZ.S.bot.shape='bot';
+    EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+    const fl=EZ.flash(); fl.rand=false; fl.busyUntil=1e15; fl.path=null;
+    EZ.spawnFlash(performance.now()); EZ.lookAway(); EZ.detonateFlash(performance.now());
+    const meta=EZ.scnMeta();
+    const start=(meta&&meta.start)||{x:0,y:0,z:4.5};
+    const eye={x:start.x,y:(start.y||0)+0.0,z:start.z};
+    // camEye is the eye
+    const ok=[];
+    for(const b of (EZ.peekBots()||[])){
+      if(!b||!b.move||EZ.peekTypeOf(b)!=='slide') continue;
+      const f=b.move.from, to=b.move.to;
+      let seen=0, n=0;
+      for(const t of [0.35,0.55,0.8,1]){
+        const x=f.x+(to.x-f.x)*t, y=f.y, z=f.z+(to.z-f.z)*t;
+        const hy=y+(EZ.CROUCH_HEAD_Y||0.85);
+        const vis=EZ.headVisibleFrom(EZ.camEye, {x,y:hy,z}, EZ.BOT_HEAD_R||0.16);
+        n++; if(vis&&(vis.visible||vis.frac>=0.4)) seen++;
+      }
+      ok.push({seen,n,dist:Math.hypot(to.x-f.x,to.z-f.z)});
+    }
+    EZ.abandonFlash();
+    return ok;
+  });
+  console.log('slide vis', visCheck);
+  if(!visCheck.length || visCheck.every(r=>r.seen===0)) fail('slide heads should be visible during the slide: '+JSON.stringify(visCheck));
+  const slowU=Math.max(0,...(motion.speeds.slow||[]).map(r=>r.u||0));
+  const fastU=Math.max(0,...(motion.speeds.fast||[]).map(r=>r.u||0));
+  const slowSp=Math.max(0,...(motion.speeds.slow||[]).map(r=>r.speed||0));
+  const fastSp=Math.max(0,...(motion.speeds.fast||[]).map(r=>r.speed||0));
+  console.log('speed u', {slowU,fastU,slowSp,fastSp});
+  if(!(fastSp>slowSp*1.4)) fail('1.5x bot speed should be substantially faster than 0.5x: '+JSON.stringify(motion.speeds));
+  if(!(fastU>slowU+0.05 || fastSp>slowSp*1.4)) fail('speed slider should change peek travel: '+JSON.stringify({slowU,fastU,slowSp,fastSp}));
+
   const pushes=await pg.evaluate(()=>{
     const all=[];
     for(const id of EZ.SCN_IDS){
@@ -678,7 +855,7 @@ fs.mkdirSync(OUT,{recursive:true});
 
   const spawned=await pg.evaluate(()=>{
     EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot';
-    EZ.S.flash.warned=true; EZ.S.flash.rand=true; EZ.S.flash.preset='val'; EZ.S.flash.diff='normal'; EZ.S.flash.scn='hold'; EZ.S.flash.wasd=false;
+    EZ.S.flash.warned=true; EZ.S.flash.rand=true; EZ.S.flash.preset='val'; EZ.S.flash.diff='normal'; EZ.S.flash.scn='hold'; EZ.S.flash.wasd=false; EZ.S.flash.peek='mix'; EZ.S.flash.botSpeed=1;
     const tally={stand:0,crouch:0,switch:0,groups:0,badGroups:0,samples:[]};
     for(let seed=100; seed<160; seed++){
       EZ.startFlash(); EZ.forceFlashRun();
@@ -1384,6 +1561,81 @@ fs.mkdirSync(OUT,{recursive:true});
   });
   await stage.screenshot({path:path.join(OUT,'flash-turnback.png')});
   console.log('shot', path.join(OUT,'flash-turnback.png'));
+  await pg.evaluate(()=>EZ.abandonFlash());
+
+
+
+  // v1.10.0: peek + wide swing + slide together, and a slide close-up
+  const placeTypes=async (kind)=>{
+    return pg.evaluate((kind)=>{
+      EZ.setEnv('retro'); EZ.setTheme('dark');
+      if(EZ.abandonFlash) EZ.abandonFlash();
+      if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+      EZ.S.env='retro'; EZ.S.hint=false;
+      EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+      EZ.S.flash.rand=false; EZ.S.flash.diff='normal'; EZ.S.flash.wasd=false; EZ.S.flash.peek='mix'; EZ.S.flash.botSpeed=1;
+      EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+      EZ.S.bot.body='#f4f6f8'; EZ.S.bot.head='#00e8ff';
+      EZ.setMode('flash','flash');
+      EZ.startFlash(); EZ.forceFlashRun();
+      EZ.setScn('hall');
+      const fl=EZ.flash();
+      fl.busyUntil=1e15; fl.path=null; fl.pathT=null; fl.wasd=false;
+      EZ.spawnFlash(performance.now());
+      EZ.lookAway(); EZ.detonateFlash(performance.now());
+      fl.busyUntil=1e15; fl.path=null; fl.pathT=null;
+      fl.peekUntil=performance.now()+30000;
+      fl.retreatAt=performance.now()+30000;
+      fl.peekOutcome='dodged'; fl.phase='run';
+      const fy=EZ.FLOOR_Y+0.05;
+      const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+      const poses=[
+        {type:'peek',x:0.98,z:-5.92,crouch:0,fromX:1.48,fromZ:-6.25,style:'peek'},
+        {type:'swing',x:-0.55,z:-5.28,crouch:0,fromX:-1.48,fromZ:-6.25,style:'swing'},
+        {type:'slide',x:0.22,z:-5.62,crouch:1,fromX:-1.50,fromZ:-6.15,style:'slide'}
+      ];
+      const put=(bot,pose,u)=>{
+        bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
+        bot.peekType=pose.type;
+        const from={x:pose.fromX,y:fy,z:pose.fromZ}, to={x:pose.x,y:fy,z:pose.z};
+        const uu=(u==null)?1:u;
+        const mx=from.x+(to.x-from.x)*uu, mz=from.z+(to.z-from.z)*uu;
+        bot.move={phase:'hold',goAt:0,style:pose.style,peekType:pose.type,u:uu,overshoot:pose.style==='swing'?1.12:1,settled:true,from,to,speed:0,v:0,t:99};
+        bot.group.position.set(mx,fy,mz);
+        bot.crouchWant=pose.crouch; EZ.applyCrouch(bot,pose.crouch);
+        bot.moving=false; bot.group.updateMatrixWorld(true);
+      };
+      if(kind==='types'){
+        bots.slice(0,3).forEach((bot,i)=>put(bot,poses[i],1));
+        (EZ.peekBots()||[]).forEach((b,i)=>{ if(i>=3&&b){ b.dead=true; b.group.visible=false; } });
+        EZ.camEye.set(0,0,-1.15); EZ.view.yaw=0; EZ.view.pitch=3;
+      }else{
+        const slider=bots[0];
+        (EZ.peekBots()||[]).forEach(b=>{ if(b!==slider){ b.dead=true; b.group.visible=false; } });
+        if(slider) put(slider,poses[2],0.52);
+        EZ.camEye.set(0.18,0,-2.35); EZ.view.yaw=4; EZ.view.pitch=2;
+      }
+      EZ.applyCams();
+      const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+      const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+      const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+      return {n:(EZ.peekBots()||[]).filter(b=>b&&b.group.visible&&!b.dead).length, types:(EZ.peekBots()||[]).filter(b=>b&&b.group.visible&&!b.dead).map(b=>EZ.peekTypeOf(b)), crouch:((EZ.peekBots()||[]).find(b=>b&&b.group.visible&&!b.dead)||{}).crouch};
+    }, kind);
+  };
+  const peekTypesShot=await placeTypes('types');
+  console.log('peek-types setup', JSON.stringify(peekTypesShot));
+  if(!peekTypesShot.types || !['peek','swing','slide'].every(t=>peekTypesShot.types.includes(t))){
+    fail('flash-peek-types should show peek, wide swing, and slide: '+JSON.stringify(peekTypesShot));
+  }
+  await stage.screenshot({path:path.join(OUT,'flash-peek-types.png')});
+  console.log('shot', path.join(OUT,'flash-peek-types.png'));
+
+  const slideShot=await placeTypes('slide');
+  console.log('slide setup', JSON.stringify(slideShot));
+  if(!(slideShot.types||[]).includes('slide') || !(slideShot.crouch>=0.9)) fail('flash-slide should show a crouched slide: '+JSON.stringify(slideShot));
+  await stage.screenshot({path:path.join(OUT,'flash-slide.png')});
+  console.log('shot', path.join(OUT,'flash-slide.png'));
   await pg.evaluate(()=>EZ.abandonFlash());
 
   // retro-walls-*.png for every flash map
