@@ -321,10 +321,19 @@ fs.mkdirSync(OUT,{recursive:true});
     }
     return out;
   });
-  const bad=vis.filter(r=>!r.visible||r.stuck||r.frac<0.6);
-  console.log('peek visibility', vis.length, 'bad', bad);
+  const clip=vis.filter(r=>r.stuck||!r.clear);
+  const noEnd=vis.filter(r=>!r.endVis||(r.frac!=null&&r.frac<0.5));
+  const hidden=vis.filter(r=>r.startOcc&&r.endVis&&!r.stuck&&r.clear);
+  const by={};
+  hidden.forEach(r=>{ by[r.scn]=(by[r.scn]||0)+1; });
+  console.log('peek visibility', vis.length, 'hidden', hidden.length, 'clip', clip.length, 'noEnd', noEnd.length, 'by', by, 'bad', noEnd.slice(0,6).concat(clip.slice(0,4)));
   if(!vis.length) fail('peek visibility report was empty');
-  if(bad.length) fail('peek heads must be visible from the player path, failed: '+JSON.stringify(bad.slice(0,8)));
+  if(clip.length) fail('peek paths must stay off solids, failed: '+JSON.stringify(clip.slice(0,8)));
+  if(noEnd.length) fail('every peek must end with a visible head, failed: '+JSON.stringify(noEnd.slice(0,8)));
+  if(hidden.length<20) fail('expected many starts to be occluded behind a corner, got '+hidden.length);
+  const ids=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
+  const miss=ids.filter(id=>(by[id]||0)<1);
+  if(miss.length>1) fail('most maps should have a hidden-to-visible corner peek, missing: '+miss.join(','));
 
   const wallbang=await pg.evaluate(()=>{
     const V=EZ.camEye.constructor;
@@ -518,15 +527,17 @@ fs.mkdirSync(OUT,{recursive:true});
       EZ.setScn(id);
       all.push(...(EZ.pushPathReport()||[]));
     }
-    const bad=all.filter(r=>!r.clear||r.stuck||!r.visible);
+    const bad=all.filter(r=>!r.clear||r.stuck||!r.endVis);
     const dists=all.map(r=>r.dist||0).sort((a,b)=>a-b);
     const mean=dists.reduce((a,b)=>a+b,0)/(dists.length||1);
-    const wide=all.filter(r=>r.dist>=2.2 && r.clear && r.visible).length;
-    return {n:all.length, bad, dist0:all.filter(r=>!(r.dist>0.3)).length, sample:all[0], mean, max:dists[dists.length-1]||0, wide, dists:dists.slice(-5)};
+    const wide=all.filter(r=>r.dist>=2.2 && r.clear && r.endVis).length;
+    const occ=all.filter(r=>r.startOcc).length;
+    return {n:all.length, bad, dist0:all.filter(r=>!(r.dist>0.3)).length, sample:all[0], mean, max:dists[dists.length-1]||0, wide, occ, dists:dists.slice(-5)};
   });
-  console.log('push paths', {n:pushes.n, bad:pushes.bad.length, dist0:pushes.dist0, mean:pushes.mean, max:pushes.max, wide:pushes.wide, sample:pushes.sample, badSample:pushes.bad.slice(0,5)});
+  console.log('push paths', {n:pushes.n, bad:pushes.bad.length, dist0:pushes.dist0, mean:pushes.mean, max:pushes.max, wide:pushes.wide, occ:pushes.occ, sample:pushes.sample, badSample:pushes.bad.slice(0,5)});
   if(!pushes.n) fail('pushPathReport returned no paths');
-  if(pushes.bad.length) fail('push paths must stay off solids with a visible head: '+JSON.stringify(pushes.bad.slice(0,8)));
+  if(pushes.bad.length) fail('push paths must stay off solids and end with a visible head: '+JSON.stringify(pushes.bad.slice(0,8)));
+  if((pushes.occ||0)<16) fail('expected many occluded starts, occ='+pushes.occ);
   if(pushes.dist0) fail('push paths should leave cover, dist0='+pushes.dist0);
   if(!(pushes.wide>=6)) fail('expected several wide swing paths (>=2.2m), wide='+pushes.wide+' max='+pushes.max);
   if(!(pushes.max>=2.6)) fail('longest swing should reach past 2.6m, max='+pushes.max);
@@ -921,6 +932,78 @@ fs.mkdirSync(OUT,{recursive:true});
 
   await pg.evaluate(()=>EZ.abandonFlash());
 
+  // moving kills during a swing must count
+  const moveKill=await pg.evaluate(()=>{
+    const V=EZ.camEye.constructor;
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs'; EZ.S.bot.stance='stand';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    const fl=EZ.flash(); fl.busyUntil=1e15; fl.st.moveKills=0; fl.st.botKills=0;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway(); EZ.detonateFlash(performance.now());
+    fl.peekUntil=performance.now()+20000; fl.retreatAt=performance.now()+20000;
+    const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead&&b.move);
+    if(!bots.length) return {error:'no bots'};
+    const bot=bots[0];
+    bots.forEach(b=>{ if(b!==bot){ b.dead=true; b.group.visible=false; } });
+    bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0); EZ.armBot(bot,performance.now());
+    bot.move.phase='go'; bot.move.goAt=0; bot.move.style='swing'; bot.move.u=0.45; bot.move.settled=false; bot.moving=true;
+    const f=bot.move.from, t=bot.move.to;
+    bot.group.position.set(f.x+(t.x-f.x)*0.45, f.y, f.z+(t.z-f.z)*0.45);
+    bot.crouchWant=0; EZ.applyCrouch(bot,0);
+    bot.group.updateMatrixWorld(true);
+    const head=bot.head.getWorldPosition(new V());
+    const p=head.clone().sub(EZ.camEye); const len=p.length()||1;
+    EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+    EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI;
+    EZ.applyCams();
+    const moving=EZ.botIsMoving(bot);
+    EZ.flashShoot();
+    const st={...fl.st};
+    EZ.abandonFlash();
+    return {moving, moveKills:st.moveKills, botKills:st.botKills, hp:bot.state&&bot.state.hp, dead:bot.dead};
+  });
+  console.log('moving kills', moveKill);
+  if(moveKill.error) fail('moving kill setup failed: '+moveKill.error);
+  if(!moveKill.moving) fail('bot mid-swing should count as moving: '+JSON.stringify(moveKill));
+  if(!(moveKill.moveKills>=1 && moveKill.botKills>=1)) fail('a kill during the swing should increment moving kills: '+JSON.stringify(moveKill));
+
+  // retreat behind cover instead of vanishing
+  const retreat=await pg.evaluate(()=>{
+    EZ.setEnv('retro');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='hs';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    const fl=EZ.flash(); fl.busyUntil=1e15;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway(); EZ.detonateFlash(performance.now());
+    const bots0=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    if(!bots0.length) return {error:'no bots'};
+    bots0.forEach(b=>{ if(b.move){ b.move.phase='go'; b.move.goAt=0; b.move.u=0.8; b.move.style='swing'; } });
+    const now=performance.now();
+    fl.retreatAt=now-1; fl.peekUntil=now+800;
+    for(let i=0;i<45;i++){ fl.last=now+i*16; EZ.flashStep(now+(i+1)*16); }
+    const bots=EZ.peekBots()||[];
+    const rows=bots.map(b=>{
+      const f=b.move&&b.move.from, pos=b.group.position;
+      const back=f?Math.hypot(pos.x-f.x,pos.z-f.z):99;
+      return {phase:b.move&&b.move.phase, vis:b.group.visible, back, u:b.move&&b.move.u, dead:b.dead};
+    });
+    const stillOut=rows.filter(r=>r.vis && r.phase!=='retreat' && r.phase!=='gone' && r.back>0.6);
+    EZ.abandonFlash();
+    return {n:rows.length, rows, stillOut:stillOut.length};
+  });
+  console.log('retreat', retreat);
+  if(retreat.error) fail('retreat setup failed: '+retreat.error);
+  if(retreat.stillOut) fail('bots should retreat behind cover after the peek window: '+JSON.stringify(retreat));
+
   // retro-flash.png — hallway in Retro Horizon
   await pg.evaluate(()=>{
     EZ.setEnv('retro'); EZ.setTheme('dark');
@@ -945,6 +1028,8 @@ fs.mkdirSync(OUT,{recursive:true});
   await pg.evaluate(()=>{
     const V=EZ.camEye.constructor;
     EZ.setEnv('retro'); EZ.setTheme('dark');
+    if(EZ.abandonFlash) EZ.abandonFlash();
+    if(EZ.clearWhiteOut) EZ.clearWhiteOut();
     EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
     EZ.S.flash.rand=false; EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
     EZ.setMode('flash','flash');
@@ -955,6 +1040,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.spawnFlash(performance.now());
     EZ.lookAway(); EZ.detonateFlash(performance.now());
     fl.peekUntil=performance.now()+20000;
+    if(fl.retreatAt!=null) fl.retreatAt=performance.now()+30000;
     const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
     bots.forEach((bot,i)=>{
       bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
@@ -983,9 +1069,87 @@ fs.mkdirSync(OUT,{recursive:true});
   await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   await stage.screenshot({path:path.join(OUT,'flash-swing.png')});
   console.log('shot', path.join(OUT,'flash-swing.png'));
+
+  // flash-swing-v2.png — mid-swing at a lit peek corner
+  await pg.evaluate(()=>{
+    const V=EZ.camEye.constructor;
+    if(EZ.abandonFlash) EZ.abandonFlash();
+    if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+    EZ.setEnv('retro'); EZ.setTheme('dark');
+    EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn='hall';
+    EZ.S.flash.rand=false; EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.setScn('hall');
+    const fl=EZ.flash(); fl.busyUntil=1e15;
+    EZ.spawnFlash(performance.now());
+    EZ.lookAway(); EZ.detonateFlash(performance.now());
+    fl.peekUntil=performance.now()+20000;
+    if(fl.retreatAt!=null) fl.retreatAt=performance.now()+30000;
+    const fy=EZ.FLOOR_Y+0.05;
+    const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
+    bots.forEach((bot,i)=>{
+      bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
+      if(i===0){
+        const from={x:1.65,y:fy,z:-6.5}, to={x:0.7,y:fy,z:-5.55};
+        bot.move=Object.assign(bot.move||{},{phase:'hold',goAt:0,style:'swing',u:0.7,overshoot:1.18,from,to,settled:true});
+        bot.group.position.set(1.12, fy, -5.72);
+        bot.crouchWant=0; EZ.applyCrouch(bot,0);
+      }else if(i===1){
+        const from={x:-1.65,y:fy,z:-6.5}, to={x:-0.8,y:fy,z:-5.7};
+        bot.move=Object.assign(bot.move||{},{phase:'hold',goAt:0,style:'jiggle',u:0.5,from,to,settled:true});
+        bot.group.position.set(-1.18, fy, -5.88);
+        bot.crouchWant=1; EZ.applyCrouch(bot,1);
+      }else{
+        bot.group.visible=false; bot.dead=true;
+      }
+      bot.moving=true; bot.group.updateMatrixWorld(true);
+    });
+    EZ.camEye.set(0.25,0,1.15);
+    const live=bots[0];
+    if(live){
+      const head=live.head.getWorldPosition(new V());
+      const p=head.clone().sub(EZ.camEye); const len=p.length()||1;
+      EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
+      EZ.view.pitch=Math.asin(Math.max(-1,Math.min(1,p.y/len)))*180/Math.PI * 0.45 + 2;
+      EZ.applyCams();
+    }
+    const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+    const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+    const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+    const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+  });
+  await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await stage.screenshot({path:path.join(OUT,'flash-swing-v2.png')});
+  console.log('shot', path.join(OUT,'flash-swing-v2.png'));
   await pg.evaluate(()=>EZ.abandonFlash());
 
-
+  // retro-walls-*.png for every flash map
+  const wallMaps=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
+  for(const id of wallMaps){
+    await pg.evaluate((id)=>{
+      EZ.setEnv('retro'); EZ.setTheme('dark');
+      if(EZ.abandonFlash) EZ.abandonFlash();
+      if(EZ.clearWhiteOut) EZ.clearWhiteOut();
+      EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn=id;
+      EZ.S.flash.rand=false; EZ.S.bot.shape='bot';
+      EZ.setMode('flash','flash');
+      EZ.setScn(id); EZ.previewScn();
+      const s=(EZ.scnMeta()&&EZ.scnMeta().start)||{x:0,y:0,z:4.5,yaw:0,pitch:4};
+      EZ.camEye.set(s.x,s.y,s.z);
+      EZ.view.yaw=s.yaw||0; EZ.view.pitch=(s.pitch==null?4:Math.max(3,s.pitch));
+      EZ.applyCams();
+      const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
+      const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
+      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+      const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
+    }, id);
+    await pg.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    const dest=path.join(OUT,'retro-walls-'+id+'.png');
+    await stage.screenshot({path:dest});
+    console.log('shot', dest);
+  }
+  await pg.evaluate(()=>EZ.abandonFlash());
 
   if(net.length) fail('unexpected network: '+net.join(', '));
   if(errs.length) fail('console errors: '+errs.join(' | '));

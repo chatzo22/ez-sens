@@ -306,12 +306,23 @@ const ENV={
   }
 };
 let tgtEmHex=0x0d6b47, hintPal=ENV.night.hint;
+function syncSceneFog(){
+  const e=ENV[S.env]||ENV.retro;
+  if(MODE==='flash'){
+    if(S.env==='retro'){ fog.color.setHex(0x4a1834); fog.near=7; fog.far=36; }
+    else { fog.color.setHex(e.fog); fog.near=Math.min(e.fogNear,16); fog.far=Math.min(e.fogFar,50); }
+  }else{
+    fog.color.setHex(e.fog); fog.near=e.fogNear; fog.far=e.fogFar;
+  }
+  if(!S.lowq) scene.fog=fog; else scene.fog=null;
+}
 function applyEnv(id){
   const e=ENV[id]||ENV.retro;
   if(id==='retro') paintSkyRetro(); else paintSky(e.skyTop,e.skyMid,e.skyHor,e.skyDown);
   scene.background=new THREE.Color(e.fog);
   fog.color.setHex(e.fog); fog.near=e.fogNear; fog.far=e.fogFar;
   if(!S.lowq) scene.fog=fog;
+  syncSceneFog();
   hemi.color.setHex(e.hemiSky); hemi.groundColor.setHex(e.hemiGround); hemi.intensity=e.hemi;
   sun.color.setHex(e.sunCol); sun.intensity=e.sunI; sun.position.set(e.sunPos[0],e.sunPos[1],e.sunPos[2]);
   sunDisc.visible=!!e.sunVis; sunHalo.visible=!!e.sunVis;
@@ -377,8 +388,12 @@ function paintBot(bot,dim){
   if(!bot)return; dim=dim==null?bot.dim||0:dim; bot.dim=dim;
   const c=botCols(), body=new THREE.Color(c.body), head=new THREE.Color(c.head), dark=new THREE.Color(0x2a3036);
   if(dim>0){ body.lerp(dark,dim*0.85); head.lerp(dark,dim*0.8); }
+  bot.bodyMat.fog=false; bot.headMat.fog=false;
   bot.bodyMat.color.copy(body); bot.headMat.color.copy(head); bot.headMat.emissive.copy(head);
-  bot.headMat.emissiveIntensity=0.35*(1-dim*0.92);
+  bot.headMat.emissiveIntensity=0.45*(1-dim*0.92);
+  const lift=(S.env==='retro')?0.34:0.12;
+  bot.bodyMat.emissive.copy(body);
+  bot.bodyMat.emissiveIntensity=lift*(1-dim*0.85);
   const op=dim>0.5?0.38+0.5*(1-dim):1;
   bot.bodyMat.transparent=bot.headMat.transparent=op<1; bot.bodyMat.opacity=bot.headMat.opacity=op;
 }
@@ -787,7 +802,7 @@ function drawXH(c,el){ el=el||$('#xh'); if(!el)return; c=M.normXH(c); const col=
   }
   el.innerHTML=parts.join(''); }
 function drawCurrentXH(){ drawXH(currentXH()); $$('.xh-origin').forEach(el=>drawXH(currentXH(),el)); }
-function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawCurrentXH(); syncGrain();
+function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawCurrentXH(); syncGrain(); if(typeof syncSceneFog==='function') syncSceneFog();
   if(m!=='flash'){ if(typeof unloadScn==='function') unloadScn(); camEye.set(0,0,0); }
   if(m==='range'){ setRangeFov(); rangeOverlay(); }
   else if(m==='flash'){ clearHud(); $('#ov').classList.remove('begin'); if(typeof previewScn==='function') previewScn(); if(!FL||FL.phase==='done') flashIdleOv(); }
@@ -1127,7 +1142,7 @@ const SCN={
   mix:{id:'mix',name:'Random mix'}
 };
 const FY=()=>FLOOR_Y+0.05;
-let scnGroup=null, scnWalls=[], scnMeta=null, scnId=null, keysHeld={};
+let scnGroup=null, scnWalls=[], scnMeshes=[], scnMeta=null, scnId=null, keysHeld={}, scnTemps=[];
 
 function makeGrenade(){
   const g=new THREE.Group();
@@ -1250,10 +1265,10 @@ function flashWarnThen(go){
 
 function scnCols(){
   const e=S.env;
-  if(e==='retro') return {wall:0x12101a,wall2:0x0c0a14,wall3:0x1a1824,floor:0x0a0612,crate:0x1c1624,crate2:0x16101c,trim:0x221028,ceil:0x0e0c16,beam:0x16121c,barrel:0x1a1824,light:0xff66cc,line:0xff3cb0,plate:0xff4ad0,accent:0x00e8ff,neon:0xff3cb0,neon2:0x00e8ff};
+  if(e==='retro') return {wall:0x2e1a48,wall2:0x1a2450,wall3:0x3a2254,floor:0x0a0612,crate:0x2e2448,crate2:0x241838,trim:0x4a2a6a,ceil:0x221638,beam:0x2e2048,barrel:0x2c243c,light:0xff66cc,line:0xff3cb0,plate:0xff4ad0,accent:0x00e8ff,neon:0xff3cb0,neon2:0x00e8ff};
   if(e==='day') return {wall:0x6a7684,wall2:0x5a6570,wall3:0x748090,floor:0x4a5360,crate:0x6a5a48,crate2:0x5a4a3a,trim:0x3a424c,ceil:0x7a8690,beam:0x4a5460,barrel:0x3e4a56,light:0xf2e6c0,line:0x3a424c,plate:0xc9c4b0,accent:0x4a6a5a};
   if(e==='sunrise') return {wall:0x5a4840,wall2:0x4a3a32,wall3:0x6a5048,floor:0x3a2e28,crate:0x5a4030,crate2:0x4a3024,trim:0x2a221c,ceil:0x6a5048,beam:0x3a2a22,barrel:0x4a3830,light:0xffd9a0,line:0x2a2018,plate:0xc4b49a,accent:0x6a4a38};
-  return {wall:0x2a3340,wall2:0x1e2732,wall3:0x323c48,floor:0x161c24,crate:0x3a322c,crate2:0x2e2622,trim:0x12181f,ceil:0x1a222c,beam:0x151c24,barrel:0x2a323c,light:0xe8dcb0,line:0x0e141c,plate:0x8a8470,accent:0x2a3a38};
+  return {wall:0x3e4a58,wall2:0x323c4a,wall3:0x4a5664,floor:0x161c24,crate:0x4a4238,crate2:0x3a322c,trim:0x1a222c,ceil:0x2a323c,beam:0x222a34,barrel:0x3a424c,light:0xe8dcb0,line:0x0e141c,plate:0x8a8470,accent:0x2a3a38};
 }
 function neonMat(hex,em){ return matOf(hex,{em:em==null?1.8:em,rough:0.35}); }
 function addNeonStrip(x,y,z,sx,sy,sz,hex){
@@ -1277,11 +1292,49 @@ function matOf(hex,opts){
   return _matCache.get(k);
 }
 function pushWall(x,y,z,sx,sy,sz,role){ scnWalls.push({min:new THREE.Vector3(x-sx/2,y-sy/2,z-sz/2),max:new THREE.Vector3(x+sx/2,y+sy/2,z+sz/2),role:role||'wall'}); }
+function wallPanelTex(){
+  if(wallPanelTex._t) return wallPanelTex._t;
+  const c=document.createElement('canvas'); c.width=c.height=256;
+  const g=c.getContext('2d');
+  g.fillStyle='#1c1430'; g.fillRect(0,0,256,256);
+  const lg=g.createLinearGradient(0,0,0,256);
+  lg.addColorStop(0,'rgba(90,60,140,0.32)');
+  lg.addColorStop(0.45,'rgba(30,22,50,0.04)');
+  lg.addColorStop(1,'rgba(8,6,18,0.40)');
+  g.fillStyle=lg; g.fillRect(0,0,256,256);
+  g.strokeStyle='rgba(190,130,235,0.28)'; g.lineWidth=2;
+  for(let x=0;x<=256;x+=32){ g.beginPath(); g.moveTo(x+0.5,0); g.lineTo(x+0.5,256); g.stroke(); }
+  g.strokeStyle='rgba(120,90,180,0.14)'; g.lineWidth=1;
+  for(let y=0;y<=256;y+=64){ g.beginPath(); g.moveTo(0,y+0.5); g.lineTo(256,y+0.5); g.stroke(); }
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.needsUpdate=true;
+  wallPanelTex._t=t; return t;
+}
+function retroSurfMat(hex,sx,sy,role){
+  const em=role==='crate'||role==='barrel'?0.14:role==='ceil'?0.10:0.22;
+  const k='rw'+hex+','+sx.toFixed(2)+','+sy.toFixed(2)+','+em+','+(role||'');
+  if(_matCache.has(k)) return _matCache.get(k);
+  const tex=wallPanelTex().clone();
+  tex.repeat.set(Math.max(1,sx/2), Math.max(1,sy/2)); tex.needsUpdate=true;
+  const m=new THREE.MeshStandardMaterial({color:hex,roughness:0.86,metalness:0,map:tex,emissive:hex,emissiveIntensity:em,emissiveMap:tex});
+  _matCache.set(k,m); return m;
+}
+function lineMat(hex,foggy){
+  const k='ln'+hex+','+(foggy?1:0);
+  if(_matCache.has(k)) return _matCache.get(k);
+  const m=new THREE.LineBasicMaterial({color:hex,fog:!!foggy});
+  _matCache.set(k,m); return m;
+}
 function addBox(x,y,z,sx,sy,sz,hex,role,opts){
   const o=opts||{};
-  const m=new THREE.Mesh(boxGeo(sx,sy,sz), matOf(hex,{rough:o.rough,em:o.em,metal:o.metal,role:role}));
+  const surf=S.env==='retro' && role && role!=='decal' && role!=='floor' && !o.em;
+  const mat=surf?retroSurfMat(hex,sx,sy,role):matOf(hex,{rough:o.rough,em:o.em,metal:o.metal,role:role});
+  const m=new THREE.Mesh(boxGeo(sx,sy,sz), mat);
   m.position.set(x,y,z); if(o.rotY) m.rotation.y=o.rotY; m.userData.shared=true; scnGroup.add(m);
-  if(role!=='decal') pushWall(x,y,z,sx,sy,sz,role||'wall');
+  if(role!=='decal'){
+    pushWall(x,y,z,sx,sy,sz,role||'wall');
+    if(role!=='floor') scnMeshes.push({mesh:m,x,y,z,sx,sy,sz,role:role||'wall'});
+  }
   return m;
 }
 function addFloor(x,z,sx,sz,hex){
@@ -1300,7 +1353,7 @@ function addFloor(x,z,sx,sz,hex){
   pushWall(x,fy-0.06,z,sx,0.12,sz,'floor');
   return m;
 }
-function addBaseboard(x,z,sx,sz,C){ const fy=FY(); return addBox(x,fy+0.07,z,sx,0.14,sz,C.trim,'trim'); }
+function addBaseboard(x,z,sx,sz,C){ const fy=FY(); const m=addBox(x,fy+0.07,z,sx,0.14,sz,C.trim,'trim'); if(S.env==='retro') addNeonStrip(x,fy+0.03,z,sx+0.02,0.03,sz+0.02,C.neon||0xff3cb0); return m; }
 function addDoorFrame(x,z,w,h,depth,C,axis){
   const fy=FY(), jamb=0.14, lint=0.18;
   if(axis==='x'){
@@ -1357,11 +1410,14 @@ function addCrate(x,fyOff,z,s,C,hex){ const fy=FY(); return addBox(x,fy+fyOff+s/
 function addCrateStack(x,z,C){ addCrate(x,0,z,0.8,C); addCrate(x+0.12,0.8,z+0.05,0.62,C,C.crate2); }
 function addBarrel(x,z,C){
   const fy=FY(), r=0.26, h=0.74, y=fy+h/2;
-  const m=new THREE.Mesh(cylGeo(r,r*0.96,h,12), matOf(C.barrel,{rough:0.45,metal:0.25}));
+  const m=new THREE.Mesh(cylGeo(r,r*0.96,h,12), matOf(C.barrel,{rough:0.45,metal:0.25,em:S.env==='retro'?0.12:0}));
   m.position.set(x,y,z); m.userData.shared=true; scnGroup.add(m);
-  const hoop=new THREE.Mesh(cylGeo(r+0.01,r+0.01,0.05,12), matOf(C.trim,{rough:0.4,metal:0.35}));
+  const hoopCol=S.env==='retro'?(C.neon2||0x00e8ff):C.trim;
+  const hoop=new THREE.Mesh(cylGeo(r+0.01,r+0.01,0.05,12), matOf(hoopCol,{rough:0.4,metal:0.35,em:S.env==='retro'?1.6:0}));
   hoop.position.set(x,y+h*0.28,z); hoop.userData.shared=true; scnGroup.add(hoop);
+  if(S.env==='retro') addNeonStrip(x,y-h*0.22,z,r*2.1,0.03,r*2.1,C.neon||0xff3cb0);
   pushWall(x,y,z,r*2,h,r*2,'crate');
+  scnMeshes.push({mesh:m,x,y,z,sx:r*2,sy:h,sz:r*2,role:'crate'});
   return m;
 }
 function addBeam(x,y,z,sx,sz,C){ return addBox(x,y,z,sx,0.14,sz,C.beam,'wall'); }
@@ -1401,8 +1457,196 @@ function addSitePlate(x,z,letter,C){
   }
 }
 
+function mergeEdgeLines(items,hex,foggy){
+  if(!items.length||!scnGroup) return null;
+  const parts=[];
+  for(const it of items){
+    const g=new THREE.EdgesGeometry(it.mesh.geometry, 20);
+    const m=new THREE.Matrix4();
+    m.makeTranslation(it.x,it.y,it.z);
+    if(it.mesh.rotation&&it.mesh.rotation.y){ const r=new THREE.Matrix4().makeRotationY(it.mesh.rotation.y); m.multiply(r); }
+    g.applyMatrix4(m);
+    parts.push(g);
+  }
+  const merged=parts.length===1?parts[0]:(THREE.BufferGeometryUtils&&THREE.BufferGeometryUtils.mergeGeometries
+    ?THREE.BufferGeometryUtils.mergeGeometries(parts,false)
+    :null);
+  let geo=merged;
+  if(!geo){
+    // manual merge
+    let n=0; parts.forEach(g=>n+=(g.getAttribute('position')||{count:0}).count);
+    const arr=new Float32Array(n*3); let o=0;
+    parts.forEach(g=>{ const a=g.getAttribute('position'); if(!a)return; arr.set(a.array,o); o+=a.array.length; });
+    geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(arr,3));
+    parts.forEach(g=>{ if(g!==geo) g.dispose(); });
+  }else{
+    parts.forEach(g=>{ if(g!==geo) g.dispose(); });
+  }
+  const lines=new THREE.LineSegments(geo, lineMat(hex,foggy));
+  lines.userData.shared=true; scnGroup.add(lines); scnTemps.push(geo);
+  return lines;
+}
+function finishScnLook(meta){
+  if(!scnGroup) return;
+  const retro=S.env==='retro';
+  const C=scnCols();
+  const walls=scnMeshes.filter(it=>(it.role==='wall'||it.role==='trim')&&it.sy>=0.35);
+  const crates=scnMeshes.filter(it=>it.role==='crate');
+  if(retro){
+    mergeEdgeLines(walls, C.neon||0xff3cb0, true);
+    mergeEdgeLines(crates, C.neon2||0x00e8ff, true);
+  }else{
+    const col=S.env==='day'?0x9aa8b4:S.env==='sunrise'?0x8a7060:0x8a96a4;
+    mergeEdgeLines(walls.concat(crates), col, true);
+  }
+  addPeekCornerNeons(meta,C);
+}
+function addPeekCornerNeons(meta,C){
+  if(!meta||!meta.variants) return;
+  const fy=FY(), h=2.55-fy, retro=S.env==='retro';
+  const seen=[];
+  const near=(x,z)=>{
+    for(const s of seen){ if(Math.hypot(s[0]-x,s[1]-z)<0.45) return true; }
+    return false;
+  };
+  for(const v of meta.variants){
+    for(const p of v.peeks||[]){
+      const edge=nearestVertEdge(p[0],p[2]);
+      if(!edge) continue;
+      if(near(edge.x,edge.z)) continue;
+      seen.push([edge.x,edge.z]);
+      const col=retro?(C.neon||0xff3cb0):C.trim;
+      // brighter vertical strip just outside the solid, toward the open / start
+      const ox=edge.x+edge.nx*0.04, oz=edge.z+edge.nz*0.04;
+      if(retro){
+        addNeonStrip(ox, fy+h/2, oz, 0.05, h, 0.05, col);
+        addNeonStrip(ox, fy+h/2, oz, 0.025, h, 0.025, C.neon2||0x00e8ff);
+      }else{
+        addBox(ox, fy+h/2, oz, 0.05, h, 0.05, col, 'decal', {em:0.4});
+      }
+    }
+  }
+}
+function nearestVertEdge(x,z){
+  let best=null, bestD=1e9;
+  for(const w of scnWalls){
+    if(w.role==='floor'||w.role==='decal') continue;
+    if(w.max.y-w.min.y<1.2) continue;
+    const xs=[w.min.x,w.max.x], zs=[w.min.z,w.max.z];
+    for(const ex of xs) for(const ez of zs){
+      const d=Math.hypot(ex-x,ez-z);
+      if(d>2.4||d>=bestD) continue;
+      // outward-ish normal from the box center toward the peek
+      const cx=(w.min.x+w.max.x)/2, cz=(w.min.z+w.max.z)/2;
+      let nx=x-ex, nz=z-ez; const L=Math.hypot(nx,nz)||1; nx/=L; nz/=L;
+      // prefer edges close to the peek and roughly between peek and box
+      bestD=d; best={x:ex,z:ez,nx,nz,d};
+    }
+  }
+  return best;
+}
+function canTuckNear(p,eyes){
+  const fy=+p[1], ok=(x,z)=>bodyClearFeet(x,fy,z)&&!bodyStuck(x,fy,z);
+  const occ=(x,z)=>ok(x,z)&&!headVisibleAt(x,fy,z,eyes,false).visible;
+  if(occ(p[0],p[2])) return true;
+  for(let s=0.12;s<=1.8;s+=0.12){
+    for(let a=0;a<16;a++){
+      const r=a*Math.PI/8, x=p[0]+Math.cos(r)*s, z=p[2]+Math.sin(r)*s;
+      if(occ(x,z)) return true;
+    }
+  }
+  return false;
+}
+function addPeekCovers(meta){
+  if(!meta||!meta.variants) return;
+  const C=scnCols(), fy=FY(), eyes=startEyes(meta);
+  const placed=[];
+  const used=(x,z)=>placed.some(s=>Math.hypot(s[0]-x,s[1]-z)<0.85);
+  const h=2.55-fy;
+  const eye=eyes[0]||{x:0,z:0};
+  const hasExit=(x,z)=>{
+    if(!bodyClearFeet(x,fy,z)||bodyStuck(x,fy,z)) return false;
+    if(headVisibleAt(x,fy,z,eyes,false).visible) return false;
+    const open=findOpenPoint([x,fy,z],eyes);
+    return !!(open&&open.visible&&open.dist>=0.5&&pathClear(x,fy,z,open.pos[0],open.pos[1],open.pos[2],12)&&!bodyStuck(open.pos[0],open.pos[1],open.pos[2]));
+  };
+  const goodTuck=(p)=>{
+    if(hasExit(p[0],p[2])) return true;
+    for(const s of [0.25,0.5,0.8,1.1]){
+      for(let a=0;a<8;a++){
+        const r=a*Math.PI/4, x=p[0]+Math.cos(r)*s, z=p[2]+Math.sin(r)*s;
+        if(pathClear(p[0],p[1],p[2],x,p[1],z,6)&&hasExit(x,z)) return true;
+      }
+    }
+    return false;
+  };
+  const inStartLane=(x,z)=>{
+    const s=meta.start||{x:0,z:0};
+    const yaw=((s.yaw||0)*Math.PI)/180;
+    const fx=-Math.sin(yaw), fz=-Math.cos(yaw);
+    const dx=x-s.x, dz=z-s.z;
+    const along=dx*fx+dz*fz;
+    const lat=-dx*fz+dz*fx;
+    return along>0.4 && Math.abs(lat)<1.05;
+  };
+  const placePillar=(x,z)=>{
+    if(used(x,z)) return false;
+    const st=(meta.start)||{x:0,z:0};
+    if(Math.hypot(x-st.x,z-st.z)<1.2) return false;
+    if(inStartLane(x,z)) return false;
+    addBox(x, fy+h/2, z, 0.44, h, 0.44, C.wall3,'wall');
+    placed.push([x,z]);
+    return true;
+  };
+  for(const v of meta.variants){
+    for(const p of v.peeks||[]){
+      if(goodTuck(p)) continue;
+      const dx=p[0]-eye.x, dz=p[2]-eye.z, L=Math.hypot(dx,dz)||1;
+      // side offset so we never plug a doorway or the player's lane
+      const latx=-dz/L, latz=dx/L;
+      const side=p[0]>=eye.x?1:-1;
+      const px=p[0]-(dx/L)*0.55+latx*side*0.7, pz=p[2]-(dz/L)*0.55+latz*side*0.7;
+      if(placePillar(px,pz)) continue;
+      const px2=p[0]-(dx/L)*0.55-latx*side*0.7, pz2=p[2]-(dz/L)*0.55-latz*side*0.7;
+      if(placePillar(px2,pz2)) continue;
+      // fallback: jamb on nearest wall, offset toward the eye so it does not swallow the peek
+      let wall=null, best=1e9;
+      for(const w of scnWalls){
+        if(w.role!=='wall'&&w.role!=='trim') continue;
+        if(w.max.y-w.min.y<1.6) continue;
+        const ddx=Math.max(w.min.x-p[0],0,p[0]-w.max.x);
+        const ddz=Math.max(w.min.z-p[2],0,p[2]-w.max.z);
+        const d=Math.hypot(ddx,ddz);
+        if(d<best && d<2.4){ best=d; wall=w; }
+      }
+      if(!wall) continue;
+      const alongZ=(wall.max.z-wall.min.z)>=(wall.max.x-wall.min.x);
+      let jx,jz,sx,sz;
+      if(alongZ){
+        const inner=Math.abs(p[0]-wall.min.x)<Math.abs(p[0]-wall.max.x)?wall.min.x:wall.max.x;
+        const into=p[0]>=inner?1:-1;
+        const toward=Math.sign(eye.z-p[2])||1;
+        jx=inner+into*0.30; jz=p[2]+toward*0.48;
+        sx=0.58; sz=0.34;
+      }else{
+        const inner=Math.abs(p[2]-wall.min.z)<Math.abs(p[2]-wall.max.z)?wall.min.z:wall.max.z;
+        const into=p[2]>=inner?1:-1;
+        const toward=Math.sign(eye.x-p[0])||1;
+        jz=inner+into*0.30; jx=p[0]+toward*0.48;
+        sx=0.34; sz=0.58;
+      }
+      if(used(jx,jz)) continue;
+      if(Math.hypot(jx-p[0],jz-p[2])<0.28) continue; // would swallow the peek
+      addBox(jx, fy+h/2, jz, sx, h, sz, C.wall3,'wall');
+      placed.push([jx,jz]);
+    }
+  }
+}
+
+
 function unloadScn(){
   clearPeekBots(); hideGrenade();
+  if(scnTemps&&scnTemps.length){ scnTemps.forEach(g=>{ if(g&&g.dispose)g.dispose(); }); scnTemps=[]; }
   if(scnGroup){
     scnGroup.traverse(o=>{
       if(o.userData&&o.userData.shared) return;
@@ -1411,8 +1655,9 @@ function unloadScn(){
     });
     scene.remove(scnGroup);
   }
-  scnGroup=null; scnWalls=[]; scnMeta=null; scnId=null;
+  scnGroup=null; scnWalls=[]; scnMeshes=[]; scnMeta=null; scnId=null;
   setArenaDecor(true);
+  if(typeof syncSceneFog==='function') syncSceneFog();
 }
 function tintScn(){ if(!scnId)return; const eye=camEye.clone(), yaw=view.yaw, pitch=view.pitch; loadScn(scnId); camEye.copy(eye); view.yaw=yaw; view.pitch=pitch; }
 function placeStart(meta){
@@ -1427,12 +1672,16 @@ function loadScn(id){
   if(!SCN[id]||id==='mix') id='hall';
   const keep=scnId===id&&scnGroup;
   if(scnGroup){ const eye=camEye.clone(); unloadScn(); /* unload clears id */ camEye.copy(eye); }
-  scnGroup=new THREE.Group(); scene.add(scnGroup); scnWalls=[]; scnId=id; setArenaDecor(false);
+  scnGroup=new THREE.Group(); scene.add(scnGroup); scnWalls=[]; scnMeshes=[]; scnTemps=[]; scnId=id; setArenaDecor(false);
+  if(typeof syncSceneFog==='function') syncSceneFog();
   const builders={hall:buildHall,hold:buildHold,anchor:buildAnchor,entry:buildEntry,retake:buildRetake,overwall:buildOverwall,mid:buildMid,ramp:buildRamp};
   scnMeta=(builders[id]||buildHall)();
   scnMeta.id=id; scnMeta.name=(SCN[id]||{}).name||id; scnMeta.auto=!!(SCN[id]&&SCN[id].auto);
   if(scnMeta.pathDur==null) scnMeta.pathDur=(SCN[id]&&SCN[id].pathDur)||2.4;
+  _peekVisCache=new Map();
   fixPeekVisibility(scnMeta);
+  _peekVisCache=null;
+  finishScnLook(scnMeta);
   placeStart(scnMeta);
   return scnMeta;
 }
@@ -1758,6 +2007,27 @@ function peekEyes(meta){
   }
   return list;
 }
+function startEyes(meta){
+  const s=(meta&&meta.start)||{x:0,y:0,z:0};
+  return [new THREE.Vector3(s.x,s.y,s.z)];
+}
+function behindWall(x,z,eye){
+  if(!eye) return false;
+  for(const w of scnWalls){
+    if((w.role!=='wall'&&w.role!=='trim')||w.max.y-w.min.y<1.4) continue;
+    const zSpan=w.max.z-w.min.z, xSpan=w.max.x-w.min.x;
+    if(zSpan>=xSpan){
+      const zIn=z>=w.min.z-0.12&&z<=w.max.z+0.12;
+      const eNear=eye.z>=w.min.z-2.5&&eye.z<=w.max.z+2.5;
+      if(zIn&&eNear&&((eye.x<w.min.x-0.02&&x>w.max.x+0.02)||(eye.x>w.max.x+0.02&&x<w.min.x-0.02))) return true;
+    }else{
+      const xIn=x>=w.min.x-0.12&&x<=w.max.x+0.12;
+      const eNear=eye.x>=w.min.x-2.5&&eye.x<=w.max.x+2.5;
+      if(xIn&&eNear&&((eye.z<w.min.z-0.02&&z>w.max.z+0.02)||(eye.z>w.max.z+0.02&&z<w.min.z-0.02))) return true;
+    }
+  }
+  return false;
+}
 function bodyStuck(x,y,z){
   return !!(pointInSolid(x,y+0.55,z,BOT_BODY_R+0.03) || pointInSolid(x,y+BOT_HEAD_Y,z,BOT_HEAD_R+0.02));
 }
@@ -1789,31 +2059,200 @@ function adjustPeek(p,eyes){
   }
   return best;
 }
+let _peekVisCache=null;
+function peekVisAt(x,y,z,eyes,crouch){
+  if(!_peekVisCache) return headVisibleAt(x,y,z,eyes,!!crouch);
+  const k=(+x).toFixed(2)+','+(+z).toFixed(2)+','+(crouch?1:0);
+  if(_peekVisCache.has(k)) return _peekVisCache.get(k);
+  const r=headVisibleAt(x,y,z,eyes,!!crouch);
+  _peekVisCache.set(k,r); return r;
+}
+function peekOccluded(x,y,z,eyes,crouch){
+  const vis=peekVisAt(x,y,z,eyes,!!crouch);
+  return !vis.visible && !vis.center;
+}
+function tuckPeek(p,eyes){
+  const fy=+p[1], fx=+p[0], fz=+p[2];
+  const ok=(x,z)=>bodyClearFeet(x,fy,z)&&!bodyStuck(x,fy,z);
+  const occ=(x,z)=>ok(x,z)&&peekOccluded(x,fy,z,eyes,false);
+  const reachable=(x,z)=>pathClear(fx,fy,fz,x,fy,z,10);
+  const hasExit=(x,z)=>{
+    if(!occ(x,z)||!reachable(x,z)) return false;
+    const open=findOpenPoint([x,fy,z],eyes);
+    return !!(open&&open.visible&&open.dist>=0.5&&pathClear(x,fy,z,open.pos[0],open.pos[1],open.pos[2],12)&&!bodyStuck(open.pos[0],open.pos[1],open.pos[2]));
+  };
+  const eye=(eyes&&eyes[0])||{x:0,y:0,z:0};
+  const raw=[];
+  const consider=(x,z)=>{
+    if(!occ(x,z)||!reachable(x,z)||behindWall(x,z,eye)) return;
+    const d0=Math.hypot(x-fx,z-fz);
+    if(d0>2.2) return;
+    const dE=Math.hypot(x-eye.x,z-eye.z);
+    raw.push({x,z,score:2/(dE+0.25)+1.2/(d0+0.2)});
+  };
+  consider(fx,fz);
+  for(const s of [0.16,0.32,0.5,0.7,0.95,1.2]){
+    for(let a=0;a<12;a++){
+      const r=a*Math.PI/6;
+      consider(fx+Math.cos(r)*s, fz+Math.sin(r)*s);
+    }
+  }
+  raw.sort((a,b)=>b.score-a.score);
+  const cands=raw.filter(c=>hasExit(c.x,c.z)).slice(0,8);
+  if(cands.length){
+    cands.sort((a,b)=>b.score-a.score);
+    let x=cands[0].x, z=cands[0].z;
+    const tdx=eye.x-x, tdz=eye.z-z, tL=Math.hypot(tdx,tdz)||1;
+    const attempts=[[tdx/tL,tdz/tL],[-tdz/tL,tdx/tL],[tdz/tL,-tdx/tL]];
+    let best={x,z,score:cands[0].score};
+    for(const [dx,dz] of attempts){
+      let cx=x,cz=z;
+      for(let i=0;i<28;i++){
+        const nx=cx+dx*0.06, nz=cz+dz*0.06;
+        if(!hasExit(nx,nz)) break;
+        cx=nx; cz=nz;
+      }
+      const dE=Math.hypot(cx-eye.x,cz-eye.z);
+      const d0=Math.hypot(cx-fx,cz-fz);
+      const sc=2/(dE+0.25)+1.2/(d0+0.2);
+      if(sc>best.score) best={x:cx,z:cz,score:sc};
+    }
+    return [best.x,fy,best.z];
+  }
+  // last resort: nudge out of solids, stay near the authored peek
+  let x=fx,z=fz;
+  if(!ok(x,z)){
+    for(const d of [0.08,0.16,0.26,0.4,0.55,0.75,1.0]){
+      let done=false;
+      for(let a=0;a<16;a++){
+        const r=a*Math.PI/8, nx=fx+Math.cos(r)*d, nz=fz+Math.sin(r)*d;
+        if(ok(nx,nz)){ x=nx; z=nz; done=true; break; }
+      }
+      if(done) break;
+    }
+  }
+  return [x,fy,z];
+}
 function fixPeekVisibility(meta){
   if(!meta||!meta.variants) return meta;
-  const eyes=peekEyes(meta);
-  meta.peekFix=[];
-  for(const v of meta.variants){
+  const eyes=startEyes(meta);
+  const apply=()=>{
+    meta.peekFix=[];
+    for(const v of meta.variants){
+      if(!v.peeks) continue;
+      const next=[];
+      for(const p of v.peeks){
+        const pos=tuckPeek(p,eyes);
+        const occ=peekOccluded(pos[0],pos[1],pos[2],eyes,false);
+        const stuck=bodyStuck(pos[0],pos[1],pos[2]);
+        next.push(pos);
+        meta.peekFix.push({variant:v.id, from:p, to:pos, moved:Math.hypot(pos[0]-p[0],pos[2]-p[2]), occluded:!!occ, stuck:!!stuck});
+      }
+      v.peeks=next;
+    }
+  };
+  apply();
+  return meta;
+}
+function finalizePeeks(meta){
+  if(!meta||!meta.variants) return;
+  const cover=startEyes(meta), eyes=peekEyes(meta), fy=FY();
+  for(const v of meta.variants||[]){
+    if(!v.peeks) continue;
+    v.peeks=v.peeks.map(p=>{
+      let x=p[0], z=p[2];
+      const eye=cover[0];
+      const openOf=(x,z)=>findOpenPoint([x,fy,z],eyes);
+      const good=(x,z)=>bodyClearFeet(x,fy,z)&&!bodyStuck(x,fy,z)&&!behindWall(x,z,eye)&&peekOccluded(x,fy,z,cover,false)&&(openOf(x,z).visible);
+      if(good(x,z)) return [x,fy,z];
+      const tdx=eye.x-x, tdz=eye.z-z, tL=Math.hypot(tdx,tdz)||1;
+      const dirs=[[tdx/tL,tdz/tL],[-tdz/tL,tdx/tL],[tdz/tL,-tdx/tL],[-tdx/tL,-tdz/tL]];
+      let best=null;
+      for(const [dx,dz] of dirs){
+        let cx=x,cz=z;
+        for(let i=0;i<20;i++){
+          cx+=dx*0.12; cz+=dz*0.12;
+          if(!bodyClearFeet(cx,fy,cz)||bodyStuck(cx,fy,cz)) break;
+          if(good(cx,cz)){ best=[cx,fy,cz]; break; }
+        }
+        if(best) break;
+      }
+      if(best) return best;
+      // last try: from current, if we can reach a visible end already, keep if occluded
+      if(peekOccluded(x,fy,z,cover,false)&&!bodyStuck(x,fy,z)) return [x,fy,z];
+      return p;
+    });
+  }
+}
+function forceHidePeeks(meta){
+  if(!meta||!meta.variants) return;
+  const C=scnCols(), fy=FY(), eyes=startEyes(meta), h=2.55-fy;
+  const s0=meta.start||{x:0,z:0,yaw:0};
+  const yaw=((s0.yaw||0)*Math.PI)/180;
+  const fX=-Math.sin(yaw), fZ=-Math.cos(yaw);
+  const lX=-fZ, lZ=fX;
+  const boothFor=(p)=>{
+    const along=(p[0]-s0.x)*fX+(p[2]-s0.z)*fZ;
+    let lat=(p[0]-s0.x)*lX+(p[2]-s0.z)*lZ;
+    const sign=lat>=0?1:-1;
+    if(Math.abs(lat)<1.2) lat=sign*1.38;
+    let pocket=null, cx,cz;
+    for(const span of [0,0.4,0.8,1.2,1.6]){
+      const lat2=sign*(Math.max(Math.abs(lat),1.38)+span);
+      cx=s0.x+fX*along+lX*lat2;
+      cz=s0.z+fZ*along+lZ*lat2;
+      const trial=[cx+fX*0.22+lX*sign*0.1, fy, cz+fZ*0.22+lZ*sign*0.1];
+      if(peekOccluded(trial[0],trial[1],trial[2],eyes,false)&&bodyClearFeet(trial[0],trial[1],trial[2])&&!behindWall(trial[0],trial[2],eyes[0])){
+        const open=findOpenPoint(trial, peekEyes(scnMeta||meta));
+        if(open&&open.visible&&open.dist>=0.5){ lat=lat2; pocket=trial; break; }
+      }
+      lat=lat2;
+    }
+
+    // long arm along the view axis
+    addBox(cx-fX*0.12, fy+h/2, cz-fZ*0.12, Math.abs(fX)*0.85+Math.abs(lX)*0.28, h, Math.abs(fZ)*0.85+Math.abs(lZ)*0.28, C.wall3,'wall');
+    // short arm between pocket and the eye
+    const sx=cx-fX*0.42-lX*Math.sign(lat)*0.22, sz=cz-fZ*0.42-lZ*Math.sign(lat)*0.22;
+    addBox(sx, fy+h/2, sz, Math.abs(fX)*0.28+Math.abs(lX)*0.7, h, Math.abs(fZ)*0.28+Math.abs(lZ)*0.7, C.wall3,'wall');
+    // pocket inside the L, further from the eye
+    let px=cx+fX*0.18+lX*Math.sign(lat)*0.08, pz=cz+fZ*0.18+lZ*Math.sign(lat)*0.08;
+    if(bodyStuck(px,fy,pz)||!bodyClearFeet(px,fy,pz)){
+      const qx=cx+fX*0.28, qz=cz+fZ*0.28;
+      if(bodyClearFeet(qx,fy,qz)&&!bodyStuck(qx,fy,qz)){ px=qx; pz=qz; }
+    }
+    if(pocket && peekOccluded(pocket[0],pocket[1],pocket[2],eyes,false) && bodyClearFeet(pocket[0],pocket[1],pocket[2])) return pocket;
+    return [px,fy,pz];
+  };
+  for(const v of meta.variants||[]){
     if(!v.peeks) continue;
     const next=[];
     for(const p of v.peeks){
-      const r=adjustPeek(p,eyes);
-      next.push(r.pos);
-      meta.peekFix.push({variant:v.id, from:p, to:r.pos, moved:r.moved, visible:!!r.visible, frac:r.frac, center:!!r.center});
+      if(peekOccluded(p[0],p[1],p[2],eyes,false)&&!bodyStuck(p[0],p[1],p[2])){ next.push(p); continue; }
+      const pocket=boothFor(p);
+      next.push(pocket);
     }
     v.peeks=next;
   }
-  return meta;
 }
+
+
 function peekVisibilityReport(meta){
   meta=meta||scnMeta;
   if(!meta) return [];
-  const eyes=peekEyes(meta);
+  const eyes=peekEyes(meta), cover=startEyes(meta);
   const out=[];
   for(const v of meta.variants||[]){
     for(const p of v.peeks||[]){
-      const sc=peekScore(p,eyes);
-      out.push({scn:meta.id,variant:v.id,peek:p,visible:!!sc.visible,frac:sc.frac,center:!!sc.center,stuck:bodyStuck(p[0],p[1],p[2])});
+      const open=findOpenPoint(p,eyes);
+      const to=open.pos;
+      const fromVis=headVisibleAt(p[0],p[1],p[2],cover,false);
+      const toVis=headVisibleAt(to[0],to[1],to[2],eyes,false);
+      const clear=pathClear(p[0],p[1],p[2],to[0],to[1],to[2],12);
+      const stuck=bodyStuck(to[0],to[1],to[2])||bodyStuck(p[0],p[1],p[2]);
+      out.push({scn:meta.id,variant:v.id,peek:p,from:p,to,dist:open.dist||Math.hypot(to[0]-p[0],to[2]-p[2]),
+        fromVis:!!fromVis.visible,toVis:!!toVis.visible,startOcc:!fromVis.visible&&!fromVis.center,
+        endVis:!!toVis.visible,visible:!!toVis.visible,frac:toVis.frac||0,center:!!toVis.center,
+        clear,stuck,pathClear:clear});
     }
   }
   return out;
@@ -1846,8 +2285,9 @@ function headVisibleAt(x,y,z,eyes,crouch){
   }
   return best;
 }
-function findOpenPoint(from,eyes){
+function findOpenPoint(from,eyes,opts){
   const fx=+from[0], fy=+from[1], fz=+from[2];
+  const o=opts||{};
   const eye=(eyes&&eyes[0])||{x:0,y:0,z:0};
   let tdx=eye.x-fx, tdz=eye.z-fz; const L=Math.hypot(tdx,tdz)||1; tdx/=L; tdz/=L;
   let ox=fx, oz=fz;
@@ -1861,8 +2301,10 @@ function findOpenPoint(from,eyes){
       if(done) break;
     }
   }
-  const angs=[0,18,-18,36,-36,55,-55,75,-75,95,-95,115,-115,140,-140,180];
-  let best=null, bestScore=-1, bestVis=null, bestVisScore=-1;
+  let angs=[0,18,-18,36,-36,55,-55,75,-75,95,-95,115,-115,140,-140,180];
+  if(o.flip) angs=angs.map(a=>-a);
+  const avoid=o.avoid;
+  let best=null, bestScore=-1, bestVis=null, bestVisScore=-1, bestToward=null, bestTowardScore=-1;
   for(const a of angs){
     const rad=Math.atan2(tdz,tdx)+a*Math.PI/180;
     const dx=Math.cos(rad), dz=Math.sin(rad);
@@ -1875,13 +2317,37 @@ function findOpenPoint(from,eyes){
       if(dist<0.45) continue;
       const vis=headVisibleAt(x,fy,z,eyes,false);
       const lat=Math.min(1, Math.abs(Math.sin(a*Math.PI/180)));
-      const score=dist*(vis.visible?3.4:0.18)+vis.frac*0.8+lat*dist*0.7;
+      const closer=Math.hypot(fx-eye.x,fz-eye.z)-Math.hypot(x-eye.x,z-eye.z);
+      let score=dist*(vis.visible?3.4:0.18)+vis.frac*0.8+lat*dist*0.7+Math.max(-0.4,closer)*1.1;
+      if(avoid){ const ad=Math.hypot(x-avoid[0],z-avoid[2]); if(ad<0.8) score-=2; else score+=Math.min(1.2,ad*0.25); }
+      if(o.flip && a>0) score+=0.4;
       const row={pos:[x,fy,z],visible:!!vis.visible,frac:vis.frac,dist,lat};
       if(score>bestScore){ bestScore=score; best=row; }
       if(vis.visible && score>bestVisScore){ bestVisScore=score; bestVis=row; }
+      if(vis.visible && closer>-0.2 && score>bestTowardScore){ bestTowardScore=score; bestToward=row; }
     }
   }
+  if(bestToward && bestToward.dist>=0.45) return bestToward;
   if(bestVis && bestVis.dist>=0.45) return bestVis;
+  // wall-follow toward the eye if the radial search stayed hidden
+  let wx=ox, wz=oz;
+  for(let s=1;s<=24;s++){
+    let nx=wx+tdx*0.16, nz=wz+tdz*0.16, ok=false;
+    if(bodyClearFeet(nx,fy,nz)&&!bodyStuck(nx,fy,nz)&&pathClear(wx,fy,wz,nx,fy,nz,3)) ok=true;
+    else{
+      for(const side of [1,-1]){
+        const sx=-tdz*side, sz=tdx*side;
+        const jx=wx+sx*0.22+tdx*0.08, jz=wz+sz*0.22+tdz*0.08;
+        if(bodyClearFeet(jx,fy,jz)&&!bodyStuck(jx,fy,jz)&&pathClear(wx,fy,wz,jx,fy,jz,3)){ nx=jx; nz=jz; ok=true; break; }
+      }
+    }
+    if(!ok) break;
+    wx=nx; wz=nz;
+    const dist=Math.hypot(wx-fx,wz-fz);
+    if(dist<0.45) continue;
+    const vis=headVisibleAt(wx,fy,wz,eyes,false);
+    if(vis.visible) return {pos:[wx,fy,wz],visible:true,frac:vis.frac,dist};
+  }
   if(best && best.dist>=0.45) return best;
   if(Math.hypot(ox-fx,oz-fz)>=0.24 && bodyClearFeet(ox,fy,oz)){
     const vis=headVisibleAt(ox,fy,oz,eyes,false);
@@ -1892,94 +2358,156 @@ function findOpenPoint(from,eyes){
 function pushPathReport(meta){
   meta=meta||scnMeta;
   if(!meta) return [];
-  const eyes=peekEyes(meta);
+  const eyes=peekEyes(meta), cover=startEyes(meta);
   const out=[];
   for(const v of meta.variants||[]){
     for(const p of v.peeks||[]){
       const open=findOpenPoint(p,eyes);
       const to=open.pos;
       const clear=pathClear(p[0],p[1],p[2],to[0],to[1],to[2],10);
-      const fromVis=headVisibleAt(p[0],p[1],p[2],eyes,false);
+      const fromVis=headVisibleAt(p[0],p[1],p[2],cover,false);
       const toVis=headVisibleAt(to[0],to[1],to[2],eyes,false);
       const mid=[(p[0]+to[0])/2,p[1],(p[2]+to[2])/2];
       const midVis=headVisibleAt(mid[0],mid[1],mid[2],eyes,false);
-      const some=!!(fromVis.visible||toVis.visible||midVis.visible);
       const stuck=bodyStuck(to[0],to[1],to[2])||bodyStuck(p[0],p[1],p[2]);
-      out.push({scn:meta.id,variant:v.id,from:p,to,dist:open.dist,clear,stuck,fromVis:!!fromVis.visible,toVis:!!toVis.visible,midVis:!!midVis.visible,visible:some,frac:Math.max(fromVis.frac||0,toVis.frac||0,midVis.frac||0)});
+      out.push({scn:meta.id,variant:v.id,from:p,to,dist:open.dist,clear,stuck,
+        fromVis:!!fromVis.visible,toVis:!!toVis.visible,midVis:!!midVis.visible,
+        startOcc:!fromVis.visible&&!fromVis.center,endVis:!!toVis.visible,
+        visible:!!toVis.visible,frac:toVis.frac||0});
     }
   }
   return out;
 }
+function botIsMoving(bot){
+  if(!bot||bot.dead) return false;
+  const mv=bot.move;
+  if(bot.moving) return true;
+  if(!mv) return false;
+  if(mv.phase==='wait'||mv.phase==='gone'||mv.phase==='hold') return false;
+  if(mv.phase==='retreat') return (mv.u||0)>0.03;
+  if(mv.style==='stop' && mv.settled) return false;
+  if(mv.style==='shoulder'||mv.style==='jiggle'||mv.style==='reswing') return mv.phase==='go';
+  if(mv.phase==='go'){
+    if(mv.settled) return false;
+    return (mv.u||0)>0.03 && (mv.u||0)<0.98 || !!mv.overshooting;
+  }
+  return false;
+}
 function stepPeekBots(dt,now){
   if(!peekBots.length) return;
-  const remain=FL&&FL.peekUntil?FL.peekUntil-now:0;
+  const retreatAt=FL&&FL.retreatAt!=null?FL.retreatAt:(FL&&FL.peekUntil?FL.peekUntil-500:0);
   for(const bot of peekBots){
     if(!bot||bot.dead||!bot.group.visible) continue;
     const mv=bot.move;
     stepBotStance(bot,now);
     stepCrouch(bot,dt);
     if(!mv) continue;
-    if(remain<240 && mv.phase!=='retreat' && mv.phase!=='gone'){ mv.phase='retreat'; }
+    if(now>=retreatAt && retreatAt>0 && mv.phase!=='retreat' && mv.phase!=='gone' && mv.phase!=='wait'){ mv.phase='retreat'; mv.settled=false; }
     if(now<mv.goAt && mv.phase==='wait') continue;
-    if(mv.phase==='wait') mv.phase='go';
+    if(mv.phase==='wait'){ mv.phase='go'; mv.t=0; mv.v=0; }
     if(mv.phase==='gone') continue;
-    const from=mv.from, to=mv.to;
+    const from=mv.from, to=(mv.useAlt&&mv.alt)?mv.alt:mv.to;
     const dist=Math.hypot(to.x-from.x,to.z-from.z)||0.001;
+    const maxV=(mv.speed||5)/dist; // u per second at cruise
     let targetU=mv.u||0;
+    mv.t=(mv.t||0)+dt;
     if(mv.phase==='retreat'){
-      targetU=Math.max(0,(mv.u||0)-(mv.speed*dt)/dist);
-      if(targetU<=0.02){ mv.u=0; placeBotFeet(bot,from.x,from.y,from.z); bot.moving=false; continue; }
+      mv.v=(mv.v||0)-Math.max(8,mv.speed||5)*dt/dist;
+      if(mv.v>-0.4) mv.v=-Math.max(2.8, (mv.speed||5)*0.85)/dist;
+      targetU=(mv.u||0)+mv.v*dt;
+      if(targetU<=0.02){
+        mv.u=0; mv.v=0; mv.phase='gone'; bot.moving=false; mv.settled=true;
+        placeBotFeet(bot,from.x,from.y,from.z);
+        bot.group.visible=false; // back in cover
+        continue;
+      }
     }else if(mv.style==='shoulder'){
       const cycle=mv.cyc=(mv.cyc||0)+dt;
-      const per=mv.period||0.85;
+      const per=mv.period||0.7;
       const t=(cycle%per)/per;
-      targetU=(t<0.5?t*2:(1-t)*2)* (mv.ampU||0.55);
+      // ease out and back
+      const e=t<0.5?(t*2)*(t*2)*(3-2*(t*2)):((1-t)*2)*((1-t)*2)*(3-2*((1-t)*2));
+      targetU=e*(mv.ampU||0.55);
+    }else if(mv.style==='jiggle'){
+      const t=mv.t;
+      let goal=0;
+      if(t<0.16) goal=(t/0.16)*0.62;
+      else if(t<0.28) goal=0.62*((0.28-t)/0.12);
+      else if(t<0.42) goal=((t-0.28)/0.14)*0.7;
+      else if(t<0.54) goal=0.7*((0.54-t)/0.12);
+      else { mv.settled=true; goal=0.04; }
+      const k=Math.min(1,dt*14);
+      targetU=(mv.u||0)+(goal-(mv.u||0))*k;
     }else if(mv.style==='stop' && (mv.u||0)>=(mv.stopAt||0.62)){
-      mv.u=mv.stopAt||0.62; bot.moving=false;
-      targetU=mv.u;
-    }else if(mv.style==='reswing' || mv.jiggle){
-      const t=Math.max(0,now-(mv.goAt||now));
-      let goal=1;
-      if(t<0.36) goal=1;
-      else if(t<0.55) goal=0.42;
-      else if(t<1.00) goal=1.08;
-      else goal=0.92;
-      goal=Math.min(mv.overshoot||1.15, Math.max(0,goal));
-      mv.mom=(mv.mom||0)+(goal-(mv.u||0))*dt*16;
-      mv.mom*=0.82;
-      targetU=(mv.u||0)+mv.mom*dt+(goal-(mv.u||0))*Math.min(1,dt*6);
-    }else if(mv.style==='swing' || (mv.overshoot&&mv.overshoot>1 && mv.style!=='shoulder' && mv.style!=='stop')){
-      const goal=mv.overshoot||1.16;
-      mv.mom=(mv.mom||0)+(goal-(mv.u||0))*dt*14;
-      mv.mom*=0.84;
-      targetU=(mv.u||0)+mv.mom*dt+(Math.min(goal,1.05)-(mv.u||0))*Math.min(1,dt*5);
-      if(targetU>goal) targetU=goal;
+      mv.u=mv.stopAt||0.62; bot.moving=false; mv.settled=true; targetU=mv.u;
+    }else if(mv.style==='reswing'){
+      const t=mv.t, over=mv.overshoot||1.16;
+      let dest=to, goal=0;
+      if(t<0.34){ dest=mv.to; goal=over*(t/0.34); }
+      else if(t<0.52){ dest=mv.to; goal=over*(1-(t-0.34)/0.18); }
+      else if(t<0.96){
+        dest=mv.alt||mv.to; mv.useAlt=!!mv.alt;
+        const k=(t-0.52)/0.44; const e=k*k*(3-2*k);
+        goal=e*over;
+      }else{ dest=mv.alt||mv.to; goal=1; mv.settled=t>1.12; }
+      // bind dest for placement below
+      mv._dest=dest;
+      const k=Math.min(1,dt*12);
+      targetU=(mv.u||0)+(goal-(mv.u||0))*k;
+    }else if(mv.style==='swing' || (mv.overshoot&&mv.overshoot>1 && mv.style!=='shoulder' && mv.style!=='stop' && mv.style!=='jiggle')){
+      // accelerate out, overshoot, decelerate to a stop at u=1
+      const over=mv.overshoot||1.16;
+      const T=Math.max(0.38, dist/Math.max(2.8,mv.speed||5));
+      const s=Math.min(1.15, mv.t/T);
+      let goal;
+      if(s<0.78){
+        const k=s/0.78; // ease-in
+        const e=k*k*(3-2*k);
+        goal=e*over;
+        mv.overshooting=goal>1;
+        mv.settled=false;
+      }else{
+        const k=Math.min(1,(s-0.78)/0.22);
+        const e=k*k*(3-2*k);
+        goal=over+(1-over)*e;
+        mv.overshooting=goal>1.01;
+        if(k>=0.98){ goal=1; mv.settled=true; mv.phase='hold'; }
+      }
+      const blend=Math.min(1,dt*12);
+      targetU=(mv.u||0)+(goal-(mv.u||0))*blend;
     }else{
-      targetU=(mv.u||0)+(mv.speed*dt)/dist;
-      if(targetU>1) targetU=1;
+      // run: accel to cruise, decel into 1
+      const acc=maxV*3.2;
+      if((mv.u||0)<0.85) mv.v=Math.min(maxV, (mv.v||0)+acc*dt);
+      else mv.v=Math.max(maxV*0.25, (mv.v||0)-acc*1.4*dt);
+      targetU=(mv.u||0)+mv.v*dt;
+      if(targetU>=1){ targetU=1; mv.settled=true; mv.phase='hold'; }
     }
     let u=targetU;
+    const dest=(mv.style==='reswing'&&mv._dest)?mv._dest:to;
     if(u>1.001){
-      const nx=from.x+(to.x-from.x)*u, nz=from.z+(to.z-from.z)*u, ny=from.y+(to.y-from.y)*u;
-      if(!bodyClearFeet(nx,ny,nz) || !pathClear(from.x+(to.x-from.x),ny,from.z+(to.z-from.z),nx,ny,nz,3)) u=Math.min(u,1);
+      const nx=from.x+(dest.x-from.x)*u, nz=from.z+(dest.z-from.z)*u, ny=from.y+(dest.y-from.y)*u;
+      if(!bodyClearFeet(nx,ny,nz) || !pathClear(from.x+(dest.x-from.x),ny,from.z+(dest.z-from.z),nx,ny,nz,3)) u=Math.min(u,1);
     }
-    const x=from.x+(to.x-from.x)*u, z=from.z+(to.z-from.z)*u, y=from.y+(to.y-from.y)*u;
+    u=Math.max(0,u);
+    const x=from.x+(dest.x-from.x)*u, z=from.z+(dest.z-from.z)*u, y=from.y+(dest.y-from.y)*u;
     let px=x, pz=z;
-    if(mv.style==='strafe' || mv.strafe){
+    if((mv.style==='strafe' || mv.strafe) && mv.style!=='jiggle' && mv.style!=='shoulder'){
       const sx=-(to.z-from.z)/dist, sz=(to.x-from.x)/dist;
-      const amp=(mv.amp||0.35)*Math.sin(u*Math.PI*(mv.sway||1.4));
+      const amp=(mv.amp||0.22)*Math.sin(u*Math.PI*(mv.sway||1.15));
       px=x+sx*amp; pz=z+sz*amp;
     }
     if(!bodyClearFeet(px,y,pz)){
       if(bodyClearFeet(x,y,z)){ px=x; pz=z; }
       else { bot.moving=false; continue; }
     }
+    const traveled=Math.hypot(px-(mv._px==null?from.x:mv._px), pz-(mv._pz==null?from.z:mv._pz));
     placeBotFeet(bot,px,y,pz);
     bot.group.updateMatrixWorld(true);
+    const du=u-(mv.u||0);
     mv.u=u;
-    bot.moving=mv.phase!=='stop' && Math.abs((targetU)-(mv._lu||0))>0.0005;
-    mv._lu=targetU;
-    if(mv.phase==='go' && mv.style!=='shoulder' && mv.style!=='swing' && mv.style!=='reswing' && !mv.jiggle && u>=1){ mv.phase='hold'; bot.moving=false; }
+    bot.moving=mv.phase!=='hold' && mv.phase!=='gone' && (Math.abs(du)>0.0008 || traveled>0.004);
+    mv._px=px; mv._pz=pz; mv._lu=targetU;
   }
 }
 
@@ -2082,30 +2610,69 @@ function spawnPeekBots(factor,peeks,now){
   const rand=useFlashRand();
   const n=rand?fint(1,Math.min(3,list.length)):list.length;
   const picks=rand?fshuffle(list).slice(0,n):list;
-  const styles=rand?null:['swing','strafe','reswing'];
+  const styles=rand?null:['swing','jiggle','reswing'];
   const staged=[];
+  const usedDelay=[];
   for(let i=0;i<picks.length;i++){
     const p=picks[i];
     const bot=makeBot(scene); scaleBot(bot,1); placeBotFeet(bot,p[0],p[1],p[2]); bot.dim=factor; armBot(bot,now); paintBot(bot,factor);
     const open=findOpenPoint(p,eyes);
     const to=open.pos;
-    const style=rand?(frand()<0.34?'swing':frand()<0.22?'reswing':frand()<0.18?'shoulder':frand()<0.4?'strafe':'run'):(styles[i%styles.length]);
-    const delay=rand?frange(0,400):80;
-    const speed=rand?frange(3.8,6.8):5.2;
+    const altOpen=findOpenPoint(p,eyes,{flip:true,avoid:to});
+    const alt=(altOpen&&altOpen.visible&&altOpen.dist>=0.45&&Math.hypot(altOpen.pos[0]-to[0],altOpen.pos[2]-to[2])>=0.7)?altOpen.pos:null;
+    let style;
+    if(rand){
+      const r=frand();
+      style=r<0.36?'swing':r<0.54?'jiggle':r<0.72?'reswing':r<0.86?'shoulder':'run';
+    }else style=styles[i%styles.length];
+    let delay;
+    if(rand){
+      delay=frange(0,520);
+      for(let g=0;g<6 && usedDelay.some(d=>Math.abs(d-delay)<90);g++) delay=frange(0,560);
+    }else delay=70+i*170;
+    usedDelay.push(delay);
+    const speed=rand?frange(3.6,6.6):5.0;
     const swing=style==='swing'||style==='reswing'||style==='run';
-    bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},u:0,speed,style,goAt:now+delay,phase:'wait',amp:rand?frange(0.28,0.62):0.42,ampU:rand?frange(0.55,0.9):0.72,period:rand?frange(0.55,0.9):0.7,stopAt:rand?frange(0.52,0.78):0.65,strafe:style==='strafe'||style==='swing',overshoot:swing?(rand?frange(1.10,1.32):1.18):1,jiggle:style==='reswing'||(rand&&swing&&frand()<0.4),mom:0};
+    bot.move={from:{x:p[0],y:p[1],z:p[2]},to:{x:to[0],y:to[1],z:to[2]},
+      alt:alt?{x:alt[0],y:alt[1],z:alt[2]}:null,
+      u:0,v:0,t:0,speed,style,goAt:now+delay,phase:'wait',
+      amp:rand?frange(0.16,0.38):0.22,ampU:rand?frange(0.48,0.78):0.62,
+      period:rand?frange(0.48,0.82):0.64,stopAt:rand?frange(0.52,0.78):0.65,
+      strafe:style==='strafe',
+      overshoot:swing?(rand?frange(1.10,1.28):1.16):1,
+      settled:false,mom:0};
     bot.moving=false;
     peekBots.push(bot);
     staged.push({bot,delay});
   }
   const kinds=assignGroupStances(peekBots.length);
+  if(botStanceMode()==='mix' && kinds.length>=2){
+    const standI=kinds.findIndex(k=>k==='stand');
+    const slot=standI===0?1:0;
+    kinds[slot]='switch';
+    if(!kinds.some(k=>k==='stand')) kinds[standI>=0?standI:kinds.length-1]='stand';
+  }
   const win=peekWindowMs();
   staged.forEach((row,i)=>{
-    const plan=planStanceToggles(kinds[i], now, row.delay, win, null, {max:4,auto:false});
+    const kind=kinds[i];
+    const plan=planStanceToggles(kind, now, row.delay, win, null, {max:4,auto:false});
+    // crouch-swing: stay low; switch: start crouched and stand mid-swing
+    if(kind==='crouch'){ plan.startWant=1; plan.times=[]; }
+    if(kind==='switch'){
+      plan.startWant=1;
+      const standAt=now+row.delay+220+((FL&&typeof frange==='function')?frange(0,180):90);
+      plan.times=[{at:standAt,want:0}].concat(plan.times||[]);
+    }
     applyBotStance(row.bot, plan, now);
     if(row.bot.move) row.bot.move.stanceKind=plan.kind;
   });
-  if(FL){ FL.peekUntil=now+peekWindowMs(); FL.peekT0=now; FL.st.dots=(FL.st.dots||0)+peekBots.length; }
+  if(FL){
+    const outMs=peekWindowMs();
+    FL.retreatAt=now+outMs;
+    FL.peekUntil=now+outMs+600; // shoot window includes the retreat
+    FL.peekT0=now;
+    FL.st.dots=(FL.st.dots||0)+peekBots.length;
+  }
 }
 function flashShoot(){
   if(!FL||FL.phase!=='run') return;
@@ -2127,8 +2694,7 @@ function flashShoot(){
     const ttk=FL.peekT0!=null?now-FL.peekT0:NaN;
     if(Number.isFinite(ttk)) FL.st.ttkArr.push(ttk);
     if((pick.bot.crouch||0)>0.45) FL.st.crouchKills=(FL.st.crouchKills||0)+1; else FL.st.standKills=(FL.st.standKills||0)+1;
-    const moving=!!(pick.bot.moving || (pick.bot.move && pick.bot.move.phase==='go' && (pick.bot.move.u||0)>0.04 && pick.bot.move.style!=='stop'));
-    if(moving) FL.st.moveKills=(FL.st.moveKills||0)+1;
+    if(botIsMoving(pick.bot)) FL.st.moveKills=(FL.st.moveKills||0)+1;
     if(Number.isFinite(ttk)) FL.st.pushTtk.push(ttk);
     hideBot(pick.bot); hitFx('hit'); beep(1320,0.05,'triangle');
   }else{ hitFx('hit'); beep(880,0.04,'triangle',0.04); }
@@ -2230,7 +2796,10 @@ function flashStep(now){
   const dt=Math.min(0.05,(now-(FL.last||now))/1000); FL.last=now;
   stepMove(dt);
   stepPeekBots(dt,now);
-  if(FL.peekUntil&&now>FL.peekUntil) clearPeekBots();
+  if(FL.peekUntil&&now>FL.peekUntil+80){
+    const live=peekBots.some(b=>b&&!b.dead&&b.group.visible&&b.move&&b.move.phase!=='gone');
+    if(!live) clearPeekBots();
+  }
   const bomb=FL.bomb;
   if(!bomb){
     if(FL.i>=FL.n){ if(now>=FL.busyUntil&&!(FL.peekUntil&&now<FL.peekUntil)) flashFinish(); flashHud(); return; }
@@ -2336,7 +2905,7 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
   flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,flashToast,flashRunTitle,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); ensureGrain(); syncGrain(); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

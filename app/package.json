@@ -1,8 +1,8 @@
 {
   "name": "ez-sens",
   "productName": "EZ Sens",
-  "version": "1.7.0",
-  "description": "EZ Sens — offline aim trainer, shooting range and sensitivity converter",
+  "version": "1.8.0",
+  "description": "EZ Sens \u2014 offline aim trainer, shooting range and sensitivity converter",
   "main": "main.js",
   "author": "chatzo22",
   "license": "UNLICENSED",
