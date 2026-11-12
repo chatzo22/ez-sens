@@ -302,7 +302,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) push out from cover — some take wide, fast swing peeks or shoulder-peek, and a mix stay standing, crouch, or switch stance mid-push — and you shoot them before they retreat. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
   <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
   <div class="drills" id="flashScn">
-    <button data-scn="hall" class="on"><b>Long-doors-style hallway</b><span>Auto-walk a corridor. A flash comes around the far corner or off the wall.</span><em class="best" data-sbest="hall"></em></button>
+    <button data-scn="hall" class="on"><b>Long doors (Dust 2-style)</b><span>Auto-walk Outside Long through the doors. Flashes pop at the doors, Blue, or off-angle from Pit.</span><em class="best" data-sbest="hall"></em></button>
     <button data-scn="hold"><b>Choke hold</b><span>Hold a doorway from cover. The flash pops over the wall or through the gap.</span><em class="best" data-sbest="hold"></em></button>
     <button data-scn="anchor"><b>Site anchor</b><span>You are on site. Flashes and peek dots come from different entries, one at a time.</span><em class="best" data-sbest="anchor"></em></button>
     <button data-scn="entry"><b>Site entry choke</b><span>Auto-walk out of a choke as a pop-flash drops over the front wall.</span><em class="best" data-sbest="entry"></em></button>
@@ -480,7 +480,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
-      <li><b>Flash dodge:</b> play a situation (hallway walk, choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe or shoulder-peek; a Mix stance option — the default — keeps about 40% standing, 30% crouched and 30% switching mid-push, and groups of two or three always include both a standing bot and a crouched or switching one; Standing only, Crouch only and Switching only are also available). Hitboxes follow stance changes. The same Bot stance option applies to Train and Range bot targets. A blind makes them harder to see. Recap tracks dodge %, bots killed, moving kills, standing vs. crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
+      <li><b>Flash dodge:</b> play a situation (Long doors (Dust 2-style), choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe or shoulder-peek; a Mix stance option — the default — keeps about 40% standing, 30% crouched and 30% switching mid-push, and groups of two or three always include both a standing bot and a crouched or switching one; Standing only, Crouch only and Switching only are also available). Hitboxes follow stance changes. The same Bot stance option applies to Train and Range bot targets. A blind makes them harder to see. Recap tracks dodge %, bots killed, moving kills, standing vs. crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
     </ul>
     <h3>Bots and damage models</h3>
     <ul class="small">
@@ -2004,7 +2004,7 @@ function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((pre
 
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
-  hall:{id:'hall',name:'Long-doors-style hallway',auto:true,pathDur:2.8},
+  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:3.6},
   hold:{id:'hold',name:'Choke hold',auto:false},
   anchor:{id:'anchor',name:'Site anchor',auto:false},
   entry:{id:'entry',name:'Site entry choke',auto:true,pathDur:2.4},
@@ -2720,6 +2720,20 @@ function addPeekCovers(meta){
 }
 
 
+function addBlueBin(x,z,C){
+  // Original solid-color dumpster / container (not a ripped asset).
+  const fy=FY();
+  const hex=S.env==='retro'?0x3a7ae8:S.env==='day'?0x2e6ccc:S.env==='sunrise'?0x3a5aaa:0x2a4a88;
+  addBox(x, fy+1.15, z, 2.2, 2.3, 2.6, hex, 'crate', {em:S.env==='retro'?0.55:0.15});
+  addBox(x, fy+2.34, z, 2.34, 0.12, 2.74, C.trim, 'trim');
+}
+function addBlockCar(x,z,C){
+  // Original boxy vehicle blockout (body + cabin), not a ripped model.
+  const fy=FY();
+  addBox(x, fy+0.42, z, 1.35, 0.84, 2.45, C.crate2||C.crate, 'crate');
+  addBox(x, fy+0.98, z-0.2, 1.18, 0.7, 1.35, C.crate, 'crate');
+}
+
 function unloadScn(){
   clearPeekBots(); hideGrenade();
   if(scnTemps&&scnTemps.length){ scnTemps.forEach(g=>{ if(g&&g.dispose)g.dispose(); }); scnTemps=[]; }
@@ -2769,14 +2783,21 @@ function loadScn(id){
 
 
 function dressHall(C,fy){
-  addBaseboard(-1.72,-6,0.08,24,C); addBaseboard(1.72,-5,0.08,16,C);
-  addDoorFrame(0,-6,3.0,2.55-fy,0.28,C,'z');
-  for(let z=4;z>=-16;z-=4){ addBeam(0,3.05,z,4.4,0.22,C); if(z>-14) addLightFix(0,3.12,z-1.2,0.9,0.28,C); }
-  addFloorLines(0,-6,3.2,20,2.0,C);
-  addBarrel(-1.35,0.4,C); addCrateStack(1.25,3.0,C);
-  addCrate(8.6,0,-18.9,0.85,C); addBarrel(5.6,-19.6,C);
-  addBox(6,1.2,-18.3,0.08,5.2,4.6,C.wall3,'decal');
-  addSitePlate(0,3.6,'A',C);
+  const doorH=2.55-fy;
+  addDoorFrame(0,2.0,3.2,doorH,0.32,C,'z');
+  addDoorFrame(0,-1.4,3.2,doorH,0.32,C,'z');
+  addBaseboard(-5.05,6.6,0.1,9.2,C); addBaseboard(5.05,6.6,0.1,9.2,C);
+  addBaseboard(-3.85,-18.5,0.1,16,C); addBaseboard(3.85,-18.5,0.1,16,C);
+  for(const z of [8,4,0,-6,-12,-18,-24,-29]) addLightFix(0,3.12,z,1.0,0.28,C);
+  addBeam(0,3.05,2.0,10,0.22,C); addBeam(0,3.05,-1.4,8,0.22,C);
+  addBeam(0,3.05,-8,12,0.22,C); addBeam(0,3.05,-18,8,0.22,C); addBeam(0,3.05,-28,10,0.22,C);
+  addFloorLines(0,6.5,8,10,2.2,C); addFloorLines(0,-18,7,16,2.2,C);
+  addBlueBin(4.05,-5.15,C);
+  addBlockCar(2.85,-21.6,C);
+  addCrateStack(3.35,-9.7,C);
+  addBarrel(-2.35,-3.1,C);
+  addCrate(-2.6,0,-27.4,0.85,C);
+  addSitePlate(-0.8,-30.4,'A',C);
 }
 function dressHold(C,fy){
   addBaseboard(-4.0,-7,0.1,9,C); addBaseboard(4.0,-7,0.1,9,C);
@@ -2845,32 +2866,127 @@ function dressRamp(C,fy){
 }
 
 function buildHall(){
+  // Original Dust 2-style Long blockout. Own boxes only — no ripped CS2 assets.
+  // Proportions follow the well-known layout (compressed to a trainer scale):
+  // Outside Long -> two door frames with one open leaf -> Blue on the right,
+  // Pit down to the left, Long up toward Car and A site / ramp.
   const C=scnCols(), fy=FY();
-  addFloor(0,-6,10,28,C.floor); addFloor(6,-18.3,10,6,C.floor);
-  addBox(-2.05,1.2,-6,0.7,5.7,26,C.wall,'wall');
-  addBox(2.05,1.2,-5,0.7,5.7,18,C.wall,'wall');
-  addBox(-0.5,1.2,-18.45,3.6,5.7,0.7,C.wall,'wall');
-  addBox(6,1.2,-16.15,8,5.7,0.7,C.wall,'wall');
-  addBox(6,1.2,-20.45,9,5.7,0.7,C.wall,'wall');
-  addBox(10.3,1.2,-18.3,0.7,5.7,4.8,C.wall,'wall');
-  addBox(-1.35,1.2,-6,0.5,5.7,0.4,C.trim,'wall'); addBox(1.35,1.2,-6,0.5,5.7,0.4,C.trim,'wall');
-  addBox(0,2.55,-6,3.4,0.5,0.4,C.trim,'wall');
-  addBox(0,3.2,-6,5.2,0.3,26,C.ceil,'wall'); addBox(6,3.2,-18.3,9,0.3,5.2,C.ceil,'wall');
-  addBox(-1.1,fy+0.45,2.2,0.9,0.9,1.1,C.crate,'crate');
-  addBox(4.5,fy+0.45,-19.2,1.0,0.9,1.0,C.crate,'crate');
+  const WH=5.7, WY=1.2;           // walls from floor up past the ceiling
+  const PIT_D=1.15, pitY=fy-PIT_D;
+  const wallToPit=(x,z,sx,sz)=>{
+    // Extend this wall down to the pit floor so it does not hover.
+    const top=WY+WH/2, bot=pitY-0.06, h=top-bot, cy=(top+bot)/2;
+    addBox(x,cy,z,sx,h,sz,C.wall,'wall');
+  };
+
+  // Floors: Outside Long, bedroom, Long court (minus Pit hole), corridor, A site, pit.
+  addFloor(0,6.6,12,9.6,C.floor);             // Outside Long z=1.8..11.4
+  addFloor(0,0.3,5.2,3.6,C.floor);            // bedroom z=-1.5..2.1
+  addFloor(2.9,-6.4,7.4,10.4,C.floor);        // court right / Blue (stays off the Pit hole)
+  addFloor(-2.2,-3.1,3.2,3.4,C.floor);        // side-pit shelf z=-1.4..-4.8
+  addFloor(-5.85,-3.4,3.5,2.8,C.floor);       // pit plat (raised shelf) z=-2.0..-4.8
+  addFloor(0,-19.0,8.4,15.6,C.floor);         // Long corridor z=-11.2..-26.8
+  addFloor(-0.4,-29.4,11,6.4,C.floor);        // A / cross z=-26.2..-32.6
+  addBox(-4.7, pitY-0.06, -7.85, 6.2, 0.12, 5.6, C.floor, 'floor'); // Pit floor (left of Long)
+
+  // Outside Long enclosure
+  addBox(-5.35,WY,6.6,0.6,WH,9.6,C.wall,'wall');
+  addBox( 5.35,WY,6.6,0.6,WH,9.6,C.wall,'wall');
+  addBox(0,WY,11.35,11.3,WH,0.6,C.wall,'wall');
+
+  // Outer door face (z=2.0). Opening x=-1.6..1.6; RIGHT leaf is the open gap (x=0.1..1.6).
+  addBox(-3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
+  addBox( 3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
+  addBox(0,2.72,2.0,3.4,0.7,0.55,C.trim,'wall');
+  addBox(-0.75,fy+1.25,2.0,1.5,2.5,0.14,C.wall2,'wall'); // closed left leaf
+
+  // Bedroom sides
+  addBox(-2.55,WY,0.3,0.5,WH,3.5,C.wall,'wall');
+  addBox( 2.55,WY,0.3,0.5,WH,3.5,C.wall,'wall');
+
+  // Inner door face (z=-1.4). Same right-leaf gap.
+  addBox(-3.5,WY,-1.4,3.8,WH,0.55,C.wall,'wall');
+  addBox( 3.5,WY,-1.4,3.8,WH,0.55,C.wall,'wall');
+  addBox(0,2.72,-1.4,3.4,0.7,0.55,C.trim,'wall');
+  addBox(-0.75,fy+1.25,-1.4,1.5,2.5,0.14,C.wall2,'wall');
+
+  // Inner face extends out to the court walls
+  addBox(-5.7,WY,-1.4,2.2,WH,0.55,C.wall,'wall');
+  addBox( 5.5,WY,-1.4,2.6,WH,0.55,C.wall,'wall');
+
+  // Court walls: Pit on the left (low floor), Blue on the right, then Long Corner jog.
+  wallToPit(-8.2,-6.6,0.6,10.8);              // far left of pit / plat
+  addBox(6.35,WY,-6.6,0.6,WH,10.8,C.wall,'wall'); // right wall of court (Blue sits against it)
+  // Pit back (A-facing) lip + wall, hides pit from A
+  wallToPit(-4.9,-10.75,6.8,0.55);
+  // Low brick lip on the doors-facing and Long-facing pit edges
+  addBox(-1.55, pitY+0.45, -7.7, 0.28, 0.9, 5.6, C.trim, 'wall'); // Long-side lip
+  addBox(-4.7, fy+0.22, -5.05, 5.4, 0.44, 0.28, C.trim, 'wall'); // doors-facing lip
+  // Steps down into Pit from the side-pit shelf
+  addBox(-2.35, pitY+0.28, -5.55, 1.5, 0.28, 0.7, C.trim, 'trim');
+  addBox(-2.35, pitY+0.56, -5.95, 1.5, 0.28, 0.7, C.trim, 'trim');
+  addBox(-2.35, pitY+0.84, -6.35, 1.5, 0.28, 0.7, C.trim, 'trim');
+  // Connect pit-left wall to Long left wall
+  wallToPit(-4.05,-11.4,0.6,1.6);
+
+  // Long Corner: right wall jogs from x=6.35 in to x=4.05 around z=-10.6
+  addBox(5.2,WY,-10.55,2.9,WH,0.6,C.wall,'wall');
+  addBox(4.05,WY,-18.6,0.55,WH,16.4,C.wall,'wall'); // Long right wall
+  addBox(-4.05,WY,-19.2,0.55,WH,17.2,C.wall,'wall'); // Long left wall
+
+  // A site / ramp / CT corner at the far end
+  addBox(0,WY,-32.55,11.2,WH,0.6,C.wall,'wall');    // back wall
+  addBox(-5.7,WY,-29.4,0.6,WH,6.4,C.wall,'wall');   // site left
+  addBox( 5.3,WY,-29.4,0.6,WH,6.4,C.wall,'wall');   // site right (CT-side)
+  // Ramp up from Long onto A (solid volumes from the floor, no hovering slabs).
+  addBox(-1.15, fy+0.22, -26.4, 3.1, 0.44, 1.3, C.wall3, 'wall');
+  addBox(-1.15, fy+0.385, -27.3, 3.1, 0.77, 1.3, C.wall3, 'wall');
+  addBox(-1.15, fy+0.55, -28.2, 3.1, 1.10, 1.3, C.wall3, 'wall');
+  addBox(-1.15, fy+0.575, -30.15, 3.6, 1.15, 2.8, C.wall3, 'wall'); // A platform
+  // CT-side corner cover at the right of the site
+  addBox(3.55, fy+0.7, -29.6, 1.4, 1.4, 1.6, C.wall2, 'wall');
+
+  // Ceilings
+  addBox(0,3.2,6.6,12,0.3,9.8,C.ceil,'wall');
+  addBox(0,3.2,0.3,5.6,0.3,3.8,C.ceil,'wall');
+  addBox(0,3.2,-6.6,16.4,0.3,11.0,C.ceil,'wall');
+  addBox(0,3.2,-18.6,8.8,0.3,16.6,C.ceil,'wall');
+  addBox(0,3.2,-29.4,11.4,0.3,6.6,C.ceil,'wall');
+
   dressHall(C,fy);
-  return {start:{x:0,y:0,z:4.5,yaw:0,pitch:2},path:[{x:0,y:0,z:4.5},{x:0,y:0,z:-8}],pathDur:2.8,variants:[
-    {id:'corner-bounce',throw:{pos:[5.5,1.4,-18.5],vel:[-6.5,4.5,5.5]},pop:{pos:[0.4,1.6,-14]},peeks:[[1.48,fy,-14.2],[1.55,fy,-16.5],[-1.48,fy,-15.2]]},
-    {id:'ceiling-pop',throw:{pos:[0.8,1.6,-11],vel:[-0.4,5.5,3.2]},pop:{pos:[0.2,2.4,-8.2]},peeks:[[0,fy,-11.6],[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
-    {id:'close-pop',throw:{pos:[2.2,1.2,-10.5],vel:[-4,3.5,2]},pop:{pos:[0.3,1.1,-10.2]},peeks:[[1.48,fy,-12.2],[-1.48,fy,-9.6],[0,fy,-15.8]]}
-  ],popZones:[
-    {side:'front',id:'front',pop:[0.2,1.5,-8.2],jitter:[0.7,0.35,1.2],throw:[0.6,1.5,-12],vel:[0,4.2,5],peeks:[[0,fy,-11.6],[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
-    {side:'left',id:'left',pop:[-1.05,1.55,-9.5],jitter:[0.25,0.35,1.1],throw:[-1.1,1.3,-14],vel:[0.3,4,5],peeks:[[-1.48,fy,-6.25],[-1.48,fy,-9.6],[-1.48,fy,-15.2]]},
-    {side:'right',id:'right',pop:[5.2,1.5,-18.0],jitter:[1.1,0.35,0.8],throw:[8.6,1.4,-18.5],vel:[-5.5,3.8,1.5],peeks:[[1.48,fy,-14.2],[1.55,fy,-16.5],[1.48,fy,-6.25]]},
-    {side:'above',id:'above',pop:[0.15,2.55,-7.4],jitter:[0.6,0.25,0.9],throw:[0.5,1.6,-11],vel:[-0.2,5.6,3.2],peeks:[[1.48,fy,-6.25],[-1.48,fy,-6.25],[0,fy,-11.6]]},
-    {side:'behind',id:'behind',pop:[0.15,1.45,7.1],jitter:[0.6,0.3,0.5],throw:[0.2,1.3,8.2],vel:[0,3.6,-4.2],peeks:[[1.48,fy,-6.25],[-1.48,fy,-6.25]]},
-    {side:'offangle',id:'offangle',pop:[1.2,1.65,-5.4],jitter:[0.35,0.3,0.7],throw:[2.0,1.3,-10.2],vel:[-2,4,4],peeks:[[1.48,fy,-6.25],[1.48,fy,-12.2]]}
-  ]};
+
+  const jambL=[-1.48,fy,-1.15], jambR=[1.52,fy,2.25];
+  const blue=[5.15,fy,-6.55], corner=[3.55,fy,-10.95];
+  const pit=[-3.35,fy,-6.35], plat=[-5.55,fy,-3.55];
+  const car=[2.95,fy,-22.85], ramp=[-2.35,fy+1.15,-30.0];
+
+  return {
+    start:{x:0,y:0,z:7.6,yaw:0,pitch:2},
+    path:[{x:0,y:0,z:7.6},{x:0,y:0,z:3.5},{x:0.85,y:0,z:2.0},{x:0.85,y:0,z:-1.4},{x:0.2,y:0,z:-4.6}],
+    pathDur:3.6,
+    callouts:[
+      {id:'outside',label:'Outside Long',x:0,z:6.8},
+      {id:'doors',label:'Doors',x:0,z:0.3},
+      {id:'blue',label:'Blue',x:4.05,z:-5.15},
+      {id:'pit',label:'Pit',x:-4.6,z:-7.6},
+      {id:'long',label:'Long',x:0,z:-16.5},
+      {id:'car',label:'Car',x:2.85,z:-21.6},
+      {id:'site',label:'A Site',x:-1.15,z:-30.2}
+    ],
+    variants:[
+      {id:'ct-over-doors',throw:{pos:[0.3,2.1,-18.5],vel:[0,5.2,9]},pop:{pos:[0.85,1.85,-2.5]},peeks:[jambL,blue,corner,pit]},
+      {id:'doors-pop',throw:{pos:[0.2,1.5,-16.5],vel:[0,3.8,10]},pop:{pos:[0.85,1.45,-2.6]},peeks:[jambL,blue,corner,car]},
+      {id:'blue-pop',throw:{pos:[3.2,1.5,-14.5],vel:[-0.4,4.2,7]},pop:{pos:[1.75,1.50,-4.2]},peeks:[blue,corner,car,ramp]}
+    ],
+    popZones:[
+      {side:'front',id:'front',pop:[0.85,1.45,-2.6],jitter:[0.4,0.25,0.5],throw:[0.2,1.5,-16.5],vel:[0,3.8,10],peeks:[jambL,blue,corner,pit]},
+      {side:'above',id:'above',pop:[0.85,2.1,-2.2],jitter:[0.4,0.2,0.45],throw:[0.3,2.1,-18.5],vel:[0,5.2,9],peeks:[jambL,blue,corner,car]},
+      {side:'right',id:'right',pop:[1.75,1.50,-4.2],jitter:[0.22,0.25,0.35],throw:[3.2,1.5,-14.5],vel:[-0.4,4.2,7],peeks:[blue,corner,car,jambR]},
+      {side:'left',id:'left',pop:[-2.7,1.35,-4.3],jitter:[0.55,0.3,0.7],throw:[-4.6,0.35,-7.6],vel:[3.4,5.2,3.2],peeks:[pit,plat,jambL,corner]},
+      {side:'behind',id:'behind',pop:[0.2,1.4,10.3],jitter:[0.55,0.3,0.4],throw:[0.2,1.3,11.0],vel:[0,3.2,-4],peeks:[jambL,blue,corner]},
+      {side:'offangle',id:'offangle',pop:[1.25,1.4,-3.15],jitter:[0.45,0.3,0.6],throw:[-4.8,0.4,-8.2],vel:[6.5,4.8,4.5],peeks:[pit,blue,corner,ramp]}
+    ]
+  };
 }
 function buildHold(){
   const C=scnCols(), fy=FY();

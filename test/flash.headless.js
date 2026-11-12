@@ -98,10 +98,15 @@ fs.mkdirSync(OUT,{recursive:true});
 
   // dodge: look away before detonation (authored variant, not random pop)
   const dodge=await pg.evaluate(async()=>{
-    EZ.S.flash.rand=false; const fl0=EZ.flash(); if(fl0) fl0.rand=false;
+    EZ.S.flash.rand=false; EZ.S.flash.scn='hall';
+    EZ.setScn('hall');
+    const fl0=EZ.flash(); if(fl0){ fl0.rand=false; fl0.i=0; if(fl0.vi!=null) fl0.vi=0; }
     EZ.forceFlashRun();
     EZ.spawnFlash(performance.now());
     const fl=EZ.flash(); const bomb=fl.bomb;
+    // Keep the authored pop in the open door gap (visible from spawn) so this
+    // assertion is about looking away, not about a later Long-side pop being covered.
+    if(bomb&&bomb.pos){ bomb.pos.set(0.85,1.45,-2.6); }
     EZ.lookAway();
     const ang=EZ.flashAngle(bomb.pos);
     const fac=EZ.flashFactor(ang);
@@ -1160,7 +1165,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15; fl.st.moveKills=0; fl.st.botKills=0;
     EZ.spawnFlash(performance.now());
     EZ.lookAway(); EZ.detonateFlash(performance.now());
@@ -1170,9 +1175,12 @@ fs.mkdirSync(OUT,{recursive:true});
     const bot=bots[0];
     bots.forEach(b=>{ if(b!==bot){ b.dead=true; b.group.visible=false; } });
     bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0); EZ.armBot(bot,performance.now());
-    bot.move.phase='go'; bot.move.goAt=0; bot.move.style='swing'; bot.move.u=0.45; bot.move.settled=false; bot.moving=true;
-    const f=bot.move.from, t=bot.move.to;
-    bot.group.position.set(f.x+(t.x-f.x)*0.45, f.y, f.z+(t.z-f.z)*0.45);
+    const fy=EZ.FLOOR_Y+0.05;
+    // Plant mid-swing in the open on Long, just ahead of the player (past the doors).
+    const f={x:2.4,y:fy,z:-8.2}, t={x:0.2,y:fy,z:-7.2};
+    bot.move=Object.assign(bot.move||{},{phase:'go',goAt:0,style:'swing',u:0.45,settled:false,from:f,to:t});
+    bot.moving=true;
+    bot.group.position.set(f.x+(t.x-f.x)*0.45, fy, f.z+(t.z-f.z)*0.45);
     bot.crouchWant=0; EZ.applyCrouch(bot,0);
     bot.group.updateMatrixWorld(true);
     const head=bot.head.getWorldPosition(new V());
@@ -1199,7 +1207,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15;
     EZ.spawnFlash(performance.now());
     EZ.lookAway(); EZ.detonateFlash(performance.now());
@@ -1265,8 +1273,8 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setScn('hall');
     for(const diff of diffs){
       EZ.S.flash.diff=diff;
-      const fl=EZ.flash(); fl.diff=diff; fl.busyUntil=1e15; fl.n=8; fl.i=0;
-      EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+      const fl=EZ.flash(); fl.diff=diff; fl.busyUntil=1e15; fl.n=8; fl.i=0; if(fl.vi!=null) fl.vi=0;
+      EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
       EZ.spawnFlash(performance.now());
       EZ.lookAway();
       const t0=performance.now();
@@ -1291,6 +1299,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.diff='normal'; fl.busyUntil=1e15; fl.n=8; fl.i=0;
     EZ.spawnFlash(performance.now());
     EZ.lookAway();
@@ -1325,21 +1334,30 @@ fs.mkdirSync(OUT,{recursive:true});
 
   // turn-back time is recorded on the first hit after a dodge
   const tb=await pg.evaluate(()=>{
-    // continue from current dodge peeks if any, else fresh
     EZ.S.hint=true;
-    const fl=EZ.flash();
-    if(!fl||fl.peekOutcome!=='dodged'){
-      EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
-      const f=EZ.flash(); f.busyUntil=1e15;
-      EZ.spawnFlash(performance.now()); EZ.lookAway(); EZ.detonateFlash(performance.now());
-    }
-    const f=EZ.flash();
-    const pop=f.popAt;
-    EZ.stepPeekBots(0.6, pop+600);
-    // look at a live bot and shoot
-    const bot=(EZ.peekBots()||[]).find(b=>b&&!b.dead&&b.group.visible);
-    if(!bot) return {error:'no bot', st:f.st};
+    EZ.S.flash.rand=false; EZ.S.flash.scn='hall'; EZ.S.flash.diff='normal';
+    EZ.S.bot.shape='bot'; EZ.S.bot.dmg='cs2arm';
+    EZ.setMode('flash','flash');
+    EZ.startFlash(); EZ.forceFlashRun(); EZ.setScn('hall');
+    const f=EZ.flash(); f.busyUntil=1e15; f.n=8; f.i=0;
+    EZ.spawnFlash(performance.now());
+    if(f.bomb&&f.bomb.pos) f.bomb.pos.set(0.85,1.45,-2.6);
+    EZ.lookAway();
+    const t0=performance.now();
+    EZ.detonateFlash(t0);
+    // Keep the shoot window open for this assertion (real time may have
+    // already eaten the previous test's peekUntil).
+    f.peekUntil=performance.now()+8000;
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    const pop=f.popAt||t0;
+    EZ.stepPeekBots(1.05, pop+1050);
     const V=EZ.camEye.constructor;
+    const bot=(EZ.peekBots()||[]).find(b=>{
+      if(!b||b.dead||!b.group||!b.group.visible) return false;
+      const head=b.head.getWorldPosition(new V());
+      return !!EZ.losOpen(EZ.camEye, head);
+    });
+    if(!bot) return {error:'no bot', st:f.st, outcome:f.peekOutcome};
     const head=bot.head.getWorldPosition(new V());
     const p=head.clone().sub(EZ.camEye); const len=p.length()||1;
     EZ.view.yaw=Math.atan2(-p.x,-p.z)*180/Math.PI;
@@ -1363,7 +1381,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.S.flash.rand=false; EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot';
     EZ.setMode('flash','flash');
     EZ.setScn('hall'); EZ.previewScn();
-    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
     const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
     const fx=document.getElementById('flashFx'); if(fx){ fx.style.opacity='0'; }
     const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
@@ -1385,7 +1403,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0,0,4.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(0.2,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15;
     EZ.spawnFlash(performance.now());
     EZ.lookAway(); EZ.detonateFlash(performance.now());
@@ -1610,7 +1628,7 @@ fs.mkdirSync(OUT,{recursive:true});
       if(kind==='types'){
         bots.slice(0,3).forEach((bot,i)=>put(bot,poses[i],1));
         (EZ.peekBots()||[]).forEach((b,i)=>{ if(i>=3&&b){ b.dead=true; b.group.visible=false; } });
-        EZ.camEye.set(0,0,-1.15); EZ.view.yaw=0; EZ.view.pitch=3;
+        EZ.camEye.set(0.2,0,-2.2); EZ.view.yaw=0; EZ.view.pitch=3;
       }else{
         const slider=bots[0];
         (EZ.peekBots()||[]).forEach(b=>{ if(b!==slider){ b.dead=true; b.group.visible=false; } });
@@ -1771,7 +1789,7 @@ fs.mkdirSync(OUT,{recursive:true});
       bot.group.updateMatrixWorld(true);
     });
     (EZ.peekBots()||[]).forEach((b,i)=>{ if(i>=3&&b){ b.dead=true; b.group.visible=false; } });
-    EZ.camEye.set(0,0,-1.15); EZ.view.yaw=0; EZ.view.pitch=3; EZ.applyCams();
+    EZ.camEye.set(0.2,0,-2.2); EZ.view.yaw=0; EZ.view.pitch=3; EZ.applyCams();
     const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
     const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
     const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
@@ -1814,7 +1832,7 @@ fs.mkdirSync(OUT,{recursive:true});
   }
   // extra angles: hall corner + hold looking up at ceiling join
   for(const shot of [
-    {id:'hall', name:'walls-closed-hall-corner', eye:[0.85,0.15,-1.2], yaw:38, pitch:12},
+    {id:'hall', name:'walls-closed-hall-corner', eye:[0.4,0.1,-3.4], yaw:28, pitch:6},
     {id:'hold', name:'walls-closed-hold-up', eye:[0,0,2.4], yaw:-18, pitch:22},
     {id:'mid', name:'walls-closed-mid-corner', eye:[1.2,0,2.0], yaw:-32, pitch:8}
   ]){
