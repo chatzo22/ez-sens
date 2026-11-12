@@ -76,8 +76,8 @@ tr.me td{background:#36f1a60d}
 .drills button .best:empty{display:none}
 #stage{position:relative;width:100%;aspect-ratio:16/9;background:#05070a;border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none}
 #stage canvas{display:block;width:100%;height:100%}
-#grain{position:absolute;inset:-20px;pointer-events:none;z-index:2;display:none;opacity:0;background-repeat:repeat;background-size:128px 128px;mix-blend-mode:overlay}
-#grain.on,#stage.grain #grain{display:block;opacity:.14}
+#grain{position:absolute;inset:0;pointer-events:none;z-index:2;display:none;opacity:0;background-repeat:repeat;background-size:128px 128px}
+#grain.on,#stage.grain #grain{display:block;opacity:.07}
 #stage:fullscreen{border-radius:0;border:0}
 #edgeHint{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 #xh{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
@@ -244,7 +244,8 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <div><label for="scale">Render scale</label><select id="scale"><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="native">Native (HiDPI)</option></select></div>
     <div><label for="afov">Arena FOV (horizontal °)</label><input id="afov" type="number" min="60" max="130" step="1" placeholder="auto"></div>
     <div class="checks">
-      <label class="inl"><input type="checkbox" id="lowq"> Low quality (faster)</label>
+      <label class="inl"><input type="checkbox" id="lowq"> Low graphics (faster)</label>
+      <label class="inl"><input type="checkbox" id="autoQual" checked> Auto quality</label>
       <label class="inl"><input type="checkbox" id="showFps" checked> FPS counter</label>
       <label class="inl"><input type="checkbox" id="sound" checked> Sound cues</label>
       <label class="inl"><input type="checkbox" id="hintOpt" checked> Off-screen target hint</label>
@@ -472,7 +473,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Everything — including the 3D engine (three.js r160, MIT, bundled in this file) — runs locally. Nothing is downloaded during play, so there is no "ping".</li>
       <li>Rendering uses <code>requestAnimationFrame</code>, so it runs at your monitor's refresh rate (60/100/144/240 Hz+). The frame-rate setting can cap it lower; it can't go above the display's refresh rate (browsers sync to the display).</li>
       <li>Mouse input uses pointer lock with <code>unadjustedMovement</code> (raw counts, no OS acceleration) and Chrome's <code>pointerrawupdate</code> events where available. Each event rotates the camera immediately; there is no smoothing or frame-time scaling, so sensitivity is identical at any FPS. Clicks are judged against the aim at the moment of the click.</li>
-      <li>Low-quality mode turns off antialiasing and fog; render scale lowers resolution for weaker PCs.</li>
+      <li>Low graphics turns off antialiasing, fog and the film-grain overlay, and caps pixel ratio. Auto quality (on by default) does the same temporarily if frame time stays high. Render scale lowers resolution for weaker PCs.</li>
     </ul>
     <h3>How scoring works</h3>
     <ul class="small">

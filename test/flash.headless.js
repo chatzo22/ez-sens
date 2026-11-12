@@ -17,6 +17,7 @@ fs.mkdirSync(OUT,{recursive:true});
   await pg.evaluate(()=>localStorage.clear());
   await pg.reload({waitUntil:'load'});
   await pg.waitForFunction(()=>document.documentElement.dataset.ready==='1',{timeout:20000});
+  await pg.evaluate(()=>{ if(EZ&&EZ.S){ EZ.S.autoQual=false; EZ.S.lowq=false; } });
   await new Promise(r=>setTimeout(r,300));
   const fail=(m)=>{ console.error('FAIL',m); throw new Error(m); };
 
@@ -1710,6 +1711,38 @@ fs.mkdirSync(OUT,{recursive:true});
     if(!(r.tris>=r.expect && r.tris%12===0)) fail('triangle count should cover every box face on '+r.scn+': '+JSON.stringify({tris:r.tris,expect:r.expect,boxes:r.boxes}));
   }
 
+  const look=await pg.evaluate(()=>{
+    const grain=document.getElementById('grain');
+    const gcs=grain?getComputedStyle(grain):null;
+    EZ.setEnv('retro'); EZ.setMode('flash','flash'); EZ.setScn('hall');
+    const env=EZ.envInfo();
+    const maps=[];
+    for(const id of EZ.SCN_IDS){
+      EZ.setScn(id);
+      const r=EZ.scnObjectReport();
+      const cl=EZ.wallClosureReport();
+      maps.push({id, floaters:(r.floaters||[]).map(f=>({mid:f.mid,size:f.size,role:f.role})), floaterN:(r.floaters||[]).length, closureBad:(cl.bad||[]).length, info:EZ.rendererInfo()});
+    }
+    EZ.setScn('hall');
+    const info=EZ.rendererInfo();
+    return {
+      fogNear:env.fogNear, fogFar:env.fogFar, fog:env.fog, hemi:env.hemi, sunI:env.sunI,
+      grainBlend:gcs?gcs.mixBlendMode:'', grainInset:gcs?gcs.inset||gcs.top:'',
+      autoQual:!!document.getElementById('autoQual'),
+      lowLabel:(document.querySelector('label[for=lowq], #lowq')&&document.getElementById('lowq')&&document.getElementById('lowq').parentElement.textContent)||'',
+      maps, info, displayHz:EZ.readDisplayHz(), useLow:EZ.useLowGfx()
+    };
+  });
+  console.log('flash look', JSON.stringify({fogNear:look.fogNear,fogFar:look.fogFar,fog:look.fog,hemi:look.hemi,sunI:look.sunI,grainBlend:look.grainBlend,info:look.info,floaters:look.maps.map(m=>[m.id,m.floaterN]),autoQual:look.autoQual}));
+  if(look.fogNear<30 || look.fogFar<70) fail('flash retro fog still swallows the room: '+JSON.stringify({near:look.fogNear,far:look.fogFar}));
+  if(look.hemi<1) fail('flash retro lighting too dim, hemi='+look.hemi);
+  if(/overlay|multiply|screen|color-dodge/i.test(look.grainBlend||'')) fail('grain overlay blend kills GPU compositing: '+look.grainBlend);
+  if(!look.autoQual) fail('Auto quality checkbox missing');
+  for(const m of look.maps){
+    if(m.floaterN) fail('floating neon/props block the sightline on '+m.id+': '+JSON.stringify(m.floaters));
+    if(m.closureBad) fail('wall closure broke on '+m.id);
+  }
+
   // flash-during-whiteout.png — solid bots under a visible wash
   const wo=await pg.evaluate(()=>{
     EZ.setEnv('retro'); EZ.setTheme('dark');
@@ -1762,17 +1795,22 @@ fs.mkdirSync(OUT,{recursive:true});
       EZ.S.flash.warned=true; EZ.S.flash.reduced=true; EZ.S.flash.preset='val'; EZ.S.flash.scn=id;
       EZ.S.flash.rand=false; EZ.setMode('flash','flash');
       EZ.setScn(id); EZ.previewScn();
-      const s=(EZ.scnMeta()&&EZ.scnMeta().start)||{x:0,y:0,z:4.5,yaw:0,pitch:4};
+      const s=(EZ.scnMeta()&&EZ.scnMeta().start)||{x:0,y:0,z:4.5,yaw:0,pitch:2};
       EZ.camEye.set(s.x,s.y,s.z);
-      EZ.view.yaw=s.yaw||0; EZ.view.pitch=8;
+      EZ.view.yaw=s.yaw||0; EZ.view.pitch=(id==='hall'?(s.pitch==null?2:s.pitch):8);
       EZ.applyCams();
       const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
-      const fx=document.getElementById('flashFx'); if(fx) fx.style.opacity='0';
-      const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
+      const fx=document.getElementById('flashFx'); if(fx){ fx.style.opacity='0'; fx.classList.add('hide'); }
+      const ov=document.querySelector('#ov'); if(ov){ ov.classList.add('hide'); ov.style.display='none'; }
       const hud=document.getElementById('ahud'); if(hud) hud.classList.remove('show');
     }, id);
     await stage.screenshot({path:path.join(OUT,'walls-closed-'+id+'.png')});
     console.log('shot', path.join(OUT,'walls-closed-'+id+'.png'));
+    if(id==='hall'){
+      await stage.screenshot({path:path.join(OUT,'hall-after.png')});
+      console.log('shot', path.join(OUT,'hall-after.png'));
+    }
+    await stage.screenshot({path:path.join(OUT,'walls-after-'+id+'.png')});
   }
   // extra angles: hall corner + hold looking up at ceiling join
   for(const shot of [

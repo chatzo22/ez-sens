@@ -1,5 +1,5 @@
 // EZ Sens desktop shell (Electron). Loads the bundled single-file app fully offline.
-const { app, BrowserWindow, Menu, protocol, session, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, protocol, session, ipcMain, dialog, shell, screen } = require('electron');
 const path = require('path'), fs = require('fs');
 
 const cfgFile = () => path.join(app.getPath('userData'), 'ezsens-desktop.json');
@@ -10,8 +10,10 @@ let cfg = readCfg();
 // GPU / frame pacing switches must be set before 'ready'
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+// Never disable GPU: a software fallback is what makes Flash feel like 13 fps on a gaming PC.
 if (cfg.unlockFps) {
   app.commandLine.appendSwitch('disable-frame-rate-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
@@ -57,7 +59,15 @@ app.whenReady().then(()=>{
   // Block all network requests except our own scheme / blob / data (fully offline)
   session.defaultSession.webRequest.onBeforeRequest((d,cb)=>cb({ cancel: !/^(ezsens|blob|data|devtools|chrome-extension):/.test(d.url) }));
 
-  ipcMain.handle('ezsens:get', ()=>({ unlockFps:cfg.unlockFps, borderless:cfg.borderless, version:app.getVersion() }));
+  ipcMain.handle('ezsens:get', ()=>{
+    let displayHz=0, gpu='';
+    try{ const d=screen.getPrimaryDisplay(); displayHz=(d&&d.displayFrequency)||0; }catch(e){}
+    try{
+      const st=app.getGPUFeatureStatus&&app.getGPUFeatureStatus();
+      if(st&&st.gpu_compositing&&/disabled|software/i.test(String(st.gpu_compositing))) gpu='software compositor';
+    }catch(e){}
+    return { unlockFps:cfg.unlockFps, borderless:cfg.borderless, version:app.getVersion(), displayHz, gpu };
+  });
   ipcMain.handle('ezsens:setUnlock', (e,on)=>{ setUnlock(on); return true; });
   ipcMain.handle('ezsens:fullscreen', ()=>{ if(win) win.setFullScreen(!win.isFullScreen()); return win&&win.isFullScreen(); });
 
