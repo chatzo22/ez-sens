@@ -5,8 +5,9 @@ const URL_=process.argv[2]||'file:///workspace/out/ez-sens/index.html';
 const OUT=process.argv[3]||'/workspace/out/ez-sens-qa';
 fs.mkdirSync(OUT,{recursive:true});
 (async()=>{
-  const b=await p.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox','--use-gl=swiftshader','--enable-unsafe-swiftshader']});
+  const b=await p.launch({executablePath:'/usr/bin/google-chrome',headless:'new',protocolTimeout:600000,args:['--no-sandbox','--use-gl=swiftshader','--enable-unsafe-swiftshader']});
   const pg=await b.newPage();
+  pg.setDefaultTimeout(600000);
   await pg.setViewport({width:1440,height:1100});
   const errs=[],net=[];
   pg.on('pageerror',e=>errs.push('pageerror: '+e.message));
@@ -1165,12 +1166,12 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15; fl.st.moveKills=0; fl.st.botKills=0;
     EZ.spawnFlash(performance.now());
     // spawnFlash auto-walks back to Taxi; stay in the open door gap for LOS checks
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
-    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-0.7,1.42,-8.6); }
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-1.4,1.42,-22.4); }
     EZ.lookAway(); EZ.detonateFlash(performance.now());
     fl.peekUntil=performance.now()+20000; fl.retreatAt=performance.now()+20000;
     const bots=(EZ.peekBots()||[]).filter(b=>b&&!b.dead&&b.move);
@@ -1180,7 +1181,7 @@ fs.mkdirSync(OUT,{recursive:true});
     bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0); EZ.armBot(bot,performance.now());
     const fy=EZ.FLOOR_Y+0.05;
     // Plant mid-swing in the open on Long, just ahead of the player (past the doors).
-    const f={x:2.4,y:fy,z:-8.2}, t={x:0.2,y:fy,z:-7.2};
+    const f={x:2.2,y:fy,z:-19.6}, t={x:0.4,y:fy,z:-18.4};
     bot.move=Object.assign(bot.move||{},{phase:'go',goAt:0,style:'swing',u:0.45,settled:false,from:f,to:t});
     bot.moving=true;
     bot.group.position.set(f.x+(t.x-f.x)*0.45, fy, f.z+(t.z-f.z)*0.45);
@@ -1210,12 +1211,12 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15;
     EZ.spawnFlash(performance.now());
     // spawnFlash auto-walks back to Taxi; stay in the open door gap for LOS checks
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
-    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-0.7,1.42,-8.6); }
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-1.4,1.42,-22.4); }
     EZ.lookAway(); EZ.detonateFlash(performance.now());
     const bots0=(EZ.peekBots()||[]).filter(b=>b&&!b.dead);
     if(!bots0.length) return {error:'no bots'};
@@ -1280,11 +1281,11 @@ fs.mkdirSync(OUT,{recursive:true});
     for(const diff of diffs){
       EZ.S.flash.diff=diff;
       const fl=EZ.flash(); fl.diff=diff; fl.busyUntil=1e15; fl.n=8; fl.i=0; if(fl.vi!=null) fl.vi=0;
-      EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+      EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
       EZ.spawnFlash(performance.now());
       // spawnFlash auto-walks back to Taxi; stay in the open door gap for LOS checks
-      EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
-      { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-0.7,1.42,-8.6); }
+      EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+      { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-1.4,1.42,-22.4); }
       EZ.lookAway();
       const t0=performance.now();
       EZ.detonateFlash(t0);
@@ -1308,12 +1309,12 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.diff='normal'; fl.busyUntil=1e15; fl.n=8; fl.i=0;
     EZ.spawnFlash(performance.now());
     // spawnFlash auto-walks back to Taxi; stay in the open door gap for LOS checks
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
-    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-0.7,1.42,-8.6); }
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-1.4,1.42,-22.4); }
     EZ.lookAway();
     const t0=performance.now();
     EZ.detonateFlash(t0);
@@ -1360,7 +1361,7 @@ fs.mkdirSync(OUT,{recursive:true});
     // Keep the shoot window open for this assertion (real time may have
     // already eaten the previous test's peekUntil).
     f.peekUntil=performance.now()+8000;
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const pop=f.popAt||t0;
     EZ.stepPeekBots(1.05, pop+1050);
     const V=EZ.camEye.constructor;
@@ -1393,7 +1394,7 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.S.flash.rand=false; EZ.S.bot.stance='mix'; EZ.S.bot.shape='bot';
     EZ.setMode('flash','flash');
     EZ.setScn('hall'); EZ.previewScn();
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=4; EZ.applyCams();
     const toast=document.getElementById('flashToast'); if(toast){ toast.className=''; toast.textContent=''; }
     const fx=document.getElementById('flashFx'); if(fx){ fx.style.opacity='0'; }
     const ov=document.querySelector('#ov'); if(ov) ov.classList.add('hide');
@@ -1415,12 +1416,12 @@ fs.mkdirSync(OUT,{recursive:true});
     EZ.setMode('flash','flash');
     EZ.startFlash(); EZ.forceFlashRun();
     EZ.setScn('hall');
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
     const fl=EZ.flash(); fl.busyUntil=1e15;
     EZ.spawnFlash(performance.now());
     // spawnFlash auto-walks back to Taxi; stay in the open door gap for LOS checks
-    EZ.camEye.set(0.7,0,-4.6); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
-    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-0.7,1.42,-8.6); }
+    EZ.camEye.set(2.15,0,-15.5); EZ.view.yaw=0; EZ.view.pitch=2; EZ.applyCams();
+    { const bomb=(fl).bomb; if(bomb&&bomb.pos) bomb.pos.set(-1.4,1.42,-22.4); }
     EZ.lookAway(); EZ.detonateFlash(performance.now());
     fl.peekUntil=performance.now()+20000;
     if(fl.retreatAt!=null) fl.retreatAt=performance.now()+30000;
@@ -1474,14 +1475,14 @@ fs.mkdirSync(OUT,{recursive:true});
     bots.forEach((bot,i)=>{
       bot.dead=false; bot.group.visible=true; bot.dim=0; EZ.paintBot(bot,0);
       if(i===0){
-        const from={x:1.15,y:fy,z:-6.2}, to={x:0.7,y:fy,z:-5.5};
+        const from={x:2.15,y:fy,z:-18.2}, to={x:1.6,y:fy,z:-16.6};
         bot.move=Object.assign(bot.move||{},{phase:'hold',goAt:0,style:'swing',u:0.7,overshoot:1.18,from,to,settled:true});
-        bot.group.position.set(1.05, fy, -5.85);
+        bot.group.position.set(1.90, fy, -17.40);
         bot.crouchWant=0; EZ.applyCrouch(bot,0);
       }else if(i===1){
-        const from={x:-0.9,y:fy,z:-6.6}, to={x:-0.4,y:fy,z:-6.0};
+        const from={x:-1.4,y:fy,z:-20.0}, to={x:-0.8,y:fy,z:-18.5};
         bot.move=Object.assign(bot.move||{},{phase:'hold',goAt:0,style:'jiggle',u:0.5,from,to,settled:true});
-        bot.group.position.set(-0.75, fy, -6.30);
+        bot.group.position.set(-1.10, fy, -19.25);
         bot.crouchWant=1; EZ.applyCrouch(bot,1);
       }else{
         bot.group.visible=false; bot.dead=true;
@@ -1884,7 +1885,7 @@ fs.mkdirSync(OUT,{recursive:true});
       let bestU=0.85, best=1e9;
       for(let u=0;u<=1;u+=0.01){
         const p=EZ.pathAt(path,u);
-        const d=Math.abs(p.z+18.5)+Math.abs(p.x-13.2)*0.25;
+        const d=Math.abs(p.z+50.0)+Math.abs(p.x-19.8)*0.25;
         if(d<best){ best=d; bestU=u; }
       }
       return bestU;
@@ -1935,7 +1936,7 @@ fs.mkdirSync(OUT,{recursive:true});
       let bestU=0.55, best=1e9;
       for(let u=0;u<=1;u+=0.01){
         const p=EZ.pathAt(path,u);
-        const d=Math.abs(p.z+11.8)+Math.abs(p.x-8.0)*0.2;
+        const d=Math.abs(p.z+33.8)+Math.abs(p.x-18.5)*0.2;
         if(d<best){ best=d; bestU=u; }
       }
       return bestU;
@@ -1966,8 +1967,8 @@ fs.mkdirSync(OUT,{recursive:true});
   if(!(strafe.left && strafe.left.dx<-0.6)) fail('KeyA should strafe left: '+JSON.stringify(strafe.left));
   if(!(strafe.arrow && strafe.arrow.dx>0.6)) fail('ArrowRight should strafe right: '+JSON.stringify(strafe.arrow));
   if(!(strafe.yawIndep && strafe.yawIndep.dx>0.6 && Math.abs(strafe.yawIndep.dz)<0.55)) fail('strafe is lane-relative so turning should not change the sidestep: '+JSON.stringify(strafe.yawIndep));
-  if(!(strafe.wall && !strafe.wall.hitSolid && strafe.wall.maxX>strafe.wall.minXPath+1 && strafe.wall.maxX<18.3)) fail('strafe should collide with walls and not clip: '+JSON.stringify(strafe.wall));
-  if(!(strafe.pit && !strafe.pit.fell && strafe.pit.minY>-0.5 && strafe.pit.maxX<12.8)) fail('auto-walk strafe should stay on the walkway and not fall into Pit: '+JSON.stringify(strafe.pit));
+  if(!(strafe.wall && !strafe.wall.hitSolid && strafe.wall.maxX>strafe.wall.minXPath+1 && strafe.wall.maxX<30.5)) fail('strafe should collide with walls and not clip: '+JSON.stringify(strafe.wall));
+  if(!(strafe.pit && !strafe.pit.fell && strafe.pit.minY>-0.5 && strafe.pit.maxX<30.5)) fail('auto-walk strafe should stay on the walkway and not fall into Pit: '+JSON.stringify(strafe.pit));
   if(strafe.vis && strafe.vis.bad) fail('peeks must stay visible from some point on the strafe lane: '+JSON.stringify(strafe.vis));
 
   if(net.length) fail('unexpected network: '+net.join(', '));

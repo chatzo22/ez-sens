@@ -320,8 +320,17 @@ function syncSceneFog(){
   if(MODE==='flash'){
     // Keep the play space readable: old retro flash fog (near=7, far=36, color 0x4a1834)
     // swallowed wall faces a few metres out and left only neon edges visible.
-    if(S.env==='retro'){ fog.color.setHex(0x2a1428); fog.near=42; fog.far=95; }
-    else { fog.color.setHex(e.fog); fog.near=Math.min(e.fogNear,28); fog.far=Math.min(e.fogFar,80); }
+    if(S.env==='retro'){
+      const longHall=S.flash&&S.flash.scn==='hall';
+      fog.color.setHex(0x2a1428);
+      fog.near=longHall?70:42;
+      fog.far=longHall?190:95;
+    }else{
+      const longHall=S.flash&&S.flash.scn==='hall';
+      fog.color.setHex(e.fog);
+      fog.near=longHall?Math.min(e.fogNear,60):Math.min(e.fogNear,28);
+      fog.far=longHall?Math.max(e.fogFar,200):Math.min(e.fogFar,80);
+    }
     fill.color.setHex(S.env==='retro'?0xffd4ec:0xd8e4f0);
     fill.intensity=S.env==='retro'?0.55:0.35;
     hemi.intensity=e.hemi*1.35;
@@ -1229,7 +1238,7 @@ function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((pre
 
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
-  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:7.8},
+  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:13.5},
   hold:{id:'hold',name:'Choke hold',auto:false},
   anchor:{id:'anchor',name:'Site anchor',auto:false},
   entry:{id:'entry',name:'Site entry choke',auto:true,pathDur:2.4},
@@ -1445,8 +1454,8 @@ function addBox(x,y,z,sx,sy,sz,hex,role,opts){
   }
   return m;
 }
-function addFloor(x,z,sx,sz,hex){
-  const fy=FY();
+function addFloor(x,z,sx,sz,hex,yOff){
+  const fy=FY()+(yOff||0);
   if(S.env!=='retro') return addBox(x,fy-0.06,z,sx,0.12,sz,hex,'floor');
   const m=new THREE.Mesh(boxGeo(sx,0.12,sz), (function(){
     const k='rf'+sx.toFixed(2)+','+sz.toFixed(2);
@@ -1976,7 +1985,7 @@ function unloadScn(){
   setArenaDecor(true);
   if(typeof syncSceneFog==='function') syncSceneFog();
 }
-function tintScn(){ if(!scnId)return; const eye=camEye.clone(), yaw=view.yaw, pitch=view.pitch; loadScn(scnId); camEye.copy(eye); view.yaw=yaw; view.pitch=pitch; }
+function tintScn(){ if(!scnId)return; const eye=camEye.clone(), yaw=view.yaw, pitch=view.pitch; loadScn(scnId, true); camEye.copy(eye); view.yaw=yaw; view.pitch=pitch; }
 function placeStart(meta){
   const s=(meta||scnMeta||{}).start||{x:0,y:0,z:0,yaw:0,pitch:2};
   camEye.set(s.x,s.y,s.z); view.yaw=s.yaw; view.pitch=s.pitch;
@@ -1985,9 +1994,9 @@ function previewScn(){
   const id=S.flash.scn==='mix'?'hall':(SCN[S.flash.scn]?S.flash.scn:'hall');
   loadScn(id); placeStart(); clearFlashToast(); flashIdleOv();
 }
-function loadScn(id){
+function loadScn(id, force){
   if(!SCN[id]||id==='mix') id='hall';
-  const keep=scnId===id&&scnGroup;
+  if(!force && scnId===id && scnGroup && scnMeta) return scnMeta;
   if(scnGroup){ const eye=camEye.clone(); unloadScn(); /* unload clears id */ camEye.copy(eye); }
   scnGroup=new THREE.Group(); scene.add(scnGroup); scnWalls=[]; scnMeshes=[]; scnTemps=[]; scnId=id; invalidateWallCache(); setArenaDecor(false);
   if(typeof syncSceneFog==='function') syncSceneFog();
@@ -2010,25 +2019,30 @@ function loadScn(id){
 
 
 function dressHall(C,fy){
-  // CS-scale door frames, zigzag leaves, Blue, Car, lights only under ceilings.
+  // CS-scale door frames, zigzag leaves, Blue, Taxi car, A car, lights under ceilings only.
   const doorH=3.25;
-  addDoorFrame(0,-5.0,3.4,doorH,0.36,C,'z');
-  addDoorFrame(0,-8.0,3.4,doorH,0.36,C,'z');
-  addBaseboard(-4.95,0.3,0.1,7.4,C); addBaseboard(1.55,0.3,0.1,7.4,C);
-  addBaseboard(-1.95,-6.5,0.08,7.0,C); addBaseboard(1.95,-6.5,0.08,7.0,C);
-  addBaseboard(4.6,-9.4,0.08,2.0,C);
-  addBaseboard(13.6,-19.5,0.1,12.4,C);
-  addLightFix(0,3.12,2.5,1.0,0.28,C);       // Taxi
-  addLightFix(0,3.12,-6.5,1.0,0.28,C);      // door vestibule
-  addLightFix(4.4,3.12,-9.4,1.0,0.28,C);    // connector
-  addLightFix(8.4,3.12,-13.0,1.0,0.28,C);   // court (under the ceiling)
-  addLightFix(13.4,3.12,-7.2,1.0,0.28,C);   // over Pit
-  addLightFix(13.4,3.12,-19.0,1.0,0.28,C);  // A long
-  addLightFix(9.0,3.12,-28.0,1.0,0.28,C);   // A site
-  addBeam(0,3.05,-5.0,4.0,0.22,C); addBeam(0,3.05,-8.0,4.0,0.22,C);
-  addBlueBin(5.6,-12.05,C); // Blue box in the court, cubby behind it toward the block
-  addBlockCar(16.8,-23.0,C); // A car on the right wall of A long, by the ramp
-  addSitePlate(8.4,-27.6,'A',C);
+  addDoorFrame(0,-16.09,6.15,doorH,0.40,C,'z');
+  addDoorFrame(0,-21.79,6.15,doorH,0.40,C,'z');
+  addBaseboard(-4.9,-5.8,0.10,15.2,C);
+  addBaseboard(3.2,-5.8,0.10,15.2,C);
+  addBaseboard(-3.2,-19.0,0.08,6.0,C); addBaseboard(3.3,-19.0,0.08,6.0,C);
+  addBaseboard(19.8,-47.0,0.10,24.0,C);
+  addLightFix(0,3.12,0.4,1.0,0.28,C);
+  addLightFix(0,3.12,-18.9,1.0,0.28,C);
+  addLightFix(1.5,3.12,-26.0,1.0,0.28,C);
+  addLightFix(12.0,3.12,-31.0,1.1,0.28,C);
+  addLightFix(20.0,3.12,-20.0,1.0,0.28,C);
+  addLightFix(19.8,3.12,-38.0,1.1,0.28,C);
+  addLightFix(19.8,3.12,-45.0,1.1,0.28,C);
+  addLightFix(19.8,3.12,-51.0,1.1,0.28,C);
+  addLightFix(20.0,3.12,-56.5,1.0,0.28,C);
+  addLightFix(12.0,3.12,-64.0,1.0,0.28,C);
+  addLightFix(12.5,3.12,-72.0,1.0,0.28,C);
+  addBeam(0,3.05,-16.09,6.4,0.22,C); addBeam(0,3.05,-21.79,6.4,0.22,C);
+  addBlueBin(1.68,-23.86,C);
+  addBlockCar(2.40,-6.70,C);
+  addBlockCar(26.80,-57.80,C);
+  addSitePlate(12.1,-71.0,'A',C);
 }
 function dressHold(C,fy){
   addBaseboard(-4.0,-7,0.1,9,C); addBaseboard(4.0,-7,0.1,9,C);
@@ -2097,16 +2111,15 @@ function dressRamp(C,fy){
 }
 
 function buildHall(){
-  // Original low-detail Dust 2-style A/Long blockout. Own boxes only — no ripped CS2 assets.
-  // T Long take: Taxi → zigzag Long doors (first gap RIGHT, second gap LEFT) → wall
-  // ahead, right, right again into the court. Blue is on the left with a cubby behind
-  // it; Pit is the recessed T-end drop opposite Blue; A long runs up to A car / ramp /
-  // A site / Goose. Short, Stairs, Short boost and CT spawn are omitted.
-  // Widths keep a Long-doors / A-long ratio near 0.40. Length is compressed so
-  // Taxi→Goose stays inside Retro Flash fog (near 42 m).
+  // Original low-detail T-side Long blockout traced from the official CS2 de_dust2
+  // radar (1024, pos_x -2476, pos_y 3239, scale 4.4 HU/px). 1 HU = 1 inch = 0.0254 m,
+  // so 1 px = 0.11176 m. Radar origin in this map: (707, 800) to game (0, 0);
+  // game_x = (rx-707)*0.11176, game_z = (ry-800)*0.11176, yaw 0 faces -Z (toward A).
+  // Own boxes and flat colors only — no ripped CS2 assets or textures.
+  // Length is not compressed; Flash fog is extended for this map so Taxi to Goose (~83 m) stays visible.
   const C=scnCols(), fy=FY();
   const WH=5.7, WY=1.2;
-  const PIT_D=1.15, pitY=fy-PIT_D;
+  const PIT_D=1.20, pitY=fy-PIT_D;
   const wallToPit=(x,z,sx,sz)=>{
     const top=WY+WH/2, bot=pitY-0.06, h=top-bot, cy=(top+bot)/2;
     addBox(x,cy,z,sx,h,sz,C.wall,'wall');
@@ -2116,163 +2129,147 @@ function buildHall(){
     const y0=fy+DOOR_H, y1=3.2, h=y1-y0, cy=(y0+y1)/2;
     addBox(x,cy,z,w,h,0.55,C.trim,'wall');
   };
-  // Open leaf stood 90° into the vestibule (axis-aligned box at the hinge).
   const openLeaf=(hx,hz,alongZ,sideX)=>{
-    // hx,hz = hinge in the door plane; alongZ = signed length into the vestibule.
     addBox(hx+sideX*0.08, fy+1.25, hz+alongZ/2, 0.14, 2.5, Math.abs(alongZ), C.wall2, 'wall');
   };
 
-  // ---- Floors ----
-  addFloor(-1.35, 0.30, 6.7, 7.4, C.floor);          // TAXI  x=-4.7..2.0  z=-3.4..4.0
-  addFloor(0, -6.6, 3.5, 6.8, C.floor);              // door corridor + alcove  x=-1.75..1.75  z=-10.0..-3.2
-  addFloor(5.3, -9.35, 7.2, 2.1, C.floor);           // connector (right after the wall) x=1.7..8.9
-  addFloor(9.6, -13.15, 17.2, 6.1, C.floor);         // court in front of Blue and Pit  x=1.0..18.2  z=-16.2..-10.1
-  addFloor(5.6, -13.15, 9.2, 6.1, C.floor);          // court stitch under Blue / cubby
-  addFloor(13.85, -20.6, 8.7, 9.2, C.floor);         // A long (lower stretch)
-  addFloor(13.85, -24.4, 8.7, 3.2, C.floor);         // A long (slight rise toward A) — raised slab below
-  addBox(13.85, fy+0.16, -24.4, 8.7, 0.32, 3.2, C.floor, 'floor'); // +0.32 m grade toward A
-  addFloor(10.2, -27.6, 9.6, 4.0, C.floor);          // A ramp landing / site approach
-  addFloor(8.4, -27.8, 8.8, 3.8, C.floor);           // A site
-  addFloor(10.2, -32.2, 7.6, 3.4, C.floor);          // Goose
-  addBox(14.05, pitY-0.06, -7.05, 5.6, 0.12, 6.3, C.wall3||C.floor, 'floor'); // Pit floor, darker
-  // Two step-downs into Pit from the court lip
-  addBox(14.05, fy-0.42, -10.05, 5.4, 0.20, 0.55, C.wall3, 'wall');
+  addFloor(-4.97, -5.20, 16.2, 17.0, C.floor);
+  addFloor(-10.2, 2.6, 15.0, 4.2, C.floor);
+  addFloor(0.0, -17.6, 6.4, 9.0, C.floor);
+  addFloor(0.2, -29.4, 8.0, 16.0, C.floor);
+  addFloor(17.8, -31.3, 23.0, 8.0, C.floor);
+  addFloor(8.0, -31.3, 20.0, 8.0, C.floor);
+  addFloor(11.4, -20.1, 8.0, 14.0, C.floor);
+  addFloor(19.84, -46.94, 9.2, 24.6, C.floor);
+  addFloor(26.82, -57.84, 5.1, 7.4, C.floor);
+  addFloor(13.4, -62.0, 31.0, 6.0, C.floor);
+  addFloor(12.1, -71.0, 8.0, 8.0, C.floor);
+  addFloor(12.85, -79.3, 6.6, 4.6, C.floor);
+  addBox(19.84, fy+0.14, -50.3, 9.2, 0.28, 9.0, C.floor, 'floor');
+  addBox(20.5, fy+0.26, -57.0, 10.6, 0.52, 8.0, C.floor, 'floor');
+  addFloor(19.84, -50.3, 9.2, 9.0, C.floor, 0.28);
+  addFloor(20.5, -57.0, 10.6, 8.0, C.floor, 0.52);
+  addBox(19.90, pitY-0.06, -22.07, 8.1, 0.12, 20.8, C.wall3||C.floor, 'floor');
+  addBox(19.90, fy-0.42, -32.55, 8.0, 0.20, 0.60, C.wall3, 'wall');
 
-  // ---- TAXI enclosure ----
-  addBox(-5.05, WY, 0.30, 0.55, WH, 7.4, C.wall, 'wall');   // TAXI left
-  addBox( 2.05, WY, 0.35, 0.55, WH, 7.3, C.wall, 'wall');   // TAXI right (forces the doors)
-  addBox(-1.50, WY, 4.15, 7.2, WH, 0.55, C.wall, 'wall');   // TAXI back
+  addBox(-13.20, WY, -5.86, 0.55, WH, 15.5, C.wall, 'wall');
+  addBox(-10.20, WY, 4.75, 15.2, WH, 0.55, C.wall, 'wall');
+  addBox( 3.25, WY, -5.86, 0.55, WH, 15.5, C.wall, 'wall');
+  addBox(-6.90, WY, 3.40, 0.55, WH, 3.2, C.wall, 'wall');
 
-  // ---- Long doors corridor: two aligned frames, staggered open leaves ----
-  addBox(-1.95, WY, -6.85, 0.50, WH, 7.2, C.wall, 'wall');  // left wall, alcove to Taxi
-  // Right wall stops at the inner door so the alcove opens into the connector.
-  addBox( 1.95, WY, -5.65, 0.50, WH, 5.3, C.wall, 'wall');  // z=-8.3..-3.0
-  // Outer (T-side) door at z=-5.0. RIGHT half open (x=0.20..1.70).
-  addBox(-1.25, WY, -5.0, 1.00, WH, 0.50, C.wall, 'wall');  // left jamb solid
-  addBox( 1.78, WY, -5.0, 0.34, WH, 0.50, C.wall, 'wall');  // thin right jamb
-  lintel(0, -5.0, 3.5);
-  addBox(-0.65, fy+1.25, -5.00, 1.60, 2.5, 0.18, C.wall2, 'wall'); // closed left leaf, on the door plane
-  openLeaf(1.62, -5.0, -1.55, +1); // right leaf swung into the vestibule
-  // Inner (A-side) door at z=-8.0. LEFT half open (x=-1.70..-0.20).
-  addBox( 1.25, WY, -8.0, 1.00, WH, 0.50, C.wall, 'wall');  // right jamb solid
-  addBox(-1.78, WY, -8.0, 0.34, WH, 0.50, C.wall, 'wall');  // thin left jamb
-  lintel(0, -8.0, 3.5);
-  addBox( 0.65, fy+1.25, -8.00, 1.60, 2.5, 0.18, C.wall2, 'wall'); // closed right leaf, on the door plane
-  openLeaf(-1.62, -8.0, +1.55, -1); // left leaf swung into the vestibule
-  // Alcove past the inner door, then a WALL if you keep walking straight.
-  addBox(0.00, WY, -10.45, 3.90, WH, 0.50, C.wall, 'wall'); // wall straight ahead
-  // Close T-side so you cannot walk around the doors to Pit.
-  addBox(9.4, WY, -3.35, 15.0, WH, 0.55, C.wall, 'wall');
-  addBox(18.65, WY, -16.4, 0.55, WH, 26.2, C.wall, 'wall'); // map right wall (pit + court + A long)
+  addBox(-3.25, WY, -19.50, 0.50, WH, 7.4, C.wall, 'wall');
+  addBox( 3.35, WY, -19.50, 0.50, WH, 7.4, C.wall, 'wall');
+  addBox(-1.34, WY, -16.09, 3.36, WH, 0.50, C.wall, 'wall');
+  addBox( 3.20, WY, -16.09, 0.36, WH, 0.50, C.wall, 'wall');
+  lintel(0, -16.09, 6.5);
+  addBox(-1.34, fy+1.25, -16.09, 3.36, 2.5, 0.18, C.wall2, 'wall');
+  openLeaf(3.02, -16.09, -1.70, +1);
+  addBox( 1.62, WY, -21.79, 3.46, WH, 0.50, C.wall, 'wall');
+  addBox(-3.20, WY, -21.79, 0.36, WH, 0.50, C.wall, 'wall');
+  lintel(0, -21.79, 6.5);
+  addBox( 1.62, fy+1.25, -21.79, 3.46, 2.5, 0.18, C.wall2, 'wall');
+  openLeaf(-3.02, -21.79, +1.70, -1);
+  addBox(5.81, WY, -37.44, 19.0, WH, 0.55, C.wall, 'wall');
 
-  // ---- Connector: right, then right again into the court ----
-  // Opening in the alcove's right wall (between the inner door and the end wall).
-  // The right corridor wall already stops; add north and south connector walls.
-  addBox(5.40, WY, -8.30, 7.0, WH, 0.50, C.wall, 'wall');  // connector south (T-side) x=1.9..8.9
-  addBox(3.40, WY, -10.45, 3.0, WH, 0.50, C.wall, 'wall'); // connector north, leaves an opening at x>4.9 into the court
+  addBox(16.5, WY, -12.50, 26.0, WH, 0.55, C.wall, 'wall');
+  addBox(29.73, WY, -40.0, 0.55, WH, 56.0, C.wall, 'wall');
 
-  // ---- Court, Blue cubby, Pit (T-end of A long, opposite Blue) ----
-  // Central block: solid mass west of A long, north of Blue. No Short/Stairs rooms.
-  // Central block west of A long, north of Blue. South face at z=-15.0 leaves a deep court
-  // and a 1.5 m cubby behind Blue. North face meets the A-site south wall.
-  addBox(4.70, WY, -20.30, 9.4, WH, 10.6, C.wall, 'wall'); // x=0.0..9.4, z=-25.6..-15.0
-  // Cubby cheeks: walkable pocket x=4.6..6.6, z=-15.0..-13.4, Blue just south of the mouth.
-  addBox(4.35, WY, -14.20, 0.40, WH, 1.6, C.wall, 'wall'); // cubby left cheek
-  addBox(6.85, WY, -14.20, 0.40, WH, 1.6, C.wall, 'wall'); // cubby right cheek
+  addBox(5.81, WY, -48.34, 19.0, WH, 21.8, C.wall, 'wall');
+  addBox(0.35, WY, -25.9, 0.40, WH, 1.6, C.wall, 'wall');
+  addBox(2.85, WY, -25.9, 0.40, WH, 1.6, C.wall, 'wall');
+  addBox(1.60, WY, -26.6, 2.6, WH, 0.40, C.wall, 'wall');
 
-  // Pit: recessed drop, three walls, opens north into the court, lip + plat.
-  wallToPit(11.20, -7.05, 0.45, 6.5);   // left pit wall
-  wallToPit(16.90, -7.05, 0.45, 6.5);   // right pit wall
-  wallToPit(14.05, -3.70, 5.9, 0.50);   // pit back (T-side)
-  addBox(11.20, fy+0.16, -10.15, 0.45, 0.32, 0.50, C.trim, 'wall');
-  addBox(16.90, fy+0.16, -10.15, 0.45, 0.32, 0.50, C.trim, 'wall');
-  addBox(14.05, fy+0.16, -10.25, 5.5, 0.32, 0.28, C.trim, 'wall'); // opening curb
-  // Pit Plat: raised platform on the A-long side (north-west lip), a hold looking up Long.
-  addBox(11.85, fy+0.40, -11.35, 2.0, 0.80, 2.2, C.wall3, 'wall');
+  wallToPit(15.87, -22.07, 0.50, 20.8);
+  wallToPit(23.92, -22.07, 0.50, 20.8);
+  wallToPit(19.90, -11.73, 8.2, 0.50);
+  addBox(19.90, fy+0.16, -32.41, 8.1, 0.32, 0.30, C.trim, 'wall');
+  addBox(26.76, fy+0.45, -21.24, 4.1, 0.90, 11.2, C.wall3, 'wall');
 
-  // West face of the block (no Short side) plus a west court wall so the court does not leak.
-  addBox(-0.20, WY, -20.30, 0.55, WH, 10.6, C.wall, 'wall'); // west of the block
-  addBox(1.70, WY, -12.70, 0.50, WH, 4.6, C.wall, 'wall');   // west court wall, z=-15.0..-10.4
+  addBox(-3.95, WY, -48.34, 0.55, WH, 21.8, C.wall, 'wall');
+  addBox(-3.95, WY, -32.4, 0.55, WH, 10.0, C.wall, 'wall');
 
-  // ---- A long, A car, A ramp, A site, Goose ----
-  // The block's east face is x=9.4. A long floor starts at x=9.5.
-  addBox(16.7, WY, -26.15, 4.2, WH, 0.55, C.wall, 'wall'); // building face right of A ramp, closes north end of A long
-  // A ramp steps + A platform
-  addBox(13.2, fy+0.22, -26.0, 5.0, 0.44, 1.3, C.wall3, 'wall');
-  addBox(13.2, fy+0.40, -27.0, 5.0, 0.80, 1.3, C.wall3, 'wall');
-  addBox(13.2, fy+0.55, -27.9, 5.0, 1.10, 1.3, C.wall3, 'wall');
-  addBox(8.6, fy+0.575, -27.7, 8.8, 1.15, 3.6, C.wall3, 'wall'); // A platform
-  // Goose: enclosed back corner
-  addBox(10.2, fy+0.7, -32.0, 1.6, 1.4, 1.6, C.wall2, 'wall');
-  addBox(10.2, WY, -34.0, 8.0, WH, 0.55, C.wall, 'wall'); // back wall
-  addBox(14.4, WY, -31.8, 0.55, WH, 4.4, C.wall, 'wall'); // Goose right
-  addBox(6.2, WY, -31.8, 0.55, WH, 4.4, C.wall, 'wall');  // Goose / site left
-  addBox(6.2, WY, -27.8, 0.55, WH, 3.6, C.wall, 'wall');  // close west of site (no Short)
-  addBox(8.4, WY, -25.85, 4.4, WH, 0.55, C.wall, 'wall'); // south face of site toward the block
+  addBox(24.55, WY, -46.0, 0.50, WH, 16.0, C.wall, 'wall');
+  addBox(29.28, WY, -57.84, 0.50, WH, 7.5, C.wall, 'wall');
+  addBox(26.80, WY, -54.10, 5.0, WH, 0.50, C.wall, 'wall');
+  addBox(26.80, WY, -61.47, 5.0, WH, 0.50, C.wall, 'wall');
 
-  // ---- Ceilings over every room (no floating lights) ----
-  addBox(-1.35, 3.2, 0.30, 6.9, 0.3, 7.6, C.ceil, 'wall');           // Taxi
-  addBox(0, 3.2, -6.6, 4.0, 0.3, 7.2, C.ceil, 'wall');               // doors + alcove
-  addBox(5.3, 3.2, -9.35, 7.4, 0.3, 2.3, C.ceil, 'wall');            // connector
-  addBox(9.6, 3.2, -13.15, 17.4, 0.3, 6.3, C.ceil, 'wall');          // court
-  addBox(14.05, 3.2, -7.05, 6.4, 0.3, 6.6, C.ceil, 'wall');          // Pit
-  addBox(4.70, 3.2, -20.30, 9.6, 0.3, 10.8, C.ceil, 'wall');         // over the block
-  addBox(13.85, 3.2, -21.2, 9.0, 0.3, 13.4, C.ceil, 'wall');         // A long
-  addBox(9.4, 3.2, -30.0, 12.6, 0.3, 8.4, C.ceil, 'wall');           // A / Goose / ramp
+  addBox(10.0, fy+0.22, -61.5, 10.0, 0.44, 2.2, C.wall3, 'wall');
+  addBox(10.5, fy+0.42, -63.7, 9.0, 0.84, 2.2, C.wall3, 'wall');
+  addBox(11.0, fy+0.62, -65.8, 8.2, 1.24, 2.2, C.wall3, 'wall');
+  addBox(12.1, fy+0.72, -71.0, 8.0, 1.44, 8.0, C.wall3, 'wall');
+  addBox(11.5, fy+0.9, -79.0, 1.8, 1.6, 1.8, C.wall2, 'wall');
+  addBox(12.85, WY, -81.80, 6.8, WH, 0.55, C.wall, 'wall');
+  addBox(16.20, WY, -79.3, 0.55, WH, 4.8, C.wall, 'wall');
+  addBox( 9.40, WY, -79.3, 0.55, WH, 4.8, C.wall, 'wall');
+  addBox( 9.40, WY, -71.0, 0.55, WH, 8.2, C.wall, 'wall');
+  addBox(12.1, WY, -67.06, 8.0, WH, 0.55, C.wall, 'wall');
+  addBox(-0.4, WY, -62.0, 0.55, WH, 6.2, C.wall, 'wall');
+  addBox(6.5, WY, -64.82, 14.0, WH, 0.55, C.wall, 'wall');
+
+  addBox(-4.97, 3.2, -5.86, 16.4, 0.3, 15.6, C.ceil, 'wall');
+  addBox(-10.2, 3.2, 2.6, 15.2, 0.3, 4.4, C.ceil, 'wall');
+  addBox(0.0, 3.2, -18.9, 6.8, 0.3, 6.4, C.ceil, 'wall');
+  addBox(0.2, 3.2, -29.4, 8.4, 0.3, 16.2, C.ceil, 'wall');
+  addBox(3.0, 3.2, -26.5, 12.0, 0.3, 10.0, C.ceil, 'wall');
+  addBox(17.8, 3.2, -31.3, 23.2, 0.3, 8.2, C.ceil, 'wall');
+  addBox(8.0, 3.2, -31.3, 20.0, 0.3, 8.4, C.ceil, 'wall');
+  addBox(19.90, 3.2, -22.07, 14.2, 0.3, 21.0, C.ceil, 'wall');
+  addBox(5.81, 3.2, -48.34, 19.2, 0.3, 22.0, C.ceil, 'wall');
+  addBox(20.0, 3.2, -48.0, 19.6, 0.3, 28.0, C.ceil, 'wall');
+  addBox(12.4, 3.2, -74.5, 15.0, 0.3, 16.0, C.ceil, 'wall');
 
   dressHall(C,fy);
 
-  const jambR=[1.10,fy,-5.55], jambL=[-1.10,fy,-8.55];
-  const blue=[7.25,fy,-10.85], cubby=[5.6,fy,-14.2], pit=[14.2,fy,-11.3];
-  const plat=[11.85,fy+0.80,-11.6];
-  const car=[15.4,fy+0.32,-23.0], ramp=[10.4,fy+1.15,-26.9];
-  const site=[7.2,fy+1.15,-28.4], goose=[9.0,fy,-31.6];
+  const jambR=[2.15,fy,-15.50], jambL=[-1.50,fy,-22.40];
+  const blue=[4.20,fy,-27.0], cubby=[1.60,fy,-26.0], pit=[16.6,fy,-33.6];
+  const plat=[15.2,fy,-28.0];
+  const car=[24.0,fy+0.40,-57.8], ramp=[10.5,fy+0.84,-63.7];
+  const site=[10.5,fy+1.44,-71.5], goose=[10.2,fy,-79.0];
 
   return {
-    start:{x:0,y:0,z:2.8,yaw:0,pitch:2},
+    start:{x:0,y:0,z:2.5,yaw:0,pitch:2},
     path:[
-      {x:0,y:0,z:2.8},
-      {x:0.15,y:0,z:-3.4},
-      {x:0.85,y:0,z:-5.0},   // slip RIGHT through the first door
-      {x:0.15,y:0,z:-6.5},   // vestibule diagonal
-      {x:-0.85,y:0,z:-8.0},  // slip LEFT through the second door
-      {x:-0.15,y:0,z:-9.3},  // alcove, wall ahead
-      {x:2.4,y:0,z:-9.4},    // first right into the connector
-      {x:7.4,y:0,z:-9.5},    // along the connector, right of where Blue will sit
-      {x:8.0,y:0,z:-11.8},   // second right into the court; Blue on the left
-      {x:8.2,y:0,z:-14.0},   // past Blue / cubby, still in the court
-      {x:13.0,y:0,z:-14.2},  // big opening in front of Blue and Pit
-      {x:13.2,y:0,z:-16.4},  // up A long
-      {x:13.4,y:0,z:-22.4}   // toward A car
+      {x:0,y:0,z:2.5},
+      {x:-1.2,y:0,z:-8.0},
+      {x:0.4,y:0,z:-13.5},
+      {x:2.15,y:0,z:-16.09},
+      {x:0.20,y:0,z:-18.90},
+      {x:-1.50,y:0,z:-21.79},
+      {x:-0.80,y:0,z:-27.5},
+      {x:8.5,y:0,z:-33.2},
+      {x:18.5,y:0,z:-33.8},
+      {x:19.8,y:0,z:-42.0},
+      {x:19.8,y:0,z:-56.5}
     ],
-    pathDur:7.8,
+    pathDur:13.5,
     callouts:[
-      {id:'taxi',label:'TAXI',x:-1.2,z:1.6},
-      {id:'doors',label:'Long doors',x:0,z:-6.5},
-      {id:'blue',label:'Blue box',x:5.6,z:-12.05},
-      {id:'cubby',label:'Cubby',x:5.6,z:-14.2},
-      {id:'pit',label:'Pit',x:14.0,z:-7.0},
-      {id:'along',label:'A long',x:13.9,z:-19.0},
-      {id:'car',label:'A car',x:16.8,z:-23.0},
-      {id:'ramp',label:'A ramp',x:13.2,z:-26.8},
-      {id:'site',label:'A',x:8.4,z:-27.6},
-      {id:'goose',label:'Goose',x:10.2,z:-32.2}
+      {id:"taxi",label:"TAXI",x:-4.0,z:-6.0},
+      {id:"doors",label:"Long doors",x:0,z:-18.9},
+      {id:"blue",label:"Blue box",x:1.68,z:-23.86},
+      {id:"cubby",label:"Cubby",x:1.6,z:-26.0},
+      {id:"pit",label:"Pit",x:19.9,z:-22.1},
+      {id:"along",label:"A long",x:19.8,z:-46.0},
+      {id:"car",label:"A car",x:26.8,z:-57.8},
+      {id:"ramp",label:"A ramp",x:10.5,z:-64.0},
+      {id:"site",label:"A",x:12.1,z:-71.0},
+      {id:"goose",label:"Goose",x:12.8,z:-79.3}
     ],
     variants:[
-      {id:'t-through-doors',throw:{pos:[0.2,1.7,3.2],vel:[0,4.6,-9]},pop:{pos:[-0.7,1.42,-8.6]},peeks:[jambR,jambL,blue,pit]},
-      {id:'doors-pop',throw:{pos:[0.85,1.5,-3.6],vel:[-0.4,3.2,-6]},pop:{pos:[-0.7,1.42,-8.5]},peeks:[jambL,jambR,blue,pit,car]},
-      {id:'long-flash',throw:{pos:[-0.6,1.6,-8.2],vel:[2.2,4.4,-6]},pop:{pos:[8.8,1.42,-14.4]},peeks:[blue,pit,plat,car,ramp,goose]}
+      {id:"t-through-doors",throw:{pos:[0.2,1.7,2.2],vel:[0,4.6,-11]},pop:{pos:[-1.4,1.42,-22.4]},peeks:[jambR,jambL,blue,pit]},
+      {id:"doors-pop",throw:{pos:[1.5,1.5,-13.6],vel:[-0.4,3.2,-7]},pop:{pos:[-1.4,1.42,-22.4]},peeks:[jambL,jambR,blue,pit,car]},
+      {id:"long-flash",throw:{pos:[-1.2,1.6,-22.0],vel:[3.0,4.6,-8]},pop:{pos:[14.0,1.42,-33.0]},peeks:[blue,pit,plat,car,ramp]}
     ],
     popZones:[
-      {side:'front',id:'front',pop:[-0.7,1.42,-8.6],jitter:[0.3,0.25,0.4],throw:[0.2,1.7,3.2],vel:[0,4.4,-9],peeks:[jambR,blue,pit]},
-      {side:'above',id:'above',pop:[0.2,1.55,-9.2],jitter:[0.3,0.2,0.35],throw:[0.2,2.0,3.0],vel:[0,5.0,-8],peeks:[jambL,blue,car]},
-      {side:'right',id:'right',pop:[4.8,1.42,-11.4],jitter:[0.3,0.25,0.35],throw:[0.8,1.5,-5.2],vel:[1.4,4.0,-4],peeks:[blue,pit,jambR]},
-      {side:'left',id:'left',pop:[-0.8,1.35,-8.6],jitter:[0.3,0.25,0.4],throw:[-1.2,1.3,-6.8],vel:[1.6,4.0,-3],peeks:[jambL,blue,cubby]},
-      {side:'behind',id:'behind',pop:[0.2,1.4,3.8],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,4.0],vel:[0,3.2,-4],peeks:[jambR,blue]},
-      {side:'offangle',id:'offangle',pop:[8.6,1.42,-13.8],jitter:[0.3,0.25,0.45],throw:[-0.5,1.5,-8.0],vel:[2.0,3.8,-5],peeks:[pit,plat,blue,car,ramp]}
+      {side:"front",id:"front",pop:[-1.4,1.42,-22.4],jitter:[0.3,0.25,0.4],throw:[0.2,1.7,2.2],vel:[0,4.4,-11],peeks:[jambR,blue,pit]},
+      {side:"above",id:"above",pop:[0.2,1.55,-22.2],jitter:[0.3,0.2,0.35],throw:[0.2,2.0,2.0],vel:[0,5.0,-10],peeks:[jambL,blue,car]},
+      {side:"right",id:"right",pop:[8.5,1.42,-30.5],jitter:[0.3,0.25,0.35],throw:[1.5,1.5,-16.2],vel:[2.0,4.0,-5],peeks:[blue,pit,jambR]},
+      {side:"left",id:"left",pop:[-1.5,1.35,-22.5],jitter:[0.3,0.25,0.4],throw:[-1.6,1.3,-19.0],vel:[1.6,4.0,-4],peeks:[jambL,blue,cubby]},
+      {side:"behind",id:"behind",pop:[0.2,1.4,2.0],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,2.2],vel:[0,3.2,-4],peeks:[jambR,blue]},
+      {side:"offangle",id:"offangle",pop:[14.0,1.42,-33.0],jitter:[0.3,0.25,0.45],throw:[-1.2,1.5,-22.0],vel:[3.0,3.8,-5],peeks:[pit,plat,blue,car,ramp]}
     ]
   };
 }
+
 function buildHold(){
   const C=scnCols(), fy=FY();
   addFloor(0,-3,14,18,C.floor);
