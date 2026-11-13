@@ -154,7 +154,7 @@ function padTxt(){ pad.innerHTML=swipe.on?`Counting… <b style="font-size:28px"
 
 /* ---------- 3D arena ---------- */
 const stage=document.createElement('div'); stage.id='stage';
-stage.innerHTML=`<div id="grain" aria-hidden="true"></div><div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="flashFx"></div><div id="dmgFx"></div><div id="flashToast"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
+stage.innerHTML=`<div id="grain" aria-hidden="true"></div><div id="ahud"><span><small id="hudK1">TARGETS</small><b id="hudV1">—</b></span><span><small id="hudK2">ACCURACY</small><b id="hudV2">—</b></span><span><small id="hudK3">BEST</small><b id="hudV3">—</b></span></div><div class="hud-cm" id="hudCm"></div><div id="hudFps"></div><canvas id="edgeHint"></canvas><div id="xh"></div><div id="hitFx"></div><div id="flashFx"></div><div id="dmgFx"></div><div id="flashToast"></div><div id="flashMoveHint"></div><div id="rhud"><span><small>POINTS</small><b id="rPts">0</b></span><span><small>TIME</small><b id="rTime">01:00</b></span><span><small>ACCURACY</small><b id="rAcc">—</b></span></div><details class="rpanel" id="rpanel"><summary>⚙ Range settings</summary><div id="rpanelBody"></div></details><div class="overlay" id="ov"><div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div></div>`;
 $('#stageHost0').appendChild(stage);
 function mountStage(sel){ $(sel).appendChild(stage); resize(); }
 let renderer=null;
@@ -1229,7 +1229,7 @@ function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((pre
 
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
-  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:3.8},
+  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:6.8},
   hold:{id:'hold',name:'Choke hold',auto:false},
   anchor:{id:'anchor',name:'Site anchor',auto:false},
   entry:{id:'entry',name:'Site entry choke',auto:true,pathDur:2.4},
@@ -1949,7 +1949,7 @@ function addBlueBin(x,z,C){
   // Original solid-color dumpster / container (not a ripped asset).
   const fy=FY();
   const hex=S.env==='retro'?0x3a7ae8:S.env==='day'?0x2e6ccc:S.env==='sunrise'?0x3a5aaa:0x2a4a88;
-  addBox(x, fy+1.15, z, 2.2, 2.3, 2.6, hex, 'crate', {em:S.env==='retro'?0.55:0.15});
+  addBox(x, fy+1.15, z, 2.2, 2.3, 2.6, hex, 'crate', {em:S.env==='retro'?0.8:0.22});
   addBox(x, fy+2.34, z, 2.34, 0.12, 2.74, C.trim, 'trim');
 }
 function addBlockCar(x,z,C){
@@ -2008,15 +2008,15 @@ function loadScn(id){
 
 
 function dressHall(C,fy){
-  // Low-detail dress: door frames, a few lights, Blue and Car only.
-  const doorH=2.55-fy;
+  // Low-detail dress: door frames at a real door height, a few lights, Blue and Car only.
+  const doorH=3.25;
   addDoorFrame(0,2.0,3.2,doorH,0.32,C,'z');
   addDoorFrame(0.65,-1.45,3.2,doorH,0.32,C,'z'); // inner frame offset for the angled choke
   addBaseboard(-5.05,6.6,0.1,9.2,C); addBaseboard(5.05,6.6,0.1,9.2,C);
   addBaseboard(-3.85,-19.2,0.1,17,C); addBaseboard(3.85,-19.2,0.1,17,C);
   for(const z of [8,-6,-18,-30]) addLightFix(0,3.12,z,1.0,0.28,C);
   addBeam(0,3.05,2.0,10,0.22,C); addBeam(0.65,3.05,-1.45,8,0.22,C);
-  addBlueBin(4.15,-5.05,C);
+  addBlueBin(4.95,-5.05,C); // flush to the court-right wall
   addBlockCar(2.9,-23.2,C);
   addSitePlate(-0.6,-30.8,'A',C);
 }
@@ -2100,16 +2100,25 @@ function buildHall(){
     const top=WY+WH/2, bot=pitY-0.06, h=top-bot, cy=(top+bot)/2;
     addBox(x,cy,z,sx,h,sz,C.wall,'wall');
   };
+  // Door opening 2.7 m; fill from the lintel up to the ceiling so there is no hole above.
+  const DOOR_H=3.25;
+  const lintel=(x,z,w)=>{
+    const y0=fy+DOOR_H, y1=3.2, h=y1-y0, cy=(y0+y1)/2;
+    addBox(x,cy,z,w,h,0.55,C.trim,'wall');
+  };
 
   // Floors. Keep the walkway and the test court (x about -1.7..2.4, z -3.4..-8.2) solid.
   addFloor(0,6.6,12,9.6,C.floor);              // Outside Long z=1.8..11.4
-  addFloor(0.3,0.28,6.0,3.55,C.floor);         // bedroom (slightly wider for the offset inner doors)
-  addFloor(2.95,-6.6,7.5,10.6,C.floor);        // court right / Blue — off the Pit hole
-  addFloor(-2.15,-3.2,3.1,3.5,C.floor);        // side-pit shelf
-  addFloor(-5.85,-3.5,3.5,2.8,C.floor);        // pit plat
+  addFloor(0.3,0.15,6.2,3.9,C.floor);          // bedroom, overlaps both door planes
+  addFloor(0.4,-1.4,7.2,1.4,C.floor);          // inner-door seam stitch
+  addFloor(2.95,-6.4,7.5,11.0,C.floor);        // court right / Blue — off the Pit hole
+  addFloor(-2.0,-3.4,3.6,4.0,C.floor);         // side-pit shelf, overlaps plat + pit lip
+  addFloor(-5.5,-3.7,4.4,3.2,C.floor);         // pit plat, overlaps shelf
+  addFloor(-3.9,-4.7,2.4,1.6,C.floor);         // plat/shelf seam at the pit lip
   addFloor(0,-19.4,8.2,16.0,C.floor);          // Long corridor z=-11.4..-27.4
-  addFloor(-0.2,-29.8,12.2,7.2,C.floor);       // A Cross / site / Goose / CT Cross
-  addBox(-4.7, pitY-0.06, -7.85, 6.2, 0.12, 5.6, C.floor, 'floor'); // Pit floor (left of Long)
+  addFloor(-0.2,-29.8,12.2,7.2,C.floor);       // A Cross / site / Goose
+  addFloor(5.5,-28.4,4.2,6.8,C.floor);         // CT Cross alcove floor
+  addBox(-4.7, pitY-0.06, -7.85, 6.2, 0.12, 5.6, C.wall3||C.floor, 'floor'); // Pit floor, darker so the drop reads
 
   // Outside Long enclosure
   addBox(-5.35,WY,6.6,0.6,WH,9.6,C.wall,'wall');
@@ -2119,8 +2128,8 @@ function buildHall(){
   // Outer door face (z=2.0). Opening x=-1.6..1.6; RIGHT leaf open (x=0.05..1.6).
   addBox(-3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
   addBox( 3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
-  addBox(0,2.72,2.0,3.4,0.7,0.55,C.trim,'wall');
-  addBox(-0.75,fy+1.25,2.0,1.5,2.5,0.14,C.wall2,'wall'); // closed left leaf
+  lintel(0,2.0,3.4);
+  addBox(-0.75,fy+1.25,1.62,1.5,2.5,0.14,C.wall2,'wall'); // closed left leaf, offset into the bedroom (no z-fight)
 
   // Bedroom sides (flare a little toward the offset inner frame)
   addBox(-2.55,WY,0.28,0.5,WH,3.55,C.wall,'wall');
@@ -2130,8 +2139,8 @@ function buildHall(){
   // Opening x=-0.95..2.25; closed left leaf x=-0.95..0.55; open gap x=0.55..2.25.
   addBox(-4.15,WY,-1.45,6.4,WH,0.55,C.wall,'wall');  // left of opening (to -0.95)
   addBox( 4.45,WY,-1.45,4.4,WH,0.55,C.wall,'wall');  // right of opening (from 2.25)
-  addBox(0.65,2.72,-1.45,3.4,0.7,0.55,C.trim,'wall');
-  addBox(-0.20,fy+1.25,-1.45,1.5,2.5,0.14,C.wall2,'wall');
+  lintel(0.65,-1.45,3.4);
+  addBox(-0.20,fy+1.25,-1.10,1.5,2.5,0.14,C.wall2,'wall'); // leaf offset into the bedroom
 
   // Inner face extends out to the court walls
   addBox(-6.4,WY,-1.45,2.2,WH,0.55,C.wall,'wall');
@@ -2139,9 +2148,9 @@ function buildHall(){
 
   // Court: Pit on the left, Blue on the right, then the Long Corner jog.
   wallToPit(-8.2,-6.7,0.6,11.0);
-  addBox(6.35,WY,-7.05,0.6,WH,11.5,C.wall,'wall'); // court right (Blue against it)
+  addBox(6.35,WY,-7.05,0.6,WH,11.5,C.wall,'wall'); // court right (Blue flush against it)
   wallToPit(-4.9,-10.85,6.8,0.55);                 // Pit back wall (hides Pit from A)
-  addBox(-1.55, pitY+0.45, -7.7, 0.28, 0.9, 5.6, C.trim, 'wall'); // Long-side pit lip
+  addBox(-1.55, fy+0.16, -7.7, 0.32, 0.32, 5.6, C.trim, 'wall'); // Long-side pit curb (look over it)
   addBox(-4.7, fy+0.22, -5.05, 5.4, 0.44, 0.28, C.trim, 'wall'); // doors-facing lip
   addBox(-2.35, pitY+0.28, -5.55, 1.5, 0.28, 0.7, C.trim, 'trim');
   addBox(-2.35, pitY+0.56, -5.95, 1.5, 0.28, 0.7, C.trim, 'trim');
@@ -2150,48 +2159,49 @@ function buildHall(){
 
   // Long Corner jog ~11 m past the inner doors (≈0.5× the real 21.3 m).
   addBox(5.2,WY,-12.55,2.9,WH,0.6,C.wall,'wall');
-  addBox(4.05,WY,-19.6,0.55,WH,14.6,C.wall,'wall'); // Long right wall to Cross
+  addBox(4.05,WY,-18.6,0.55,WH,13.0,C.wall,'wall'); // Long right wall, ends at the Cross doorway
   addBox(-4.05,WY,-19.6,0.55,WH,16.4,C.wall,'wall'); // Long left wall
 
-  // A Cross opens up. CT Cross is a gap on the right toward a short alcove.
+  // A Cross opens up. CT Cross is a real doorway on the right into a short alcove.
+  // Long right ends z≈-25.1; site-right pillar starts z≈-27.4; opening ≈2.3 m.
   addBox(-6.0,WY,-29.5,0.6,WH,7.0,C.wall,'wall');   // site left (Goose side)
-  addBox( 7.15,WY,-29.2,0.6,WH,6.4,C.wall,'wall');  // CT alcove back
-  addBox(5.55,WY,-26.15,3.6,WH,0.55,C.wall,'wall'); // Cross front (leaves a gap into the alcove)
-  addBox(5.85,WY,-32.15,3.2,WH,0.55,C.wall,'wall'); // alcove rear wall
-  addBox(0,WY,-32.45,12.0,WH,0.6,C.wall,'wall');    // site back wall
+  addBox(4.05,WY,-30.0,0.55,WH,5.2,C.wall,'wall');  // site-right pillar past the opening
+  addBox(7.0,WY,-28.4,0.55,WH,6.6,C.wall,'wall');   // alcove back
+  addBox(5.55,WY,-25.1,3.1,WH,0.55,C.wall,'wall');  // alcove front (T-side of the doorway)
+  addBox(5.55,WY,-31.7,3.1,WH,0.55,C.wall,'wall');  // alcove rear
+  addBox(0,WY,-32.45,14.2,WH,0.6,C.wall,'wall');    // site back wall (covers the alcove too)
 
   // Ramp up from Long onto A (solid volumes from the floor, no hovering slabs).
   addBox(-1.15, fy+0.22, -26.6, 3.1, 0.44, 1.3, C.wall3, 'wall');
   addBox(-1.15, fy+0.385, -27.5, 3.1, 0.77, 1.3, C.wall3, 'wall');
   addBox(-1.15, fy+0.55, -28.4, 3.1, 1.10, 1.3, C.wall3, 'wall');
   addBox(-1.15, fy+0.575, -30.45, 3.6, 1.15, 3.0, C.wall3, 'wall'); // A platform
-  // Goose: enclosed back-left pocket
-  addBox(-3.55, fy+0.7, -31.15, 1.7, 1.4, 1.7, C.wall2, 'wall');
-  addBox(-4.55, WY, -30.55, 0.5, WH, 2.4, C.wall, 'wall');
+  // Goose: solid cover on the floor in a back-left pocket (no thin pole, no overlap with the platform).
+  addBox(-4.2, fy+0.7, -31.2, 1.5, 1.4, 1.5, C.wall2, 'wall');
 
   // Ceilings over every room, including Cross / Goose / CT alcove.
   addBox(0,3.2,6.6,12,0.3,9.8,C.ceil,'wall');
   addBox(0.3,3.2,0.28,6.4,0.3,3.8,C.ceil,'wall');
   addBox(0,3.2,-6.7,16.6,0.3,11.2,C.ceil,'wall');
   addBox(0,3.2,-19.4,8.6,0.3,16.2,C.ceil,'wall');
-  addBox(0.4,3.2,-29.6,13.4,0.3,7.4,C.ceil,'wall');
+  addBox(0.5,3.2,-29.6,14.4,0.3,7.4,C.ceil,'wall');
 
   dressHall(C,fy);
 
   const jambL=[-1.48,fy,-1.15], jambR=[1.85,fy,2.25];
-  const blue=[5.15,fy,-6.45], corner=[3.55,fy,-12.15];
+  const blue=[3.7,fy,-5.2], corner=[3.55,fy,-12.15];
   const pit=[-3.35,fy,-6.35], plat=[-5.55,fy,-3.55];
   const car=[2.95,fy,-23.35], ramp=[-2.35,fy+1.15,-30.2];
-  const cross=[5.55,fy,-27.55], goose=[-3.35,fy+0.55,-30.85];
+  const cross=[5.55,fy,-27.55], goose=[-3.25,fy,-30.4];
 
   return {
     start:{x:0,y:0,z:7.6,yaw:0,pitch:2},
-    path:[{x:0,y:0,z:7.6},{x:0,y:0,z:3.5},{x:0.85,y:0,z:2.0},{x:1.05,y:0,z:-1.45},{x:0.2,y:0,z:-4.6}],
-    pathDur:3.8,
+    path:[{x:0,y:0,z:7.6},{x:0,y:0,z:3.5},{x:0.85,y:0,z:2.0},{x:1.05,y:0,z:-1.45},{x:0.25,y:0,z:-4.6},{x:0.15,y:0,z:-11.5},{x:0.15,y:0,z:-19.8}],
+    pathDur:6.8,
     callouts:[
       {id:'outside',label:'Outside Long',x:0,z:6.8},
       {id:'doors',label:'Doors',x:0.35,z:0.25},
-      {id:'blue',label:'Blue',x:4.15,z:-5.05},
+      {id:'blue',label:'Blue',x:4.95,z:-5.05},
       {id:'pit',label:'Pit',x:-4.6,z:-7.6},
       {id:'long',label:'Long',x:0,z:-18.0},
       {id:'car',label:'Car',x:2.9,z:-23.2},
@@ -2201,14 +2211,14 @@ function buildHall(){
     ],
     variants:[
       // T-side long-take flashes: through the doors from Outside Long, a doors pop-flash, then a pop down Long.
-      {id:'t-through-doors',throw:{pos:[0.2,1.7,8.2],vel:[0,4.6,-9]},pop:{pos:[0.85,1.70,-2.55]},peeks:[jambL,blue,corner,pit]},
+      {id:'t-through-doors',throw:{pos:[0.2,1.7,8.2],vel:[0,4.6,-9]},pop:{pos:[0.85,1.42,-2.55]},peeks:[jambL,blue,corner,pit]},
       {id:'doors-pop',throw:{pos:[0.85,1.5,0.2],vel:[0,3.2,-6]},pop:{pos:[0.85,1.45,-2.6]},peeks:[jambL,blue,corner,car]},
-      {id:'long-flash',throw:{pos:[0.9,1.6,-1.0],vel:[0,4.4,-8]},pop:{pos:[1.05,1.55,-7.2]},peeks:[corner,car,ramp,cross]}
+      {id:'long-flash',throw:{pos:[0.9,1.6,-1.0],vel:[0,4.4,-8]},pop:{pos:[1.05,1.42,-7.2]},peeks:[corner,car,ramp,cross]}
     ],
     popZones:[
       {side:'front',id:'front',pop:[0.85,1.45,-2.6],jitter:[0.3,0.25,0.45],throw:[0.2,1.7,8.2],vel:[0,4.4,-9],peeks:[jambL,blue,corner,pit]},
-      {side:'above',id:'above',pop:[0.85,2.1,-2.2],jitter:[0.3,0.2,0.4],throw:[0.2,2.0,8.0],vel:[0,5.0,-8],peeks:[jambL,blue,corner,car]},
-      {side:'right',id:'right',pop:[1.55,1.50,-4.2],jitter:[0.22,0.25,0.35],throw:[0.9,1.6,-1.0],vel:[0.6,4.0,-6],peeks:[blue,corner,car,jambR]},
+      {side:'above',id:'above',pop:[0.85,1.50,-2.2],jitter:[0.3,0.2,0.4],throw:[0.2,2.0,8.0],vel:[0,5.0,-8],peeks:[jambL,blue,corner,car]},
+      {side:'right',id:'right',pop:[1.55,1.42,-4.2],jitter:[0.22,0.25,0.35],throw:[0.9,1.6,-1.0],vel:[0.6,4.0,-6],peeks:[blue,corner,car,jambR]},
       {side:'left',id:'left',pop:[-2.7,1.35,-4.3],jitter:[0.45,0.3,0.6],throw:[-4.6,0.35,-7.6],vel:[3.4,5.2,3.2],peeks:[pit,plat,jambL,corner]},
       {side:'behind',id:'behind',pop:[0.2,1.4,10.3],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,11.0],vel:[0,3.2,-4],peeks:[jambL,blue,corner]},
       {side:'offangle',id:'offangle',pop:[1.15,1.4,-3.2],jitter:[0.3,0.25,0.45],throw:[0.85,1.5,0.2],vel:[0,3.6,-7],peeks:[pit,blue,corner,cross]}
@@ -2494,7 +2504,15 @@ function peekEyes(meta){
   const s=(meta&&meta.start)||{x:0,y:0,z:0};
   list.push(new V(s.x,s.y,s.z));
   if(meta&&meta.path&&meta.path.length){
-    for(let u=0;u<=1.001;u+=0.12){ const p=pathAt(meta.path,Math.min(1,u)); list.push(new V(p.x,p.y,p.z)); }
+    for(let u=0;u<=1.001;u+=0.12){
+      const p=pathAt(meta.path,Math.min(1,u));
+      list.push(new V(p.x,p.y,p.z));
+      const t=pathTangent(meta.path,Math.min(1,u)), r={x:-t.z,z:t.x};
+      for(const off of [-1.6,-0.8,0.8,1.6]){
+        const x=p.x+r.x*off, z=p.z+r.z*off;
+        if(typeof walkableAt==='function' ? walkableAt(x,z,0.3) : !blockedAt(x,p.y,z,0.3)) list.push(new V(x,p.y,z));
+      }
+    }
   }
   return list;
 }
@@ -3115,28 +3133,104 @@ function pathAt(path,u){
   const n=path.length-1, f=u*n, i=Math.min(n-1,Math.floor(f)), t=f-i, a=path[i], b=path[i+1];
   return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t};
 }
+function pathTangent(path,u){
+  if(!path||path.length<2) return {x:0,z:-1};
+  const a=pathAt(path,Math.max(0,Math.min(1,u)-0.02));
+  const b=pathAt(path,Math.min(1,Math.max(0,u)+0.02));
+  const dx=b.x-a.x, dz=b.z-a.z, len=Math.hypot(dx,dz);
+  if(len<1e-6) return {x:0,z:-1};
+  return {x:dx/len,z:dz/len};
+}
+const STRAFE_MAX=5.2, STRAFE_ACCEL=10, STRAFE_FRICTION=8, PLAYER_RAD=0.38;
+function walkableAt(x,z,rad){
+  const r=rad==null?PLAYER_RAD:rad;
+  if(blockedAt(x,camEye&&camEye.y||0,z,r)) return false;
+  let top=FLOOR_Y-5, feetR=Math.max(0.2,r*0.7);
+  for(const w of scnWalls){
+    if(x<w.min.x-feetR||x>w.max.x+feetR||z<w.min.z-feetR||z>w.max.z+feetR) continue;
+    if(w.max.y>top && w.max.y<=FLOOR_Y+1.2) top=w.max.y;
+  }
+  if(top<FLOOR_Y-0.35) return false; // void or pit drop
+  return true;
+}
+function showStrafeHint(){
+  const el=$('#flashMoveHint'); if(!el) return;
+  if(S.flash&&S.flash.wasd){ el.classList.remove('show'); return; }
+  el.textContent='A/D to strafe';
+  el.classList.add('show');
+  clearTimeout(showStrafeHint._t);
+  showStrafeHint._t=setTimeout(()=>{ el.classList.remove('show'); }, 3500);
+}
 function stepMove(dt){
   if(!FL||FL.phase!=='run') return;
   if(FL.path&&FL.pathT!=null&&!S.flash.wasd){
-    FL.pathT+=dt; const p=pathAt(FL.path,Math.min(1,FL.pathT/Math.max(0.1,FL.pathDur||2.4)));
-    camEye.set(p.x,p.y,p.z); return;
+    FL.pathT+=dt;
+    const p=pathAt(FL.path,Math.min(1,FL.pathT/Math.max(0.1,FL.pathDur||2.4)));
+    const t=pathTangent(FL.path,Math.min(1,FL.pathT/Math.max(0.1,FL.pathDur||2.4)));
+    const r={x:-t.z,z:t.x};
+    let wish=0;
+    if(keysHeld.KeyD||keysHeld.ArrowRight) wish+=1;
+    if(keysHeld.KeyA||keysHeld.ArrowLeft) wish-=1;
+    FL.strafeVel=FL.strafeVel||0;
+    if(wish===0){
+      const drop=STRAFE_FRICTION*STRAFE_MAX*dt;
+      if(Math.abs(FL.strafeVel)<=drop) FL.strafeVel=0;
+      else FL.strafeVel-=Math.sign(FL.strafeVel)*drop;
+    }else{
+      const target=wish*STRAFE_MAX, add=STRAFE_ACCEL*STRAFE_MAX*dt;
+      if(FL.strafeVel<target) FL.strafeVel=Math.min(target,FL.strafeVel+add);
+      else if(FL.strafeVel>target) FL.strafeVel=Math.max(target,FL.strafeVel-add);
+    }
+    let off=(FL.strafeOff||0)+FL.strafeVel*dt;
+    const tryOff=o=>walkableAt(p.x+r.x*o,p.z+r.z*o,PLAYER_RAD);
+    // Always clamp toward the path center so a wide offset is pulled in when the lane narrows (doors, Long walls, Pit curb).
+    if(!tryOff(off)){
+      let lo=0, hi=off;
+      if(!tryOff(0)){ off=0; FL.strafeVel=0; }
+      else{
+        for(let i=0;i<12;i++){ const mid=(lo+hi)/2; if(tryOff(mid)) lo=mid; else hi=mid; }
+        off=lo; FL.strafeVel=0;
+      }
+    }
+    FL.strafeOff=off;
+    const x=p.x+r.x*off, z=p.z+r.z*off;
+    camEye.set(x,standY(x,z),z);
+    return;
   }
   if(!S.flash.wasd) return;
   let fwd=0,str=0;
-  if(keysHeld.KeyW) fwd+=1; if(keysHeld.KeyS) fwd-=1; if(keysHeld.KeyD) str+=1; if(keysHeld.KeyA) str-=1;
-  if(!fwd&&!str){ camEye.y=standY(camEye.x,camEye.z); return; }
-  const n=Math.hypot(fwd,str)||1; fwd/=n; str/=n;
-  const f=dirFrom(view.yaw,0), rx=-f.z, rz=f.x, spd=4.6*dt;
-  const dx=(f.x*fwd+rx*str)*spd, dz=(f.z*fwd+rz*str)*spd;
-  const rad=0.38; let x=camEye.x, z=camEye.z, y=camEye.y;
-  if(!blockedAt(x+dx,y,z,rad)) x+=dx; if(!blockedAt(x,y,z+dz,rad)) z+=dz;
+  if(keysHeld.KeyW||keysHeld.ArrowUp) fwd+=1;
+  if(keysHeld.KeyS||keysHeld.ArrowDown) fwd-=1;
+  if(keysHeld.KeyD||keysHeld.ArrowRight) str+=1;
+  if(keysHeld.KeyA||keysHeld.ArrowLeft) str-=1;
+  FL.moveVx=FL.moveVx||0; FL.moveVz=FL.moveVz||0;
+  if(!fwd&&!str){
+    const drop=STRAFE_FRICTION*STRAFE_MAX*dt, sp=Math.hypot(FL.moveVx,FL.moveVz);
+    if(sp<=drop){ FL.moveVx=0; FL.moveVz=0; }
+    else { const s=(sp-drop)/sp; FL.moveVx*=s; FL.moveVz*=s; }
+    camEye.y=standY(camEye.x,camEye.z);
+    if(!FL.moveVx&&!FL.moveVz) return;
+  }else{
+    const n=Math.hypot(fwd,str)||1; fwd/=n; str/=n;
+    const f=dirFrom(view.yaw,0), rx=-f.z, rz=f.x;
+    const wx=f.x*fwd+rx*str, wz=f.z*fwd+rz*str;
+    FL.moveVx+=wx*STRAFE_ACCEL*STRAFE_MAX*dt;
+    FL.moveVz+=wz*STRAFE_ACCEL*STRAFE_MAX*dt;
+    const sp=Math.hypot(FL.moveVx,FL.moveVz);
+    if(sp>STRAFE_MAX){ FL.moveVx*=STRAFE_MAX/sp; FL.moveVz*=STRAFE_MAX/sp; }
+  }
+  const dx=FL.moveVx*dt, dz=FL.moveVz*dt, rad=PLAYER_RAD;
+  let x=camEye.x, z=camEye.z, y=camEye.y;
+  if(!blockedAt(x+dx,y,z,rad)) x+=dx; else FL.moveVx=0;
+  if(!blockedAt(x,y,z+dz,rad)) z+=dz; else FL.moveVz=0;
   camEye.set(x,standY(x,z),z);
 }
 document.addEventListener('keydown',e=>{
-  const k=e.code; if(k!=='KeyW'&&k!=='KeyA'&&k!=='KeyS'&&k!=='KeyD') return;
+  const k=e.code;
+  if(k!=='KeyW'&&k!=='KeyA'&&k!=='KeyS'&&k!=='KeyD'&&k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='ArrowUp'&&k!=='ArrowDown') return;
   if(e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
   keysHeld[k]=true;
-  if(MODE==='flash'&&S.flash.wasd&&FL&&FL.phase==='run') e.preventDefault();
+  if(MODE==='flash'&&FL&&FL.phase==='run'&&(S.flash.wasd||(FL.path&&FL.pathT!=null))) e.preventDefault();
 });
 document.addEventListener('keyup',e=>{ keysHeld[e.code]=false; });
 
@@ -3379,7 +3473,7 @@ function newFlashRound(){
 }
 $('#flashBtn').onclick=()=>flashWarnThen(newFlashRound);
 
-function flashCountdown(){ FL.phase='count'; let n=3; const tick=()=>{ if(!FL||FL.phase!=='count')return; if(n===0){hideOv();FL.phase='run';FL.last=performance.now();FL.busyUntil=FL.last+200;beep(880,0.08);return;} showOv(`<div class="big">${n}</div>`); beep(440,0.06); n--; setTimeout(tick,450);}; tick(); }
+function flashCountdown(){ FL.phase='count'; let n=3; const tick=()=>{ if(!FL||FL.phase!=='count')return; if(n===0){hideOv();FL.phase='run';FL.last=performance.now();FL.busyUntil=FL.last+200;beep(880,0.08);showStrafeHint();return;} showOv(`<div class="big">${n}</div>`); beep(440,0.06); n--; setTimeout(tick,450);}; tick(); }
 
 function pickVariant(){
   const meta=scnMeta; if(!meta||!meta.variants||!meta.variants.length) return {id:'basic',pop:{pos:[0,1.4,-8]},throw:{pos:[0,1.2,-10],vel:[0,4,6]},peeks:[[0,FY(),-8]]};
@@ -3485,7 +3579,7 @@ function spawnFlash(now){
   else if(!scnMeta) loadScn(FL.scn==='mix'?'hall':(FL.scn||'hall'));
   const v=pickVariant(); FL.variant=v; FL.scnNow=scnId;
   const auto=!!(scnMeta&&scnMeta.path&&scnMeta.auto)&&!S.flash.wasd;
-  if(auto){ FL.path=scnMeta.path; FL.pathDur=scnMeta.pathDur||2.4; FL.pathT=0; placeStart(scnMeta); }
+  if(auto){ FL.path=scnMeta.path; FL.pathDur=scnMeta.pathDur||2.4; FL.pathT=0; FL.strafeOff=0; FL.strafeVel=0; placeStart(scnMeta); }
   else { FL.path=null; FL.pathT=null; if(!S.flash.wasd) placeStart(scnMeta); }
   const zones=rand?popZonesOf(scnMeta):null;
   const zone=rand?pickFlashZone(zones):null;
@@ -3650,9 +3744,9 @@ window.EZ={range:()=>RG,rview,rangeTargets:()=>rTargets.map(t=>t.mesh.position.c
   setEnv,env:()=>S.env,ENV,applyRangeLook,rangeLook:()=>S.range.look,syncGrain,envInfo:()=>({mode:S.env,fog:fog.color.getHex(),fogNear:fog.near,fogFar:fog.far,hemi:hemi.intensity,hemiSky:hemi.color.getHex(),sunI:sun.intensity,sunCol:sun.color.getHex(),sunPos:sun.position.toArray(),sunDisc:sunDisc.visible,sunScale:sunDisc.scale.x,floor:floor.material.color.getHex(),tgt:tgtMat.color.getHex(),tgtEm:tgtMat.emissive.getHex(),bg:scene.background&&scene.background.getHex(),sky:!!skyMesh.parent,hint:hintPal}),
   setTheme,theme:()=>S.theme,applyTheme,
   flash:()=>FL,startFlash:()=>{S.flash.warned=true;newFlashRound();},flashCountdown,spawnFlash,detonateFlash,flashFinish,abandonFlash,flashStep,flashFactor,flashAngle,flashScore,whiteOut,clearWhiteOut,
-  flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();hideOv();}},
+  flashPeak:()=>_flashPeak,flashUntil:()=>_flashUntil,grenade:()=>grenade,forceFlashRun:()=>{if(FL){FL.phase='run';FL.last=performance.now();if(FL.strafeOff==null)FL.strafeOff=0;if(FL.strafeVel==null)FL.strafeVel=0;hideOv();showStrafeHint();}},
   lookAway:()=>{view.yaw+=180;},lookAtBomb:()=>{if(!FL||!FL.bomb)return; const p=FL.bomb.pos.clone().sub(camEye); const len=p.length(); const yaw=Math.atan2(-p.x,-p.z)/D2R, pitch=Math.asin(Math.max(-1,Math.min(1,p.y/Math.max(1e-6,len))))/D2R; view.yaw=yaw; view.pitch=pitch;},
-  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,peekTypeOf,peekStyleMode,peekSpeedScale,assignGroupPeekStyles,findSlidePoint,shortenPeekTarget,PEEK_STYLE_IDS,scnStats,wallClosureReport,concatSelfTest,botMatInfo,concatGeos,geoTriCount,scnObjectReport,pruneSightlineFloaters,isSightlineFloater,useLowGfx,autoLow:()=>_autoLow,readDisplayHz,gpuLabel,gpuIsSoftware,rendererInfo:()=>renderer?{calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geoms:renderer.info.memory.geometries,frame:renderer.info.render.frame}:null,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
+  loadScn,unloadScn,previewScn,setArenaDecor,tintScn,flashVisible,flashShoot,applyCams,camEye,peekBots:()=>peekBots,scnId:()=>scnId,scnWalls:()=>scnWalls,scnMeta:()=>scnMeta,setScn:(id)=>{S.flash.scn=id; persistFlash(); previewScn();},SCN,SCN_IDS,firstSolidHit,worldSolids,losOpen,nudgeOutOfSolid,headVisibleFrom,peekVisibilityReport,fixPeekVisibility,tuckPeek,botIsMoving,peekTypeOf,peekStyleMode,peekSpeedScale,assignGroupPeekStyles,findSlidePoint,shortenPeekTarget,PEEK_STYLE_IDS,scnStats,wallClosureReport,concatSelfTest,botMatInfo,concatGeos,geoTriCount,scnObjectReport,pruneSightlineFloaters,isSightlineFloater,useLowGfx,autoLow:()=>_autoLow,readDisplayHz,gpuLabel,gpuIsSoftware,rendererInfo:()=>renderer?{calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geoms:renderer.info.memory.geometries,frame:renderer.info.render.frame}:null,flashToast,flashRunTitle,turnBackAllowanceMs,peekHoldMs,PEEK_START_MAX,peekWindowMs,popZonesOf,classifyPopSide,pickFlashZone,pointInWall,placeInZone,pickBots,BOT_HEAD_R,BOT_BODY_R,FDIFF,useFlashRand,flashSeed,frand,frange,fuseMinMs,findOpenPoint,pathClear,bodyClearFeet,pushPathReport,applyCrouch,stepPeekBots,stepMove,pathAt,pathTangent,walkableAt,blockedAt,standY,showStrafeHint,STRAFE_MAX,keysHeld,setKey:(code,down)=>{if(down)keysHeld[code]=true;else keysHeld[code]=false;},clearKeys:()=>{for(const k of Object.keys(keysHeld))keysHeld[k]=false;},strafeState:()=>FL?{off:FL.strafeOff||0,vel:FL.strafeVel||0}:null,spawnPeekBots,CROUCH_HEAD_Y,BOT_HEAD_Y,makeRng,STANCE_IDS,botStanceMode,pickStanceKind,assignGroupStances,planStanceToggles,applyBotStance,stepBotStance,stepCrouch,
   makeBot,paintBot,armBot,pickBots,useBots,currentDmg,trainBot:()=>trainBot,syncTrainBot,BOT_HEAD_Y,BOT_HEAD_R,showDmg,applyHit:(...a)=>M.applyHit(...a),dmgModel:(id)=>M.dmgModel(id)};
 RANGE_INIT(); makeRenderer(); applyEnv(S.env); ensureGrain(); syncGrain(); syncEnvUI(); applyTheme(S.theme); syncThemeUI(); syncFlashUI(); syncBotUI(); fillXHEditors(); bindXHEditors(); syncInputs(); syncPerf(); renderHist(); renderFinder(); renderDrillBests(); renderFlashBests(); requestAnimationFrame(loop);
 document.documentElement.dataset.ready='1';

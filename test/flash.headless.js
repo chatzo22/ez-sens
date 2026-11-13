@@ -1849,6 +1849,92 @@ fs.mkdirSync(OUT,{recursive:true});
   }
   await pg.evaluate(()=>EZ.abandonFlash());
 
+  // A/D (and arrow) strafe during auto-walk: offset, collision, lane clamp, yaw independence.
+  const strafe = await pg.evaluate(()=>{
+    const out={};
+    const holdT=(fl,t)=>{ fl.pathT=t; };
+    const stepAt=(fl,t,dt)=>{ fl.pathT=t; EZ.stepMove(dt); fl.pathT=t; };
+    EZ.S.flash.warned=true; EZ.S.flash.wasd=false; EZ.S.flash.scn='hall'; EZ.S.flash.preset='cs2'; EZ.S.flash.rand=false;
+    EZ.setScn('hall');
+    EZ.startFlash(); EZ.forceFlashRun();
+    EZ.spawnFlash(performance.now());
+    const hint=document.getElementById('flashMoveHint');
+    out.hint=hint?{text:hint.textContent, show:hint.classList.contains('show')}:null;
+    out.wasdDefault=!!EZ.S.flash.wasd;
+    const fl=EZ.flash();
+    if(!fl.path){ fl.path=EZ.scnMeta().path; fl.pathDur=EZ.scnMeta().pathDur||6.8; }
+    // Mid-Long (z≈-15): walls at ±4.05, a few meters of open lane.
+    const LONG_T=6.14;
+    fl.strafeOff=0; fl.strafeVel=0; EZ.clearKeys();
+    stepAt(fl,LONG_T,0);
+    out.onLong={x:+EZ.camEye.x.toFixed(3), z:+EZ.camEye.z.toFixed(3), y:+EZ.camEye.y.toFixed(3)};
+    const x0=EZ.camEye.x, z0=EZ.camEye.z;
+    EZ.setKey('KeyD', true);
+    stepAt(fl,LONG_T,0.05);
+    out.accel={vel:EZ.strafeState().vel, max:EZ.STRAFE_MAX, dx:EZ.camEye.x-x0};
+    // Reach max speed but stop before the wall (~3 m of lane).
+    for(let i=0;i<6;i++) stepAt(fl,LONG_T,0.05);
+    out.right={x:EZ.camEye.x, z:EZ.camEye.z, vel:EZ.strafeState().vel, dx:EZ.camEye.x-x0, dz:EZ.camEye.z-z0};
+    EZ.clearKeys();
+    const xR=EZ.camEye.x;
+    EZ.setKey('KeyA', true);
+    for(let i=0;i<16;i++) stepAt(fl,LONG_T,0.05);
+    out.left={x:EZ.camEye.x, z:EZ.camEye.z, vel:EZ.strafeState().vel, dx:EZ.camEye.x-xR};
+    EZ.clearKeys();
+    fl.strafeOff=0; fl.strafeVel=0; stepAt(fl,LONG_T,0);
+    const xA=EZ.camEye.x;
+    EZ.setKey('ArrowRight', true);
+    for(let i=0;i<8;i++) stepAt(fl,LONG_T,0.05);
+    out.arrow={dx:EZ.camEye.x-xA, vel:EZ.strafeState().vel};
+    EZ.clearKeys();
+    fl.strafeOff=0; fl.strafeVel=0; EZ.view.yaw=90; EZ.view.pitch=0; stepAt(fl,LONG_T,0);
+    const xY=EZ.camEye.x, zY=EZ.camEye.z;
+    EZ.setKey('KeyD', true);
+    for(let i=0;i<8;i++) stepAt(fl,LONG_T,0.05);
+    out.yawIndep={dx:EZ.camEye.x-xY, dz:EZ.camEye.z-zY, yaw:EZ.view.yaw};
+    EZ.clearKeys(); EZ.view.yaw=0;
+    // Collision: from mid-Long, strafe into the right wall; stay out of solids.
+    fl.strafeOff=0; fl.strafeVel=0; stepAt(fl,LONG_T,0);
+    EZ.setKey('KeyD', true);
+    let hitSolid=false, maxX=-Infinity;
+    for(let i=0;i<50;i++){
+      stepAt(fl,LONG_T,0.05);
+      maxX=Math.max(maxX, EZ.camEye.x);
+      if(EZ.blockedAt(EZ.camEye.x, EZ.camEye.y, EZ.camEye.z, 0.2) || (EZ.pointInWall&&EZ.pointInWall(EZ.camEye.x,EZ.camEye.y,EZ.camEye.z))) hitSolid=true;
+    }
+    out.wall={maxX, hitSolid, off:EZ.strafeState().off, vel:EZ.strafeState().vel, y:EZ.camEye.y, z:EZ.camEye.z};
+    EZ.clearKeys();
+    // Lane clamp at the Pit: court just inside the doors, z≈-7.4. Must stay on the high floor.
+    const PIT_T=5.01;
+    fl.strafeOff=0; fl.strafeVel=0; stepAt(fl,PIT_T,0);
+    out.atPit={x:+EZ.camEye.x.toFixed(3), z:+EZ.camEye.z.toFixed(3)};
+    EZ.setKey('KeyA', true);
+    let minX=Infinity, minY=Infinity, fell=false;
+    for(let i=0;i<50;i++){
+      stepAt(fl,PIT_T,0.05);
+      minX=Math.min(minX, EZ.camEye.x);
+      minY=Math.min(minY, EZ.camEye.y);
+      if(EZ.camEye.y<-0.8) fell=true;
+    }
+    out.pit={minX, minY, fell, off:EZ.strafeState().off, stand:EZ.standY(EZ.camEye.x,EZ.camEye.z), x:EZ.camEye.x, z:EZ.camEye.z};
+    EZ.clearKeys();
+    const vis=EZ.peekVisibilityReport(EZ.scnMeta());
+    out.vis={bad:(vis.peekBad||[]).length, n:vis.n|| (vis.peeks&&vis.peeks.length), peekBad:vis.peekBad||[]};
+    EZ.abandonFlash();
+    return out;
+  });
+  console.log('strafe', JSON.stringify(strafe));
+  if(strafe.wasdDefault) fail('full WASD should stay off by default so auto-walk + A/D strafe is used');
+  if(!(strafe.hint && /A\/D to strafe/i.test(strafe.hint.text) && strafe.hint.show)) fail('round start should show A/D to strafe hint: '+JSON.stringify(strafe.hint));
+  if(!(strafe.accel && strafe.accel.vel>0.2 && strafe.accel.vel<strafe.accel.max-0.4)) fail('strafe should accelerate, not jump to max speed: '+JSON.stringify(strafe.accel));
+  if(!(strafe.right && strafe.right.dx>0.6 && Math.abs(strafe.right.dz)<0.55 && strafe.right.vel>4.5)) fail('KeyD should strafe right along the lane: '+JSON.stringify(strafe.right));
+  if(!(strafe.left && strafe.left.dx<-0.6)) fail('KeyA should strafe left: '+JSON.stringify(strafe.left));
+  if(!(strafe.arrow && strafe.arrow.dx>0.6)) fail('ArrowRight should strafe right: '+JSON.stringify(strafe.arrow));
+  if(!(strafe.yawIndep && strafe.yawIndep.dx>0.6 && Math.abs(strafe.yawIndep.dz)<0.55)) fail('strafe is lane-relative so turning should not change the sidestep: '+JSON.stringify(strafe.yawIndep));
+  if(!(strafe.wall && !strafe.wall.hitSolid && strafe.wall.maxX<3.9)) fail('strafe should collide with walls and not clip: '+JSON.stringify(strafe.wall));
+  if(!(strafe.pit && !strafe.pit.fell && strafe.pit.minY>-0.5 && strafe.pit.minX>-2.2)) fail('auto-walk strafe should stay on the walkway and not fall into Pit: '+JSON.stringify(strafe.pit));
+  if(strafe.vis && strafe.vis.bad) fail('peeks must stay visible from some point on the strafe lane: '+JSON.stringify(strafe.vis));
+
   if(net.length) fail('unexpected network: '+net.join(', '));
   if(errs.length) fail('console errors: '+errs.join(' | '));
   console.log('flash+theme tests ok');
