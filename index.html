@@ -304,7 +304,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <p class="sub">Practice turning away from a flash in simple, original blockout maps inspired by common CS2 and Valorant situations (not copies of those maps). Use your current game sensitivity and crosshair. A photosensitivity notice appears before your first run; turn on <b>Reduced flash intensity</b> for a milder white-out. Only one flash plays at a time, and each fade lasts at least 300 ms. After each pop, simple bot targets (a capsule body and a sphere head) push out from cover — some take wide, fast swing peeks or shoulder-peek, and a mix stay standing, crouch, or switch stance mid-push — and you shoot them before they retreat. A full or partial blind makes them harder to see. Pick a damage model and bot colors in the options.</p>
   <p class="touchnote warn">This drill needs a desktop mouse (Chrome or Edge).</p>
   <div class="drills" id="flashScn">
-    <button data-scn="hall" class="on"><b>Long doors (Dust 2-style)</b><span>Auto-walk the T long take through the doors and up Long. A/D to strafe. Flashes pop at the doors or down Long.</span><em class="best" data-sbest="hall"></em></button>
+    <button data-scn="hall" class="on"><b>Long doors (Dust 2-style)</b><span>Auto-walk from Taxi through Long doors and up A long toward A car. A/D to strafe. Flashes pop at the doors or down Long.</span><em class="best" data-sbest="hall"></em></button>
     <button data-scn="hold"><b>Choke hold</b><span>Hold a doorway from cover. The flash pops over the wall or through the gap.</span><em class="best" data-sbest="hold"></em></button>
     <button data-scn="anchor"><b>Site anchor</b><span>You are on site. Flashes and peek dots come from different entries, one at a time.</span><em class="best" data-sbest="anchor"></em></button>
     <button data-scn="entry"><b>Site entry choke</b><span>Auto-walk out of a choke as a pop-flash drops over the front wall.</span><em class="best" data-sbest="entry"></em></button>
@@ -2006,7 +2006,7 @@ function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((pre
 
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
-  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:6.8},
+  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:7.2},
   hold:{id:'hold',name:'Choke hold',auto:false},
   anchor:{id:'anchor',name:'Site anchor',auto:false},
   entry:{id:'entry',name:'Site entry choke',auto:true,pathDur:2.4},
@@ -2440,7 +2440,9 @@ function mergeStaticByMaterial(){
   }
   for(const arr of groups.values()){
     if(arr.length<2){
-      arr.forEach(o=>{ o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true; if(o.geometry&&o.geometry.computeBoundingSphere) o.geometry.computeBoundingSphere(); });
+      // updateMatrixWorld must run while matrixAutoUpdate is still true, or unique-sized
+      // boxes (Blue, the central block, Taxi back wall, …) freeze at the origin.
+      arr.forEach(o=>{ o.updateMatrixWorld(true); o.matrixAutoUpdate=false; o.frustumCulled=true; if(o.geometry&&o.geometry.computeBoundingSphere) o.geometry.computeBoundingSphere(); });
       continue;
     }
     const parts=[];
@@ -2457,7 +2459,7 @@ function mergeStaticByMaterial(){
     if(expectTris && got<expectTris){
       // keep originals rather than ship a holed merge
       merged.dispose();
-      arr.forEach(o=>{ o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true; });
+      arr.forEach(o=>{ o.updateMatrixWorld(true); o.matrixAutoUpdate=false; o.frustumCulled=true; });
       continue;
     }
     merged.computeBoundingSphere();
@@ -2476,7 +2478,7 @@ function freezeStaticMatrices(){
   scnGroup.traverse(o=>{
     if(!o.isMesh && !o.isLineSegments && !o.isLine) return;
     if(o.userData&&o.userData.dynamic) return;
-    o.matrixAutoUpdate=false; o.updateMatrixWorld(true); o.frustumCulled=true;
+    o.updateMatrixWorld(true); o.matrixAutoUpdate=false; o.frustumCulled=true;
   });
 }
 function scnStats(){
@@ -2785,17 +2787,24 @@ function loadScn(id){
 
 
 function dressHall(C,fy){
-  // Low-detail dress: door frames at a real door height, a few lights, Blue and Car only.
+  // Low-detail dress: door frames at CS-scale height, a few lights, Blue box and A car.
   const doorH=3.25;
-  addDoorFrame(0,2.0,3.2,doorH,0.32,C,'z');
-  addDoorFrame(0.65,-1.45,3.2,doorH,0.32,C,'z'); // inner frame offset for the angled choke
-  addBaseboard(-5.05,6.6,0.1,9.2,C); addBaseboard(5.05,6.6,0.1,9.2,C);
-  addBaseboard(-3.85,-19.2,0.1,17,C); addBaseboard(3.85,-19.2,0.1,17,C);
-  for(const z of [8,-6,-18,-30]) addLightFix(0,3.12,z,1.0,0.28,C);
-  addBeam(0,3.05,2.0,10,0.22,C); addBeam(0.65,3.05,-1.45,8,0.22,C);
-  addBlueBin(4.95,-5.05,C); // flush to the court-right wall
-  addBlockCar(2.9,-23.2,C);
-  addSitePlate(-0.6,-30.8,'A',C);
+  addDoorFrame(0,-5.2,3.4,doorH,0.32,C,'z');
+  addDoorFrame(0.25,-8.0,3.4,doorH,0.32,C,'z');
+  addBaseboard(-4.95,0.2,0.1,7.6,C); addBaseboard(1.55,0.2,0.1,7.6,C);
+  addBaseboard(-1.95,-6.8,0.08,6.6,C); addBaseboard(1.95,-6.8,0.08,6.6,C);
+  addBaseboard(13.8,-19.8,0.1,12.0,C);
+  addLightFix(0,3.12,2.5,1.0,0.28,C);      // Taxi
+  addLightFix(0,3.12,-6.8,1.0,0.28,C);     // Long doors corridor
+  addLightFix(8.0,3.12,-12.2,1.0,0.28,C);  // court (under the ceiling, not on the block roof)
+  addLightFix(-2.4,3.12,-18.5,1.0,0.28,C); // Stairs
+  addLightFix(-2.4,3.12,-24.5,1.0,0.28,C); // Short
+  addLightFix(13.2,3.12,-18.5,1.0,0.28,C); // A long
+  addLightFix(7.6,3.12,-27.8,1.0,0.28,C);  // A site
+  addBeam(0,3.05,-5.2,4.0,0.22,C); addBeam(0.25,3.05,-8.0,4.0,0.22,C);
+  addBlueBin(5.4,-12.2,C); // Blue box in the court, under the central block
+  addBlockCar(16.6,-22.4,C); // A car on the right wall of A long
+  addSitePlate(7.6,-27.2,'A',C);
 }
 function dressHold(C,fy){
   addBaseboard(-4.0,-7,0.1,9,C); addBaseboard(4.0,-7,0.1,9,C);
@@ -2864,12 +2873,11 @@ function dressRamp(C,fy){
 }
 
 function buildHall(){
-  // Original low-detail Dust 2-style Long blockout. Own boxes only — no ripped CS2 assets.
-  // Proportions follow published Long A distances, compressed ~0.5× so the play
-  // space stays inside Retro Flash fog (near 42 m):
-  //   Long Corner→Doors 21.3 m, Corner→A Ramp 38.3 m, Pit→A Ramp 53.6 m.
-  // Outside Long → offset double-door choke → Blue right, Pit left → Long →
-  // Car → A Cross / Ramp, Goose (back left), CT Cross (right).
+  // Original low-detail Dust 2-style A/Long blockout. Own boxes only — no ripped CS2 assets.
+  // Footprint is traced from a Dust 2 A-site callout (Taxi, Long doors, Pit, Blue box,
+  // A long, A car, A ramp, A site, Goose, Short, Stairs, Short boost, CT spawn).
+  // Widths keep the image's Long-doors / A-long ratio (~0.40). Length is compressed
+  // so Taxi→Goose stays inside Retro Flash fog (near 42 m).
   const C=scnCols(), fy=FY();
   const WH=5.7, WY=1.2;
   const PIT_D=1.15, pitY=fy-PIT_D;
@@ -2877,128 +2885,150 @@ function buildHall(){
     const top=WY+WH/2, bot=pitY-0.06, h=top-bot, cy=(top+bot)/2;
     addBox(x,cy,z,sx,h,sz,C.wall,'wall');
   };
-  // Door opening 2.7 m; fill from the lintel up to the ceiling so there is no hole above.
   const DOOR_H=3.25;
   const lintel=(x,z,w)=>{
     const y0=fy+DOOR_H, y1=3.2, h=y1-y0, cy=(y0+y1)/2;
     addBox(x,cy,z,w,h,0.55,C.trim,'wall');
   };
 
-  // Floors. Keep the walkway and the test court (x about -1.7..2.4, z -3.4..-8.2) solid.
-  addFloor(0,6.6,12,9.6,C.floor);              // Outside Long z=1.8..11.4
-  addFloor(0.3,0.15,6.2,3.9,C.floor);          // bedroom, overlaps both door planes
-  addFloor(0.4,-1.4,7.2,1.4,C.floor);          // inner-door seam stitch
-  addFloor(2.95,-6.4,7.5,11.0,C.floor);        // court right / Blue — off the Pit hole
-  addFloor(-2.0,-3.4,3.6,4.0,C.floor);         // side-pit shelf, overlaps plat + pit lip
-  addFloor(-5.5,-3.7,4.4,3.2,C.floor);         // pit plat, overlaps shelf
-  addFloor(-3.9,-4.7,2.4,1.6,C.floor);         // plat/shelf seam at the pit lip
-  addFloor(0,-19.4,8.2,16.0,C.floor);          // Long corridor z=-11.4..-27.4
-  addFloor(-0.2,-29.8,12.2,7.2,C.floor);       // A Cross / site / Goose
-  addFloor(5.5,-28.4,4.2,6.8,C.floor);         // CT Cross alcove floor
-  addBox(-4.7, pitY-0.06, -7.85, 6.2, 0.12, 5.6, C.wall3||C.floor, 'floor'); // Pit floor, darker so the drop reads
+  // ---- Floors (walkable) ----
+  addFloor(-1.4, 0.25, 6.6, 7.5, C.floor);          // TAXI  x=-4.7..1.9  z=-3.5..4.0
+  addFloor(0, -6.8, 3.5, 6.8, C.floor);             // Long doors corridor  x=-1.75..1.75  z=-10.2..-3.4
+  addFloor(6.8, -12.15, 23.2, 4.1, C.floor);        // Court after the doors  x=-4.8..18.4  z=-14.2..-10.1
+  addFloor(2.4, -12.15, 4.8, 4.1, C.floor);         // Court stitch under Blue
+  addFloor(-2.4, -18.1, 4.8, 8.0, C.floor);         // Stairs / Short  x=-4.8..0.0  z=-22.1..-14.1
+  addFloor(-2.4, -23.5, 4.8, 3.0, C.floor);         // Short
+  addFloor(1.2, -24.5, 8.4, 5.2, C.floor);          // Short boost  x=-3.0..5.4  z=-27.1..-21.9
+  addFloor(14.0, -19.7, 8.8, 11.6, C.floor);        // A long  x=9.6..18.4  z=-25.5..-13.9
+  addFloor(7.7, -27.3, 9.0, 4.0, C.floor);          // A site / ramp landing
+  addFloor(10.6, -32.3, 8.0, 3.6, C.floor);         // Goose
+  addFloor(-2.8, -28.6, 4.0, 3.2, C.floor);         // CT spawn alcove
+  addBox(12.5, pitY-0.06, -6.9, 5.4, 0.12, 6.4, C.wall3||C.floor, 'floor'); // Pit floor, darker
 
-  // Outside Long enclosure
-  addBox(-5.35,WY,6.6,0.6,WH,9.6,C.wall,'wall');
-  addBox( 5.35,WY,6.6,0.6,WH,9.6,C.wall,'wall');
-  addBox(0,WY,11.35,11.3,WH,0.6,C.wall,'wall');
+  // ---- TAXI enclosure ----
+  addBox(-5.05, WY, 0.25, 0.55, WH, 7.6, C.wall, 'wall');   // TAXI left
+  addBox( 2.05, WY, 0.35, 0.55, WH, 7.4, C.wall, 'wall');   // TAXI right (forces the doors)
+  addBox(-1.45, WY, 4.15, 7.3, WH, 0.55, C.wall, 'wall');   // TAXI back
 
-  // Outer door face (z=2.0). Opening x=-1.6..1.6; RIGHT leaf open (x=0.05..1.6).
-  addBox(-3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
-  addBox( 3.5,WY,2.0,3.8,WH,0.55,C.wall,'wall');
-  lintel(0,2.0,3.4);
-  addBox(-0.75,fy+1.25,1.62,1.5,2.5,0.14,C.wall2,'wall'); // closed left leaf, offset into the bedroom (no z-fight)
+  // ---- Long doors corridor (narrow, 3.4 m) ----
+  addBox(-1.95, WY, -6.85, 0.50, WH, 6.7, C.wall, 'wall');  // left wall
+  addBox( 1.95, WY, -6.85, 0.50, WH, 6.7, C.wall, 'wall');  // right wall
+  // Outer door face z=-5.2. Opening x=-1.7..1.7; RIGHT leaf open (x=0.05..1.7).
+  addBox(-1.35, WY, -5.2, 0.70, WH, 0.55, C.wall, 'wall');
+  addBox( 1.55, WY, -5.2, 0.30, WH, 0.55, C.wall, 'wall');
+  lintel(0, -5.2, 3.5);
+  addBox(-0.80, fy+1.25, -5.38, 1.5, 2.5, 0.14, C.wall2, 'wall'); // closed left leaf, offset to avoid z-fight
+  // Inner door face z=-8.0, slight offset. Opening x=-1.45..1.95; gap x=0.25..1.95.
+  addBox(-1.20, WY, -8.0, 1.00, WH, 0.55, C.wall, 'wall');
+  addBox( 1.70, WY, -8.0, 0.50, WH, 0.55, C.wall, 'wall');
+  lintel(0.25, -8.0, 3.5);
+  addBox(-0.55, fy+1.25, -7.82, 1.5, 2.5, 0.14, C.wall2, 'wall');
 
-  // Bedroom sides (flare a little toward the offset inner frame)
-  addBox(-2.55,WY,0.28,0.5,WH,3.55,C.wall,'wall');
-  addBox( 2.85,WY,0.28,0.5,WH,3.55,C.wall,'wall');
+  // Close the T-side outside so you cannot walk around the doors to Pit.
+  addBox(6.7, WY, -3.45, 9.8, WH, 0.55, C.wall, 'wall');    // T-side wall of the Pit pocket
+  addBox(18.65, WY, -16.0, 0.55, WH, 25.2, C.wall, 'wall'); // map right wall (court + A long + pit)
 
-  // Inner door face (z=-1.45), shifted +0.65 so the through-line is an angled choke.
-  // Opening x=-0.95..2.25; closed left leaf x=-0.95..0.55; open gap x=0.55..2.25.
-  addBox(-4.15,WY,-1.45,6.4,WH,0.55,C.wall,'wall');  // left of opening (to -0.95)
-  addBox( 4.45,WY,-1.45,4.4,WH,0.55,C.wall,'wall');  // right of opening (from 2.25)
-  lintel(0.65,-1.45,3.4);
-  addBox(-0.20,fy+1.25,-1.10,1.5,2.5,0.14,C.wall2,'wall'); // leaf offset into the bedroom
+  // ---- Pit: recessed pocket on the RIGHT, two walls, opens north into the court ----
+  wallToPit(9.70, -6.95, 0.45, 6.5);   // left pit wall
+  wallToPit(15.30, -6.95, 0.45, 6.5);  // right pit wall
+  wallToPit(12.50, -3.55, 5.8, 0.50);  // pit back (T-side)
+  addBox(9.70, fy+0.16, -10.05, 0.45, 0.32, 0.50, C.trim, 'wall'); // lip at the opening
+  addBox(15.30, fy+0.16, -10.05, 0.45, 0.32, 0.50, C.trim, 'wall');
+  addBox(12.50, fy+0.16, -10.15, 5.2, 0.32, 0.28, C.trim, 'wall'); // opening curb you can look over
 
-  // Inner face extends out to the court walls
-  addBox(-6.4,WY,-1.45,2.2,WH,0.55,C.wall,'wall');
-  addBox( 6.1,WY,-1.45,2.2,WH,0.55,C.wall,'wall');
+  // ---- Big central block (solid unwalkable mass between Short/Stairs and A long) ----
+  addBox(4.80, WY, -18.00, 9.6, WH, 8.0, C.wall, 'wall'); // x=0.0..9.6, z=-22.0..-14.0
 
-  // Court: Pit on the left, Blue on the right, then the Long Corner jog.
-  wallToPit(-8.2,-6.7,0.6,11.0);
-  addBox(6.35,WY,-7.05,0.6,WH,11.5,C.wall,'wall'); // court right (Blue flush against it)
-  wallToPit(-4.9,-10.85,6.8,0.55);                 // Pit back wall (hides Pit from A)
-  addBox(-1.55, fy+0.16, -7.7, 0.32, 0.32, 5.6, C.trim, 'wall'); // Long-side pit curb (look over it)
-  addBox(-4.7, fy+0.22, -5.05, 5.4, 0.44, 0.28, C.trim, 'wall'); // doors-facing lip
-  addBox(-2.35, pitY+0.28, -5.55, 1.5, 0.28, 0.7, C.trim, 'trim');
-  addBox(-2.35, pitY+0.56, -5.95, 1.5, 0.28, 0.7, C.trim, 'trim');
-  addBox(-2.35, pitY+0.84, -6.35, 1.5, 0.28, 0.7, C.trim, 'trim');
-  wallToPit(-4.05,-11.5,0.6,1.5);
+  // ---- Left side: Stairs, Short, Short boost, CT spawn ----
+  addBox(-5.05, WY, -18.1, 0.55, WH, 8.2, C.wall, 'wall');  // stairs left
+  addBox(-5.05, WY, -24.5, 0.55, WH, 3.2, C.wall, 'wall');  // short left
+  addBox(-5.05, WY, -28.6, 0.55, WH, 5.2, C.wall, 'wall');  // short boost / CT left
+  // A few stair steps rising toward Short (solid volumes from the floor).
+  addBox(-2.4, fy+0.16, -16.4, 4.6, 0.32, 1.2, C.wall3, 'wall');
+  addBox(-2.4, fy+0.32, -17.6, 4.6, 0.64, 1.2, C.wall3, 'wall');
+  addBox(-2.4, fy+0.48, -18.8, 4.6, 0.96, 1.2, C.wall3, 'wall');
+  // Short boost: raised pad
+  addBox(1.2, fy+0.40, -24.6, 8.2, 0.80, 5.0, C.wall3, 'wall');
+  // CT spawn partial alcove (top-left)
+  addBox(-2.8, WY, -30.3, 4.1, WH, 0.55, C.wall, 'wall'); // back of alcove
+  addBox(-0.70, WY, -28.7, 0.50, WH, 2.8, C.wall, 'wall'); // alcove right pillar (opening toward Short boost)
 
-  // Long Corner jog ~11 m past the inner doors (≈0.5× the real 21.3 m).
-  addBox(5.2,WY,-12.55,2.9,WH,0.6,C.wall,'wall');
-  addBox(4.05,WY,-18.6,0.55,WH,13.0,C.wall,'wall'); // Long right wall, ends at the Cross doorway
-  addBox(-4.05,WY,-19.6,0.55,WH,16.4,C.wall,'wall'); // Long left wall
+  // A car sits against the right wall at x=16.6, z=-22.4
 
-  // A Cross opens up. CT Cross is a real doorway on the right into a short alcove.
-  // Long right ends z≈-25.1; site-right pillar starts z≈-27.4; opening ≈2.3 m.
-  addBox(-6.0,WY,-29.5,0.6,WH,7.0,C.wall,'wall');   // site left (Goose side)
-  addBox(4.05,WY,-30.0,0.55,WH,5.2,C.wall,'wall');  // site-right pillar past the opening
-  addBox(7.0,WY,-28.4,0.55,WH,6.6,C.wall,'wall');   // alcove back
-  addBox(5.55,WY,-25.1,3.1,WH,0.55,C.wall,'wall');  // alcove front (T-side of the doorway)
-  addBox(5.55,WY,-31.7,3.1,WH,0.55,C.wall,'wall');  // alcove rear
-  addBox(0,WY,-32.45,14.2,WH,0.6,C.wall,'wall');    // site back wall (covers the alcove too)
+  // ---- A ramp + A site + Goose ----
+  addBox(12.4, fy+0.22, -25.7, 4.6, 0.44, 1.3, C.wall3, 'wall');
+  addBox(12.4, fy+0.40, -26.7, 4.6, 0.80, 1.3, C.wall3, 'wall');
+  addBox(12.4, fy+0.55, -27.6, 4.6, 1.10, 1.3, C.wall3, 'wall');
+  addBox(7.7, fy+0.575, -27.4, 8.8, 1.15, 3.6, C.wall3, 'wall'); // A platform (the "A" square)
+  // Goose cover at the back of the site
+  addBox(10.5, fy+0.7, -32.0, 1.6, 1.4, 1.6, C.wall2, 'wall');
+  addBox(10.6, WY, -33.9, 8.2, WH, 0.55, C.wall, 'wall'); // site / Goose back wall
+  addBox(14.6, WY, -31.6, 0.55, WH, 4.2, C.wall, 'wall'); // Goose right
+  addBox(6.6, WY, -31.6, 0.55, WH, 4.2, C.wall, 'wall');  // Goose / site left
+  // Close the top of Short boost into A
+  addBox(1.2, WY, -27.2, 8.4, WH, 0.55, C.wall, 'wall');
+  // Building face to the right of A ramp (closes the north end of A long)
+  addBox(16.7, WY, -25.55, 4.2, WH, 0.55, C.wall, 'wall');
 
-  // Ramp up from Long onto A (solid volumes from the floor, no hovering slabs).
-  addBox(-1.15, fy+0.22, -26.6, 3.1, 0.44, 1.3, C.wall3, 'wall');
-  addBox(-1.15, fy+0.385, -27.5, 3.1, 0.77, 1.3, C.wall3, 'wall');
-  addBox(-1.15, fy+0.55, -28.4, 3.1, 1.10, 1.3, C.wall3, 'wall');
-  addBox(-1.15, fy+0.575, -30.45, 3.6, 1.15, 3.0, C.wall3, 'wall'); // A platform
-  // Goose: solid cover on the floor in a back-left pocket (no thin pole, no overlap with the platform).
-  addBox(-4.2, fy+0.7, -31.2, 1.5, 1.4, 1.5, C.wall2, 'wall');
-
-  // Ceilings over every room, including Cross / Goose / CT alcove.
-  addBox(0,3.2,6.6,12,0.3,9.8,C.ceil,'wall');
-  addBox(0.3,3.2,0.28,6.4,0.3,3.8,C.ceil,'wall');
-  addBox(0,3.2,-6.7,16.6,0.3,11.2,C.ceil,'wall');
-  addBox(0,3.2,-19.4,8.6,0.3,16.2,C.ceil,'wall');
-  addBox(0.5,3.2,-29.6,14.4,0.3,7.4,C.ceil,'wall');
+  // ---- Ceilings over every room ----
+  addBox(-1.4, 3.2, 0.25, 6.8, 0.3, 7.7, C.ceil, 'wall');
+  addBox(0, 3.2, -6.8, 4.0, 0.3, 7.0, C.ceil, 'wall');
+  addBox(6.8, 3.2, -12.2, 23.4, 0.3, 4.4, C.ceil, 'wall');
+  addBox(12.5, 3.2, -7.0, 6.2, 0.3, 6.8, C.ceil, 'wall'); // over Pit
+  addBox(4.8, 3.2, -18.0, 10.0, 0.3, 8.2, C.ceil, 'wall'); // over the block (and edges)
+  addBox(-2.4, 3.2, -20.5, 5.2, 0.3, 13.0, C.ceil, 'wall'); // stairs / short
+  addBox(1.2, 3.2, -24.6, 8.6, 0.3, 5.4, C.ceil, 'wall');
+  addBox(14.0, 3.2, -19.7, 9.2, 0.3, 12.0, C.ceil, 'wall'); // A long
+  addBox(8.5, 3.2, -29.6, 13.0, 0.3, 9.0, C.ceil, 'wall');  // A / Goose / ramp
 
   dressHall(C,fy);
 
-  const jambL=[-1.48,fy,-1.15], jambR=[1.85,fy,2.25];
-  const blue=[3.7,fy,-5.2], corner=[3.55,fy,-12.15];
-  const pit=[-3.35,fy,-6.35], plat=[-5.55,fy,-3.55];
-  const car=[2.95,fy,-23.35], ramp=[-2.35,fy+1.15,-30.2];
-  const cross=[5.55,fy,-27.55], goose=[-3.25,fy,-30.4];
+  const jambL=[-1.55,fy,-8.35], jambR=[1.55,fy,-5.0];
+  const blue=[3.9,fy,-12.2], pit=[9.2,fy,-10.4];
+  const car=[15.2,fy,-22.5], ramp=[10.4,fy+1.15,-27.8];
+  const site=[6.4,fy+1.15,-27.0], goose=[9.2,fy,-31.6];
+  const short=[0.6,fy+0.80,-24.8];
 
   return {
-    start:{x:0,y:0,z:7.6,yaw:0,pitch:2},
-    path:[{x:0,y:0,z:7.6},{x:0,y:0,z:3.5},{x:0.85,y:0,z:2.0},{x:1.05,y:0,z:-1.45},{x:0.25,y:0,z:-4.6},{x:0.15,y:0,z:-11.5},{x:0.15,y:0,z:-19.8}],
-    pathDur:6.8,
+    start:{x:0,y:0,z:2.8,yaw:0,pitch:2},
+    path:[
+      {x:0,y:0,z:2.8},
+      {x:0,y:0,z:-3.3},
+      {x:0.7,y:0,z:-5.2},
+      {x:0.7,y:0,z:-8.0},
+      {x:0.4,y:0,z:-11.0},
+      {x:8.4,y:0,z:-11.8},
+      {x:13.0,y:0,z:-13.8},
+      {x:13.2,y:0,z:-21.2}
+    ],
+    pathDur:7.2,
     callouts:[
-      {id:'outside',label:'Outside Long',x:0,z:6.8},
-      {id:'doors',label:'Doors',x:0.35,z:0.25},
-      {id:'blue',label:'Blue',x:4.95,z:-5.05},
-      {id:'pit',label:'Pit',x:-4.6,z:-7.6},
-      {id:'long',label:'Long',x:0,z:-18.0},
-      {id:'car',label:'Car',x:2.9,z:-23.2},
-      {id:'cross',label:'CT Cross',x:5.4,z:-27.6},
-      {id:'goose',label:'Goose',x:-3.4,z:-31.0},
-      {id:'site',label:'A Site',x:-0.6,z:-30.6}
+      {id:'taxi',label:'TAXI',x:-1.2,z:1.6},
+      {id:'doors',label:'Long doors',x:0,z:-6.8},
+      {id:'blue',label:'Blue box',x:5.4,z:-12.2},
+      {id:'pit',label:'Pit',x:12.5,z:-6.9},
+      {id:'along',label:'A long',x:14.0,z:-18.5},
+      {id:'car',label:'A car',x:16.6,z:-22.4},
+      {id:'ramp',label:'A ramp',x:12.4,z:-26.6},
+      {id:'site',label:'A',x:7.6,z:-27.2},
+      {id:'goose',label:'Goose',x:10.5,z:-32.2},
+      {id:'stairs',label:'Stairs',x:-2.4,z:-17.6},
+      {id:'short',label:'Short',x:-2.4,z:-23.2},
+      {id:'boost',label:'Short boost',x:1.2,z:-24.6},
+      {id:'ct',label:'CT spawn',x:-2.8,z:-28.8}
     ],
     variants:[
-      // T-side long-take flashes: through the doors from Outside Long, a doors pop-flash, then a pop down Long.
-      {id:'t-through-doors',throw:{pos:[0.2,1.7,8.2],vel:[0,4.6,-9]},pop:{pos:[0.85,1.42,-2.55]},peeks:[jambL,blue,corner,pit]},
-      {id:'doors-pop',throw:{pos:[0.85,1.5,0.2],vel:[0,3.2,-6]},pop:{pos:[0.85,1.45,-2.6]},peeks:[jambL,blue,corner,car]},
-      {id:'long-flash',throw:{pos:[0.9,1.6,-1.0],vel:[0,4.4,-8]},pop:{pos:[1.05,1.42,-7.2]},peeks:[corner,car,ramp,cross]}
+      {id:'t-through-doors',throw:{pos:[0.2,1.7,3.2],vel:[0,4.6,-9]},pop:{pos:[0.7,1.42,-10.6]},peeks:[jambL,jambR,blue,pit]},
+      {id:'doors-pop',throw:{pos:[0.7,1.5,-3.8],vel:[0,3.2,-6]},pop:{pos:[0.7,1.42,-9.4]},peeks:[jambL,jambR,blue,pit,car]},
+      {id:'long-flash',throw:{pos:[0.7,1.6,-8.4],vel:[0.8,4.4,-8]},pop:{pos:[8.5,1.42,-13.2]},peeks:[jambR,car,ramp,site,goose]}
     ],
     popZones:[
-      {side:'front',id:'front',pop:[0.85,1.45,-2.6],jitter:[0.3,0.25,0.45],throw:[0.2,1.7,8.2],vel:[0,4.4,-9],peeks:[jambL,blue,corner,pit]},
-      {side:'above',id:'above',pop:[0.85,1.50,-2.2],jitter:[0.3,0.2,0.4],throw:[0.2,2.0,8.0],vel:[0,5.0,-8],peeks:[jambL,blue,corner,car]},
-      {side:'right',id:'right',pop:[1.55,1.42,-4.2],jitter:[0.22,0.25,0.35],throw:[0.9,1.6,-1.0],vel:[0.6,4.0,-6],peeks:[blue,corner,car,jambR]},
-      {side:'left',id:'left',pop:[-2.7,1.35,-4.3],jitter:[0.45,0.3,0.6],throw:[-4.6,0.35,-7.6],vel:[3.4,5.2,3.2],peeks:[pit,plat,jambL,corner]},
-      {side:'behind',id:'behind',pop:[0.2,1.4,10.3],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,11.0],vel:[0,3.2,-4],peeks:[jambL,blue,corner]},
-      {side:'offangle',id:'offangle',pop:[1.15,1.4,-3.2],jitter:[0.3,0.25,0.45],throw:[0.85,1.5,0.2],vel:[0,3.6,-7],peeks:[pit,blue,corner,cross]}
+      {side:'front',id:'front',pop:[0.7,1.42,-10.6],jitter:[0.3,0.25,0.45],throw:[0.2,1.7,3.2],vel:[0,4.4,-9],peeks:[jambL,blue,pit]},
+      {side:'above',id:'above',pop:[0.7,1.50,-9.8],jitter:[0.3,0.2,0.4],throw:[0.2,2.0,3.0],vel:[0,5.0,-8],peeks:[jambL,blue,car]},
+      {side:'right',id:'right',pop:[4.2,1.42,-11.6],jitter:[0.3,0.25,0.35],throw:[0.7,1.6,-8.0],vel:[1.2,4.0,-5],peeks:[blue,pit,car,jambR]},
+      {side:'left',id:'left',pop:[-1.2,1.35,-11.2],jitter:[0.4,0.3,0.5],throw:[-2.0,1.2,-11.0],vel:[2.4,4.2,1.2],peeks:[blue,jambL,short]},
+      {side:'behind',id:'behind',pop:[0.2,1.4,3.8],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,4.0],vel:[0,3.2,-4],peeks:[jambL,blue]},
+      {side:'offangle',id:'offangle',pop:[7.2,1.42,-12.6],jitter:[0.3,0.25,0.45],throw:[0.7,1.5,-8.0],vel:[1.4,3.6,-5],peeks:[pit,blue,car,ramp]}
     ]
   };
 }
