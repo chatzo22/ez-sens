@@ -1229,7 +1229,7 @@ function fuseMinMs(diff,preset){ const d=FDIFF[diff]||FDIFF.normal; return ((pre
 
 const SCN_IDS=['hall','hold','anchor','entry','retake','overwall','mid','ramp'];
 const SCN={
-  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:7.2},
+  hall:{id:'hall',name:'Long doors (Dust 2-style)',auto:true,pathDur:7.8},
   hold:{id:'hold',name:'Choke hold',auto:false},
   anchor:{id:'anchor',name:'Site anchor',auto:false},
   entry:{id:'entry',name:'Site entry choke',auto:true,pathDur:2.4},
@@ -2010,24 +2010,25 @@ function loadScn(id){
 
 
 function dressHall(C,fy){
-  // Low-detail dress: door frames at CS-scale height, a few lights, Blue box and A car.
+  // CS-scale door frames, zigzag leaves, Blue, Car, lights only under ceilings.
   const doorH=3.25;
-  addDoorFrame(0,-5.2,3.4,doorH,0.32,C,'z');
-  addDoorFrame(0.25,-8.0,3.4,doorH,0.32,C,'z');
-  addBaseboard(-4.95,0.2,0.1,7.6,C); addBaseboard(1.55,0.2,0.1,7.6,C);
-  addBaseboard(-1.95,-6.8,0.08,6.6,C); addBaseboard(1.95,-6.8,0.08,6.6,C);
-  addBaseboard(13.8,-19.8,0.1,12.0,C);
-  addLightFix(0,3.12,2.5,1.0,0.28,C);      // Taxi
-  addLightFix(0,3.12,-6.8,1.0,0.28,C);     // Long doors corridor
-  addLightFix(8.0,3.12,-12.2,1.0,0.28,C);  // court (under the ceiling, not on the block roof)
-  addLightFix(-2.4,3.12,-18.5,1.0,0.28,C); // Stairs
-  addLightFix(-2.4,3.12,-24.5,1.0,0.28,C); // Short
-  addLightFix(13.2,3.12,-18.5,1.0,0.28,C); // A long
-  addLightFix(7.6,3.12,-27.8,1.0,0.28,C);  // A site
-  addBeam(0,3.05,-5.2,4.0,0.22,C); addBeam(0.25,3.05,-8.0,4.0,0.22,C);
-  addBlueBin(5.4,-12.2,C); // Blue box in the court, under the central block
-  addBlockCar(16.6,-22.4,C); // A car on the right wall of A long
-  addSitePlate(7.6,-27.2,'A',C);
+  addDoorFrame(0,-5.0,3.4,doorH,0.36,C,'z');
+  addDoorFrame(0,-8.0,3.4,doorH,0.36,C,'z');
+  addBaseboard(-4.95,0.3,0.1,7.4,C); addBaseboard(1.55,0.3,0.1,7.4,C);
+  addBaseboard(-1.95,-6.5,0.08,7.0,C); addBaseboard(1.95,-6.5,0.08,7.0,C);
+  addBaseboard(4.6,-9.4,0.08,2.0,C);
+  addBaseboard(13.6,-19.5,0.1,12.4,C);
+  addLightFix(0,3.12,2.5,1.0,0.28,C);       // Taxi
+  addLightFix(0,3.12,-6.5,1.0,0.28,C);      // door vestibule
+  addLightFix(4.4,3.12,-9.4,1.0,0.28,C);    // connector
+  addLightFix(8.4,3.12,-13.0,1.0,0.28,C);   // court (under the ceiling)
+  addLightFix(13.4,3.12,-7.2,1.0,0.28,C);   // over Pit
+  addLightFix(13.4,3.12,-19.0,1.0,0.28,C);  // A long
+  addLightFix(9.0,3.12,-28.0,1.0,0.28,C);   // A site
+  addBeam(0,3.05,-5.0,4.0,0.22,C); addBeam(0,3.05,-8.0,4.0,0.22,C);
+  addBlueBin(5.6,-12.05,C); // Blue box in the court, cubby behind it toward the block
+  addBlockCar(16.8,-23.0,C); // A car on the right wall of A long, by the ramp
+  addSitePlate(8.4,-27.6,'A',C);
 }
 function dressHold(C,fy){
   addBaseboard(-4.0,-7,0.1,9,C); addBaseboard(4.0,-7,0.1,9,C);
@@ -2097,10 +2098,12 @@ function dressRamp(C,fy){
 
 function buildHall(){
   // Original low-detail Dust 2-style A/Long blockout. Own boxes only — no ripped CS2 assets.
-  // Footprint is traced from a Dust 2 A-site callout (Taxi, Long doors, Pit, Blue box,
-  // A long, A car, A ramp, A site, Goose, Short, Stairs, Short boost, CT spawn).
-  // Widths keep the image's Long-doors / A-long ratio (~0.40). Length is compressed
-  // so Taxi→Goose stays inside Retro Flash fog (near 42 m).
+  // T Long take: Taxi → zigzag Long doors (first gap RIGHT, second gap LEFT) → wall
+  // ahead, right, right again into the court. Blue is on the left with a cubby behind
+  // it; Pit is the recessed T-end drop opposite Blue; A long runs up to A car / ramp /
+  // A site / Goose. Short, Stairs, Short boost and CT spawn are omitted.
+  // Widths keep a Long-doors / A-long ratio near 0.40. Length is compressed so
+  // Taxi→Goose stays inside Retro Flash fog (near 42 m).
   const C=scnCols(), fy=FY();
   const WH=5.7, WY=1.2;
   const PIT_D=1.15, pitY=fy-PIT_D;
@@ -2113,145 +2116,160 @@ function buildHall(){
     const y0=fy+DOOR_H, y1=3.2, h=y1-y0, cy=(y0+y1)/2;
     addBox(x,cy,z,w,h,0.55,C.trim,'wall');
   };
+  // Open leaf stood 90° into the vestibule (axis-aligned box at the hinge).
+  const openLeaf=(hx,hz,alongZ,sideX)=>{
+    // hx,hz = hinge in the door plane; alongZ = signed length into the vestibule.
+    addBox(hx+sideX*0.08, fy+1.25, hz+alongZ/2, 0.14, 2.5, Math.abs(alongZ), C.wall2, 'wall');
+  };
 
-  // ---- Floors (walkable) ----
-  addFloor(-1.4, 0.25, 6.6, 7.5, C.floor);          // TAXI  x=-4.7..1.9  z=-3.5..4.0
-  addFloor(0, -6.8, 3.5, 6.8, C.floor);             // Long doors corridor  x=-1.75..1.75  z=-10.2..-3.4
-  addFloor(6.8, -12.15, 23.2, 4.1, C.floor);        // Court after the doors  x=-4.8..18.4  z=-14.2..-10.1
-  addFloor(2.4, -12.15, 4.8, 4.1, C.floor);         // Court stitch under Blue
-  addFloor(-2.4, -18.1, 4.8, 8.0, C.floor);         // Stairs / Short  x=-4.8..0.0  z=-22.1..-14.1
-  addFloor(-2.4, -23.5, 4.8, 3.0, C.floor);         // Short
-  addFloor(1.2, -24.5, 8.4, 5.2, C.floor);          // Short boost  x=-3.0..5.4  z=-27.1..-21.9
-  addFloor(14.0, -19.7, 8.8, 11.6, C.floor);        // A long  x=9.6..18.4  z=-25.5..-13.9
-  addFloor(7.7, -27.3, 9.0, 4.0, C.floor);          // A site / ramp landing
-  addFloor(10.6, -32.3, 8.0, 3.6, C.floor);         // Goose
-  addFloor(-2.8, -28.6, 4.0, 3.2, C.floor);         // CT spawn alcove
-  addBox(12.5, pitY-0.06, -6.9, 5.4, 0.12, 6.4, C.wall3||C.floor, 'floor'); // Pit floor, darker
+  // ---- Floors ----
+  addFloor(-1.35, 0.30, 6.7, 7.4, C.floor);          // TAXI  x=-4.7..2.0  z=-3.4..4.0
+  addFloor(0, -6.6, 3.5, 6.8, C.floor);              // door corridor + alcove  x=-1.75..1.75  z=-10.0..-3.2
+  addFloor(5.3, -9.35, 7.2, 2.1, C.floor);           // connector (right after the wall) x=1.7..8.9
+  addFloor(9.6, -13.15, 17.2, 6.1, C.floor);         // court in front of Blue and Pit  x=1.0..18.2  z=-16.2..-10.1
+  addFloor(5.6, -13.15, 9.2, 6.1, C.floor);          // court stitch under Blue / cubby
+  addFloor(13.85, -20.6, 8.7, 9.2, C.floor);         // A long (lower stretch)
+  addFloor(13.85, -24.4, 8.7, 3.2, C.floor);         // A long (slight rise toward A) — raised slab below
+  addBox(13.85, fy+0.16, -24.4, 8.7, 0.32, 3.2, C.floor, 'floor'); // +0.32 m grade toward A
+  addFloor(10.2, -27.6, 9.6, 4.0, C.floor);          // A ramp landing / site approach
+  addFloor(8.4, -27.8, 8.8, 3.8, C.floor);           // A site
+  addFloor(10.2, -32.2, 7.6, 3.4, C.floor);          // Goose
+  addBox(14.05, pitY-0.06, -7.05, 5.6, 0.12, 6.3, C.wall3||C.floor, 'floor'); // Pit floor, darker
+  // Two step-downs into Pit from the court lip
+  addBox(14.05, fy-0.42, -10.05, 5.4, 0.20, 0.55, C.wall3, 'wall');
 
   // ---- TAXI enclosure ----
-  addBox(-5.05, WY, 0.25, 0.55, WH, 7.6, C.wall, 'wall');   // TAXI left
-  addBox( 2.05, WY, 0.35, 0.55, WH, 7.4, C.wall, 'wall');   // TAXI right (forces the doors)
-  addBox(-1.45, WY, 4.15, 7.3, WH, 0.55, C.wall, 'wall');   // TAXI back
+  addBox(-5.05, WY, 0.30, 0.55, WH, 7.4, C.wall, 'wall');   // TAXI left
+  addBox( 2.05, WY, 0.35, 0.55, WH, 7.3, C.wall, 'wall');   // TAXI right (forces the doors)
+  addBox(-1.50, WY, 4.15, 7.2, WH, 0.55, C.wall, 'wall');   // TAXI back
 
-  // ---- Long doors corridor (narrow, 3.4 m) ----
-  addBox(-1.95, WY, -6.85, 0.50, WH, 6.7, C.wall, 'wall');  // left wall
-  addBox( 1.95, WY, -6.85, 0.50, WH, 6.7, C.wall, 'wall');  // right wall
-  // Outer door face z=-5.2. Opening x=-1.7..1.7; RIGHT leaf open (x=0.05..1.7).
-  addBox(-1.35, WY, -5.2, 0.70, WH, 0.55, C.wall, 'wall');
-  addBox( 1.55, WY, -5.2, 0.30, WH, 0.55, C.wall, 'wall');
-  lintel(0, -5.2, 3.5);
-  addBox(-0.80, fy+1.25, -5.38, 1.5, 2.5, 0.14, C.wall2, 'wall'); // closed left leaf, offset to avoid z-fight
-  // Inner door face z=-8.0, slight offset. Opening x=-1.45..1.95; gap x=0.25..1.95.
-  addBox(-1.20, WY, -8.0, 1.00, WH, 0.55, C.wall, 'wall');
-  addBox( 1.70, WY, -8.0, 0.50, WH, 0.55, C.wall, 'wall');
-  lintel(0.25, -8.0, 3.5);
-  addBox(-0.55, fy+1.25, -7.82, 1.5, 2.5, 0.14, C.wall2, 'wall');
+  // ---- Long doors corridor: two aligned frames, staggered open leaves ----
+  addBox(-1.95, WY, -6.85, 0.50, WH, 7.2, C.wall, 'wall');  // left wall, alcove to Taxi
+  // Right wall stops at the inner door so the alcove opens into the connector.
+  addBox( 1.95, WY, -5.65, 0.50, WH, 5.3, C.wall, 'wall');  // z=-8.3..-3.0
+  // Outer (T-side) door at z=-5.0. RIGHT half open (x=0.20..1.70).
+  addBox(-1.25, WY, -5.0, 1.00, WH, 0.50, C.wall, 'wall');  // left jamb solid
+  addBox( 1.78, WY, -5.0, 0.34, WH, 0.50, C.wall, 'wall');  // thin right jamb
+  lintel(0, -5.0, 3.5);
+  addBox(-0.65, fy+1.25, -5.00, 1.60, 2.5, 0.18, C.wall2, 'wall'); // closed left leaf, on the door plane
+  openLeaf(1.62, -5.0, -1.55, +1); // right leaf swung into the vestibule
+  // Inner (A-side) door at z=-8.0. LEFT half open (x=-1.70..-0.20).
+  addBox( 1.25, WY, -8.0, 1.00, WH, 0.50, C.wall, 'wall');  // right jamb solid
+  addBox(-1.78, WY, -8.0, 0.34, WH, 0.50, C.wall, 'wall');  // thin left jamb
+  lintel(0, -8.0, 3.5);
+  addBox( 0.65, fy+1.25, -8.00, 1.60, 2.5, 0.18, C.wall2, 'wall'); // closed right leaf, on the door plane
+  openLeaf(-1.62, -8.0, +1.55, -1); // left leaf swung into the vestibule
+  // Alcove past the inner door, then a WALL if you keep walking straight.
+  addBox(0.00, WY, -10.45, 3.90, WH, 0.50, C.wall, 'wall'); // wall straight ahead
+  // Close T-side so you cannot walk around the doors to Pit.
+  addBox(9.4, WY, -3.35, 15.0, WH, 0.55, C.wall, 'wall');
+  addBox(18.65, WY, -16.4, 0.55, WH, 26.2, C.wall, 'wall'); // map right wall (pit + court + A long)
 
-  // Close the T-side outside so you cannot walk around the doors to Pit.
-  addBox(6.7, WY, -3.45, 9.8, WH, 0.55, C.wall, 'wall');    // T-side wall of the Pit pocket
-  addBox(18.65, WY, -16.0, 0.55, WH, 25.2, C.wall, 'wall'); // map right wall (court + A long + pit)
+  // ---- Connector: right, then right again into the court ----
+  // Opening in the alcove's right wall (between the inner door and the end wall).
+  // The right corridor wall already stops; add north and south connector walls.
+  addBox(5.40, WY, -8.30, 7.0, WH, 0.50, C.wall, 'wall');  // connector south (T-side) x=1.9..8.9
+  addBox(3.40, WY, -10.45, 3.0, WH, 0.50, C.wall, 'wall'); // connector north, leaves an opening at x>4.9 into the court
 
-  // ---- Pit: recessed pocket on the RIGHT, two walls, opens north into the court ----
-  wallToPit(9.70, -6.95, 0.45, 6.5);   // left pit wall
-  wallToPit(15.30, -6.95, 0.45, 6.5);  // right pit wall
-  wallToPit(12.50, -3.55, 5.8, 0.50);  // pit back (T-side)
-  addBox(9.70, fy+0.16, -10.05, 0.45, 0.32, 0.50, C.trim, 'wall'); // lip at the opening
-  addBox(15.30, fy+0.16, -10.05, 0.45, 0.32, 0.50, C.trim, 'wall');
-  addBox(12.50, fy+0.16, -10.15, 5.2, 0.32, 0.28, C.trim, 'wall'); // opening curb you can look over
+  // ---- Court, Blue cubby, Pit (T-end of A long, opposite Blue) ----
+  // Central block: solid mass west of A long, north of Blue. No Short/Stairs rooms.
+  // Central block west of A long, north of Blue. South face at z=-15.0 leaves a deep court
+  // and a 1.5 m cubby behind Blue. North face meets the A-site south wall.
+  addBox(4.70, WY, -20.30, 9.4, WH, 10.6, C.wall, 'wall'); // x=0.0..9.4, z=-25.6..-15.0
+  // Cubby cheeks: walkable pocket x=4.6..6.6, z=-15.0..-13.4, Blue just south of the mouth.
+  addBox(4.35, WY, -14.20, 0.40, WH, 1.6, C.wall, 'wall'); // cubby left cheek
+  addBox(6.85, WY, -14.20, 0.40, WH, 1.6, C.wall, 'wall'); // cubby right cheek
 
-  // ---- Big central block (solid unwalkable mass between Short/Stairs and A long) ----
-  addBox(4.80, WY, -18.00, 9.6, WH, 8.0, C.wall, 'wall'); // x=0.0..9.6, z=-22.0..-14.0
+  // Pit: recessed drop, three walls, opens north into the court, lip + plat.
+  wallToPit(11.20, -7.05, 0.45, 6.5);   // left pit wall
+  wallToPit(16.90, -7.05, 0.45, 6.5);   // right pit wall
+  wallToPit(14.05, -3.70, 5.9, 0.50);   // pit back (T-side)
+  addBox(11.20, fy+0.16, -10.15, 0.45, 0.32, 0.50, C.trim, 'wall');
+  addBox(16.90, fy+0.16, -10.15, 0.45, 0.32, 0.50, C.trim, 'wall');
+  addBox(14.05, fy+0.16, -10.25, 5.5, 0.32, 0.28, C.trim, 'wall'); // opening curb
+  // Pit Plat: raised platform on the A-long side (north-west lip), a hold looking up Long.
+  addBox(11.85, fy+0.40, -11.35, 2.0, 0.80, 2.2, C.wall3, 'wall');
 
-  // ---- Left side: Stairs, Short, Short boost, CT spawn ----
-  addBox(-5.05, WY, -18.1, 0.55, WH, 8.2, C.wall, 'wall');  // stairs left
-  addBox(-5.05, WY, -24.5, 0.55, WH, 3.2, C.wall, 'wall');  // short left
-  addBox(-5.05, WY, -28.6, 0.55, WH, 5.2, C.wall, 'wall');  // short boost / CT left
-  // A few stair steps rising toward Short (solid volumes from the floor).
-  addBox(-2.4, fy+0.16, -16.4, 4.6, 0.32, 1.2, C.wall3, 'wall');
-  addBox(-2.4, fy+0.32, -17.6, 4.6, 0.64, 1.2, C.wall3, 'wall');
-  addBox(-2.4, fy+0.48, -18.8, 4.6, 0.96, 1.2, C.wall3, 'wall');
-  // Short boost: raised pad
-  addBox(1.2, fy+0.40, -24.6, 8.2, 0.80, 5.0, C.wall3, 'wall');
-  // CT spawn partial alcove (top-left)
-  addBox(-2.8, WY, -30.3, 4.1, WH, 0.55, C.wall, 'wall'); // back of alcove
-  addBox(-0.70, WY, -28.7, 0.50, WH, 2.8, C.wall, 'wall'); // alcove right pillar (opening toward Short boost)
+  // West face of the block (no Short side) plus a west court wall so the court does not leak.
+  addBox(-0.20, WY, -20.30, 0.55, WH, 10.6, C.wall, 'wall'); // west of the block
+  addBox(1.70, WY, -12.70, 0.50, WH, 4.6, C.wall, 'wall');   // west court wall, z=-15.0..-10.4
 
-  // A car sits against the right wall at x=16.6, z=-22.4
+  // ---- A long, A car, A ramp, A site, Goose ----
+  // The block's east face is x=9.4. A long floor starts at x=9.5.
+  addBox(16.7, WY, -26.15, 4.2, WH, 0.55, C.wall, 'wall'); // building face right of A ramp, closes north end of A long
+  // A ramp steps + A platform
+  addBox(13.2, fy+0.22, -26.0, 5.0, 0.44, 1.3, C.wall3, 'wall');
+  addBox(13.2, fy+0.40, -27.0, 5.0, 0.80, 1.3, C.wall3, 'wall');
+  addBox(13.2, fy+0.55, -27.9, 5.0, 1.10, 1.3, C.wall3, 'wall');
+  addBox(8.6, fy+0.575, -27.7, 8.8, 1.15, 3.6, C.wall3, 'wall'); // A platform
+  // Goose: enclosed back corner
+  addBox(10.2, fy+0.7, -32.0, 1.6, 1.4, 1.6, C.wall2, 'wall');
+  addBox(10.2, WY, -34.0, 8.0, WH, 0.55, C.wall, 'wall'); // back wall
+  addBox(14.4, WY, -31.8, 0.55, WH, 4.4, C.wall, 'wall'); // Goose right
+  addBox(6.2, WY, -31.8, 0.55, WH, 4.4, C.wall, 'wall');  // Goose / site left
+  addBox(6.2, WY, -27.8, 0.55, WH, 3.6, C.wall, 'wall');  // close west of site (no Short)
+  addBox(8.4, WY, -25.85, 4.4, WH, 0.55, C.wall, 'wall'); // south face of site toward the block
 
-  // ---- A ramp + A site + Goose ----
-  addBox(12.4, fy+0.22, -25.7, 4.6, 0.44, 1.3, C.wall3, 'wall');
-  addBox(12.4, fy+0.40, -26.7, 4.6, 0.80, 1.3, C.wall3, 'wall');
-  addBox(12.4, fy+0.55, -27.6, 4.6, 1.10, 1.3, C.wall3, 'wall');
-  addBox(7.7, fy+0.575, -27.4, 8.8, 1.15, 3.6, C.wall3, 'wall'); // A platform (the "A" square)
-  // Goose cover at the back of the site
-  addBox(10.5, fy+0.7, -32.0, 1.6, 1.4, 1.6, C.wall2, 'wall');
-  addBox(10.6, WY, -33.9, 8.2, WH, 0.55, C.wall, 'wall'); // site / Goose back wall
-  addBox(14.6, WY, -31.6, 0.55, WH, 4.2, C.wall, 'wall'); // Goose right
-  addBox(6.6, WY, -31.6, 0.55, WH, 4.2, C.wall, 'wall');  // Goose / site left
-  // Close the top of Short boost into A
-  addBox(1.2, WY, -27.2, 8.4, WH, 0.55, C.wall, 'wall');
-  // Building face to the right of A ramp (closes the north end of A long)
-  addBox(16.7, WY, -25.55, 4.2, WH, 0.55, C.wall, 'wall');
-
-  // ---- Ceilings over every room ----
-  addBox(-1.4, 3.2, 0.25, 6.8, 0.3, 7.7, C.ceil, 'wall');
-  addBox(0, 3.2, -6.8, 4.0, 0.3, 7.0, C.ceil, 'wall');
-  addBox(6.8, 3.2, -12.2, 23.4, 0.3, 4.4, C.ceil, 'wall');
-  addBox(12.5, 3.2, -7.0, 6.2, 0.3, 6.8, C.ceil, 'wall'); // over Pit
-  addBox(4.8, 3.2, -18.0, 10.0, 0.3, 8.2, C.ceil, 'wall'); // over the block (and edges)
-  addBox(-2.4, 3.2, -20.5, 5.2, 0.3, 13.0, C.ceil, 'wall'); // stairs / short
-  addBox(1.2, 3.2, -24.6, 8.6, 0.3, 5.4, C.ceil, 'wall');
-  addBox(14.0, 3.2, -19.7, 9.2, 0.3, 12.0, C.ceil, 'wall'); // A long
-  addBox(8.5, 3.2, -29.6, 13.0, 0.3, 9.0, C.ceil, 'wall');  // A / Goose / ramp
+  // ---- Ceilings over every room (no floating lights) ----
+  addBox(-1.35, 3.2, 0.30, 6.9, 0.3, 7.6, C.ceil, 'wall');           // Taxi
+  addBox(0, 3.2, -6.6, 4.0, 0.3, 7.2, C.ceil, 'wall');               // doors + alcove
+  addBox(5.3, 3.2, -9.35, 7.4, 0.3, 2.3, C.ceil, 'wall');            // connector
+  addBox(9.6, 3.2, -13.15, 17.4, 0.3, 6.3, C.ceil, 'wall');          // court
+  addBox(14.05, 3.2, -7.05, 6.4, 0.3, 6.6, C.ceil, 'wall');          // Pit
+  addBox(4.70, 3.2, -20.30, 9.6, 0.3, 10.8, C.ceil, 'wall');         // over the block
+  addBox(13.85, 3.2, -21.2, 9.0, 0.3, 13.4, C.ceil, 'wall');         // A long
+  addBox(9.4, 3.2, -30.0, 12.6, 0.3, 8.4, C.ceil, 'wall');           // A / Goose / ramp
 
   dressHall(C,fy);
 
-  const jambL=[-1.55,fy,-8.35], jambR=[1.55,fy,-5.0];
-  const blue=[3.9,fy,-12.2], pit=[9.2,fy,-10.4];
-  const car=[15.2,fy,-22.5], ramp=[10.4,fy+1.15,-27.8];
-  const site=[6.4,fy+1.15,-27.0], goose=[9.2,fy,-31.6];
-  const short=[0.6,fy+0.80,-24.8];
+  const jambR=[1.10,fy,-5.55], jambL=[-1.10,fy,-8.55];
+  const blue=[7.25,fy,-10.85], cubby=[5.6,fy,-14.2], pit=[14.2,fy,-11.3];
+  const plat=[11.85,fy+0.80,-11.6];
+  const car=[15.4,fy+0.32,-23.0], ramp=[10.4,fy+1.15,-26.9];
+  const site=[7.2,fy+1.15,-28.4], goose=[9.0,fy,-31.6];
 
   return {
     start:{x:0,y:0,z:2.8,yaw:0,pitch:2},
     path:[
       {x:0,y:0,z:2.8},
-      {x:0,y:0,z:-3.3},
-      {x:0.7,y:0,z:-5.2},
-      {x:0.7,y:0,z:-8.0},
-      {x:0.4,y:0,z:-11.0},
-      {x:8.4,y:0,z:-11.8},
-      {x:13.0,y:0,z:-13.8},
-      {x:13.2,y:0,z:-21.2}
+      {x:0.15,y:0,z:-3.4},
+      {x:0.85,y:0,z:-5.0},   // slip RIGHT through the first door
+      {x:0.15,y:0,z:-6.5},   // vestibule diagonal
+      {x:-0.85,y:0,z:-8.0},  // slip LEFT through the second door
+      {x:-0.15,y:0,z:-9.3},  // alcove, wall ahead
+      {x:2.4,y:0,z:-9.4},    // first right into the connector
+      {x:7.4,y:0,z:-9.5},    // along the connector, right of where Blue will sit
+      {x:8.0,y:0,z:-11.8},   // second right into the court; Blue on the left
+      {x:8.2,y:0,z:-14.0},   // past Blue / cubby, still in the court
+      {x:13.0,y:0,z:-14.2},  // big opening in front of Blue and Pit
+      {x:13.2,y:0,z:-16.4},  // up A long
+      {x:13.4,y:0,z:-22.4}   // toward A car
     ],
-    pathDur:7.2,
+    pathDur:7.8,
     callouts:[
       {id:'taxi',label:'TAXI',x:-1.2,z:1.6},
-      {id:'doors',label:'Long doors',x:0,z:-6.8},
-      {id:'blue',label:'Blue box',x:5.4,z:-12.2},
-      {id:'pit',label:'Pit',x:12.5,z:-6.9},
-      {id:'along',label:'A long',x:14.0,z:-18.5},
-      {id:'car',label:'A car',x:16.6,z:-22.4},
-      {id:'ramp',label:'A ramp',x:12.4,z:-26.6},
-      {id:'site',label:'A',x:7.6,z:-27.2},
-      {id:'goose',label:'Goose',x:10.5,z:-32.2},
-      {id:'stairs',label:'Stairs',x:-2.4,z:-17.6},
-      {id:'short',label:'Short',x:-2.4,z:-23.2},
-      {id:'boost',label:'Short boost',x:1.2,z:-24.6},
-      {id:'ct',label:'CT spawn',x:-2.8,z:-28.8}
+      {id:'doors',label:'Long doors',x:0,z:-6.5},
+      {id:'blue',label:'Blue box',x:5.6,z:-12.05},
+      {id:'cubby',label:'Cubby',x:5.6,z:-14.2},
+      {id:'pit',label:'Pit',x:14.0,z:-7.0},
+      {id:'along',label:'A long',x:13.9,z:-19.0},
+      {id:'car',label:'A car',x:16.8,z:-23.0},
+      {id:'ramp',label:'A ramp',x:13.2,z:-26.8},
+      {id:'site',label:'A',x:8.4,z:-27.6},
+      {id:'goose',label:'Goose',x:10.2,z:-32.2}
     ],
     variants:[
-      {id:'t-through-doors',throw:{pos:[0.2,1.7,3.2],vel:[0,4.6,-9]},pop:{pos:[0.7,1.42,-10.6]},peeks:[jambL,jambR,blue,pit]},
-      {id:'doors-pop',throw:{pos:[0.7,1.5,-3.8],vel:[0,3.2,-6]},pop:{pos:[0.7,1.42,-9.4]},peeks:[jambL,jambR,blue,pit,car]},
-      {id:'long-flash',throw:{pos:[0.7,1.6,-8.4],vel:[0.8,4.4,-8]},pop:{pos:[8.5,1.42,-13.2]},peeks:[jambR,car,ramp,site,goose]}
+      {id:'t-through-doors',throw:{pos:[0.2,1.7,3.2],vel:[0,4.6,-9]},pop:{pos:[-0.7,1.42,-8.6]},peeks:[jambR,jambL,blue,pit]},
+      {id:'doors-pop',throw:{pos:[0.85,1.5,-3.6],vel:[-0.4,3.2,-6]},pop:{pos:[-0.7,1.42,-8.5]},peeks:[jambL,jambR,blue,pit,car]},
+      {id:'long-flash',throw:{pos:[-0.6,1.6,-8.2],vel:[2.2,4.4,-6]},pop:{pos:[8.8,1.42,-14.4]},peeks:[blue,pit,plat,car,ramp,goose]}
     ],
     popZones:[
-      {side:'front',id:'front',pop:[0.7,1.42,-10.6],jitter:[0.3,0.25,0.45],throw:[0.2,1.7,3.2],vel:[0,4.4,-9],peeks:[jambL,blue,pit]},
-      {side:'above',id:'above',pop:[0.7,1.50,-9.8],jitter:[0.3,0.2,0.4],throw:[0.2,2.0,3.0],vel:[0,5.0,-8],peeks:[jambL,blue,car]},
-      {side:'right',id:'right',pop:[4.2,1.42,-11.6],jitter:[0.3,0.25,0.35],throw:[0.7,1.6,-8.0],vel:[1.2,4.0,-5],peeks:[blue,pit,car,jambR]},
-      {side:'left',id:'left',pop:[-1.2,1.35,-11.2],jitter:[0.4,0.3,0.5],throw:[-2.0,1.2,-11.0],vel:[2.4,4.2,1.2],peeks:[blue,jambL,short]},
-      {side:'behind',id:'behind',pop:[0.2,1.4,3.8],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,4.0],vel:[0,3.2,-4],peeks:[jambL,blue]},
-      {side:'offangle',id:'offangle',pop:[7.2,1.42,-12.6],jitter:[0.3,0.25,0.45],throw:[0.7,1.5,-8.0],vel:[1.4,3.6,-5],peeks:[pit,blue,car,ramp]}
+      {side:'front',id:'front',pop:[-0.7,1.42,-8.6],jitter:[0.3,0.25,0.4],throw:[0.2,1.7,3.2],vel:[0,4.4,-9],peeks:[jambR,blue,pit]},
+      {side:'above',id:'above',pop:[0.2,1.55,-9.2],jitter:[0.3,0.2,0.35],throw:[0.2,2.0,3.0],vel:[0,5.0,-8],peeks:[jambL,blue,car]},
+      {side:'right',id:'right',pop:[4.8,1.42,-11.4],jitter:[0.3,0.25,0.35],throw:[0.8,1.5,-5.2],vel:[1.4,4.0,-4],peeks:[blue,pit,jambR]},
+      {side:'left',id:'left',pop:[-0.8,1.35,-8.6],jitter:[0.3,0.25,0.4],throw:[-1.2,1.3,-6.8],vel:[1.6,4.0,-3],peeks:[jambL,blue,cubby]},
+      {side:'behind',id:'behind',pop:[0.2,1.4,3.8],jitter:[0.5,0.3,0.4],throw:[0.2,1.3,4.0],vel:[0,3.2,-4],peeks:[jambR,blue]},
+      {side:'offangle',id:'offangle',pop:[8.6,1.42,-13.8],jitter:[0.3,0.25,0.45],throw:[-0.5,1.5,-8.0],vel:[2.0,3.8,-5],peeks:[pit,plat,blue,car,ramp]}
     ]
   };
 }
