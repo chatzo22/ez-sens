@@ -5,36 +5,112 @@ S.hook.keys=Object.assign({},HOOK_DEF.keys,S.hook.keys||{});
 if(!M.hookChamp(S.hook.champ)) S.hook.champ='Blitzcrank';
 store.hookHistory=store.hookHistory||[];
 
-const HK_W=1400, HK_H=2400, HK_PR=55, HK_CR=55, HK_MR=34, HK_PSPD=335, HK_MSPD=325, HK_FLASH=400, HK_FCD=20, HK_RIVER_Y=1300;
+const HK_IMG_W=922, HK_IMG_H=721, HK_W=4000, HK_H=3128;
+const HK_PR=55, HK_CR=55, HK_MR=34, HK_PSPD=335, HK_MSPD=325, HK_FLASH=400, HK_FCD=20;
+const hx=nx=>nx*HK_W, hy=ny=>(1-ny)*HK_H;
+const hpts=list=>list.map(p=>[hx(p[0]),hy(p[1])]);
+
 const DD_API='https://ddragon.leagueoflegends.com';
 const RIOT_DISC="EZ Sens isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.";
-
-let HK=null, hookRaf=0, hookLast=0, hookCursor={x:700,y:900}, hookBind=null, ddVer=null, ddImgs={}, hookReady=false, hookToasts=[];
+let HK=null, hookRaf=0, hookLast=0, hookCursor={x:hx(0.45),y:hy(0.70)}, hookBind=null, ddVer=null, ddImgs={}, hookReady=false, hookToasts=[];
 
 function hookMap(){
   const walls=[
-    {x:0,y:0,w:90,h:HK_H},{x:HK_W-90,y:0,w:90,h:HK_H},
-    {x:90,y:1148,w:340,h:52},{x:HK_W-90-340,y:1148,w:340,h:52},
-    {x:1060,y:650,w:250,h:46}
+    {id:'pit',pts:hpts([[0.2516,0.3051],[0.2245,0.3287],[0.1941,0.344],[0.1605,0.3481],[0.128,0.344],[0.0976,0.3301],[0.0694,0.3065],[0.0477,0.276],[0.0315,0.2386],[0.0228,0.1983],[0.0217,0.1553],[0.0282,0.1151],[0.0423,0.0763],[0.0629,0.0444],[0.09,0.018],[0.1193,0.0014],[0.1518,-0.0042],[0.1855,-0.0014],[0.2169,0.0097],[0.2451,0.0305],[0.2679,0.0596],[0.2852,0.0957],[0.2961,0.1359],[0.2668,0.1442],[0.2581,0.1123],[0.2451,0.0846],[0.2267,0.061],[0.2039,0.0444],[0.18,0.0347],[0.154,0.0333],[0.128,0.0388],[0.1052,0.0513],[0.0846,0.0721],[0.0683,0.0971],[0.0575,0.1276],[0.0521,0.1595],[0.0531,0.1928],[0.0597,0.2233],[0.0716,0.2524],[0.09,0.2774],[0.1106,0.2954],[0.1356,0.3065],[0.1605,0.3093],[0.1866,0.3065],[0.2104,0.294],[0.231,0.276]])},
+    {id:'top',pts:hpts([[0.4794,0.0],[0.692,0.0],[0.705,0.0527],[0.6963,0.1359],[0.6638,0.2191],[0.6182,0.2413],[0.5662,0.2219],[0.5271,0.1914],[0.4859,0.1553],[0.4772,0.0763]])},
+    {id:'torch',pts:hpts([[0.6746,0.1137],[0.7354,0.1026],[0.7679,0.1415],[0.7636,0.2053],[0.7289,0.2386],[0.692,0.2302],[0.6681,0.1692]])},
+    {id:'rightCliff',pts:hpts([[0.8568,0.0],[1.0,0.0],[1.0,0.3467],[0.9816,0.3578],[0.9523,0.3162],[0.9414,0.2427],[0.9458,0.1734],[0.9219,0.1179],[0.8948,0.0666],[0.8677,0.0139]])},
+    {id:'rightMid',pts:hpts([[0.9599,0.3814],[1.0,0.3717],[1.0,0.7143],[0.974,0.7462],[0.9436,0.6865],[0.9414,0.5825],[0.9566,0.4854],[0.961,0.423]])},
+    {id:'br',pts:hpts([[0.949,0.742],[1.0,0.7282],[1.0,1.0],[0.8351,1.0],[0.8113,0.9639],[0.8514,0.9085],[0.9002,0.8669],[0.9458,0.8183],[0.9675,0.7698]])},
+    {id:'island',pts:hpts([[0.2256,0.3773],[0.2842,0.344],[0.3525,0.3412],[0.41,0.3717],[0.4534,0.4189],[0.4881,0.4743],[0.4946,0.5215],[0.4685,0.5659],[0.4317,0.5992],[0.4143,0.6408],[0.3774,0.6879],[0.3384,0.6852],[0.2983,0.6269],[0.2516,0.5659],[0.2256,0.4827],[0.2169,0.4272]])},
+    {id:'leftMid',pts:hpts([[0.0,0.3953],[0.0759,0.3773],[0.1388,0.405],[0.1605,0.4577],[0.1388,0.5104],[0.0759,0.534],[0.0,0.5201]])},
+    {id:'camp',pts:hpts([[0.0,0.6768],[0.0542,0.6602],[0.141,0.6519],[0.2332,0.6685],[0.2408,0.7184],[0.2148,0.7462],[0.0434,0.7517],[0.0,0.7379]])},
+    {id:'ruin',pts:hpts([[0.7972,0.7282],[0.859,0.7143],[0.8915,0.7559],[0.8764,0.8072],[0.8221,0.8183],[0.7896,0.7739]])},
   ];
   const brush=[
-    {id:'riverL',x:110,y:1188,w:310,h:250},
-    {id:'riverR',x:980,y:1188,w:310,h:250},
-    {id:'tri',x:1000,y:720,w:250,h:200},
-    {id:'laneL',x:110,y:720,w:210,h:190}
+    {id:'river',pts:hpts([[0.3991,0.2386],[0.461,0.2247],[0.4859,0.2746],[0.4685,0.3218],[0.4143,0.3273],[0.3883,0.2829]])},
+    {id:'top',pts:hpts([[0.4859,0.0166],[0.6095,0.0111],[0.6269,0.1179],[0.6052,0.1692],[0.5293,0.1748],[0.4794,0.1082]])},
+    {id:'tri',pts:hpts([[0.2581,0.3773],[0.3818,0.3551],[0.4599,0.4161],[0.4816,0.5021],[0.4534,0.5992],[0.3991,0.6602],[0.3232,0.6214],[0.269,0.5381],[0.2473,0.4549]])},
+    {id:'left',pts:hpts([[0.0,0.423],[0.0954,0.4133],[0.1388,0.4605],[0.1171,0.5104],[0.0195,0.5215],[0.0,0.4827]])},
+    {id:'laneRM',pts:hpts([[0.7646,0.5895],[0.8948,0.5659],[0.9273,0.7004],[0.898,0.7739],[0.8048,0.7878],[0.7505,0.7046]])},
+    {id:'laneBM',pts:hpts([[0.5423,0.7559],[0.7104,0.7323],[0.7646,0.8114],[0.7484,0.8946],[0.5748,0.9126],[0.5315,0.8322]])},
+    {id:'laneBR',pts:hpts([[0.8113,0.7878],[0.9599,0.7601],[0.9892,0.871],[0.949,0.9501],[0.8406,0.9362],[0.7972,0.8669]])},
+    {id:'redTower',pts:hpts([[0.9241,0.1082],[1.0,0.0943],[1.0,0.2843],[0.9631,0.3051],[0.9197,0.2427],[0.9089,0.1637]])},
   ];
-  const river={x:90,y:1160,w:HK_W-180,h:300};
-  const lane={x:560,y:80,w:280,h:HK_H-160};
-  const towers=[{x:700,y:520,r:50,team:'ally'},{x:700,y:2020,r:50,team:'enemy'}];
-  return {walls,brush,river,lane,towers};
+  const river={pts:hpts([[0.269,0.1359],[0.295,0.0666],[0.3449,0.0139],[0.4176,0.0028],[0.4881,0.0166],[0.5336,0.0666],[0.551,0.1276],[0.5423,0.1969],[0.5184,0.2607],[0.4859,0.3218],[0.4751,0.3773],[0.5076,0.4327],[0.551,0.4688],[0.5445,0.5104],[0.5011,0.5243],[0.4469,0.4882],[0.3883,0.4327],[0.3232,0.3967],[0.269,0.3523],[0.2408,0.2885],[0.2364,0.215],[0.2516,0.1637]])};
+  const pitWater={pts:hpts([[0.2646,0.172],[0.2625,0.1969],[0.256,0.2219],[0.2462,0.2455],[0.2332,0.2649],[0.218,0.2816],[0.1996,0.294],[0.18,0.3024],[0.1605,0.3051],[0.1399,0.3024],[0.1204,0.294],[0.102,0.2816],[0.0868,0.2649],[0.0738,0.2455],[0.064,0.2219],[0.0575,0.1969],[0.0564,0.172],[0.0575,0.1456],[0.064,0.1207],[0.0738,0.0971],[0.0868,0.0777],[0.102,0.061],[0.1204,0.0485],[0.1399,0.0402],[0.1594,0.0388],[0.18,0.0402],[0.1996,0.0485],[0.218,0.061],[0.2332,0.0777],[0.2462,0.0971],[0.256,0.1207],[0.2625,0.1456]])};
+  const dirt={pts:hpts([[0.4664,0.4161],[0.564,0.4022],[0.6508,0.4577],[0.6941,0.5548],[0.6725,0.6519],[0.5857,0.6935],[0.5098,0.638],[0.4664,0.5409]])};
+  const lanePath=hpts([[0.2169,0.9501],[0.3254,0.9182],[0.4338,0.9015],[0.5423,0.8807],[0.6291,0.8322],[0.6941,0.7559],[0.7213,0.6657],[0.705,0.5687],[0.6833,0.4993],[0.7375,0.4092],[0.8026,0.3121],[0.8265,0.215],[0.8243,0.1456]]);
+  const riverPath=hpts([[0.1605,0.172],[0.2495,0.1942],[0.3471,0.2774],[0.4338,0.3606],[0.5098,0.4438],[0.5748,0.4993]]);
+  const towers=[{x:hx(0.8243),y:hy(0.1387),r:173,team:'enemy'}, {x:hx(0.2115),y:hy(0.9598),r:173,team:'ally'}];
+  const torches=[[hx(0.6529),hy(0.1387)],[hx(0.0521),hy(0.7184)],[hx(0.1909),hy(0.7184)],[hx(0.9675),hy(0.7323)],[hx(0.7831),hy(0.9709)]];
+  const spawn={
+    player:{x:hx(0.32),y:hy(0.88)},
+    adc:{x:hx(0.68),y:hy(0.48)},
+    support:{x:hx(0.62),y:hy(0.55)},
+    sightA:{x:hx(0.70),y:hy(0.58)},
+    sightB:{x:hx(0.78),y:hy(0.28)}
+  };
+  const labels=[['DRAGON',hx(0.16),hy(0.17)],['RIVER',hx(0.40),hy(0.28)],['TRI',hx(0.34),hy(0.50)],['BOT LANE',hx(0.62),hy(0.70)]];
+  return {walls,brush,river,pitWater,dirt,lanePath,riverPath,towers,torches,spawn,labels};
 }
+
+
+function hookInRegion(x,y,shape){
+  if(!shape) return false;
+  if(shape.pts) return M.pointInPoly(x,y,shape.pts);
+  return M.pointInRect(x,y,shape);
+}
+function hookBBox(pts){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of pts){ if(p[0]<x0)x0=p[0]; if(p[1]<y0)y0=p[1]; if(p[0]>x1)x1=p[0]; if(p[1]>y1)y1=p[1]; }
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+function hookPointInShape(shape){
+  if(shape.pts){
+    const b=hookBBox(shape.pts);
+    for(let i=0;i<24;i++){
+      const x=b.x+Math.random()*b.w, y=b.y+Math.random()*b.h;
+      if(M.pointInPoly(x,y,shape.pts)) return {x,y};
+    }
+    return {x:b.x+b.w/2, y:b.y+b.h/2};
+  }
+  return {x:shape.x+(shape.w||0)/2, y:shape.y+(shape.h||0)/2};
+}
+function hookNearestPathI(path,x,y){
+  let best=0, bd=1e9;
+  for(let i=0;i<path.length;i++){
+    const d=Math.hypot(path[i][0]-x, path[i][1]-y);
+    if(d<bd){ bd=d; best=i; }
+  }
+  return best;
+}
+function hookWanderTarget(W){
+  const map=W.map, roll=Math.random();
+  if(roll<0.5 && map.lanePath){
+    const p=map.lanePath[Math.floor(Math.random()*map.lanePath.length)];
+    return {x:p[0]+(Math.random()*90-45), y:p[1]+(Math.random()*90-45)};
+  }
+  if(roll<0.75 && map.riverPath){
+    const p=map.riverPath[Math.floor(Math.random()*map.riverPath.length)];
+    return {x:p[0]+(Math.random()*70-35), y:p[1]+(Math.random()*70-35)};
+  }
+  const b=map.brush[Math.floor(Math.random()*map.brush.length)];
+  return hookPointInShape(b);
+}
+function hookSightline(){
+  const s=(HK&&HK.map||hookMap()).spawn;
+  return {player:{x:s.sightA.x,y:s.sightA.y}, target:{x:s.sightB.x,y:s.sightB.y},
+    mid:{x:(s.sightA.x+s.sightB.x)/2,y:(s.sightA.y+s.sightB.y)/2}};
+}
+
 function persistHook(){ save(); }
 function hookChampNow(){ return M.hookChamp(S.hook.champ); }
 function hookFlashCd(){ return S.hook.mode==='flashhook'?12:HK_FCD; }
 
 function hookInBrush(x,y,map){
   if(!map) return null;
-  for(const b of map.brush) if(M.pointInRect(x,y,b)) return b.id;
+  for(const b of map.brush) if(hookInRegion(x,y,b)) return b.id;
   return null;
 }
 function hookSolidCircles(map){
@@ -56,8 +132,8 @@ function hookMoveTo(x,y,r,map,tx,ty,dt,spd){
       nx+=(vx||1)/(dist||1)*p; ny+=(vy||0)/(dist||1)*p;
     }
   }
-  nx=Math.max(90+r, Math.min(HK_W-90-r, nx));
-  ny=Math.max(80+r, Math.min(HK_H-80-r, ny));
+  nx=Math.max(r+8, Math.min(HK_W-r-8, nx));
+  ny=Math.max(r+8, Math.min(HK_H-r-8, ny));
   return {x:nx,y:ny,arrived};
 }
 
@@ -66,7 +142,7 @@ function hookWorld(){
   return {
     map, phase:'idle', mode:S.hook.mode, diff:S.hook.diff, champ:S.hook.champ,
     t:0, left:S.hook.mode==='timed'||S.hook.mode==='flashhook'?60:0,
-    player:{x:700,y:220,r:HK_PR,tx:700,ty:220,flashCd:0,flashing:0},
+    player:{x:map.spawn.player.x,y:map.spawn.player.y,r:HK_PR,tx:map.spawn.player.x,ty:map.spawn.player.y,flashCd:0,flashing:0},
     hook:null, charge:null,
     units:[], minions:[], fx:[],
     casts:0, hits:0, misses:0, blocked:0, streak:0, bestStreak:0, score:0, combos:0,
@@ -94,37 +170,40 @@ function hookMakeChamp(id,x,y,role){
 }
 function hookSpawnLanePair(W){
   const [adc,sup]=hookPickPair();
-  const baseY=1680+Math.random()*280, baseX=640+Math.random()*120;
+  const s=W.map.spawn;
   W.units=W.units.filter(u=>u.kind!=='champ');
-  W.units.push(hookMakeChamp(adc, baseX-70, baseY, 'adc'));
-  W.units.push(hookMakeChamp(sup, baseX+80, baseY+40, 'support'));
+  W.units.push(hookMakeChamp(adc, s.adc.x+(Math.random()*40-20), s.adc.y+(Math.random()*40-20), 'adc'));
+  W.units.push(hookMakeChamp(sup, s.support.x+(Math.random()*40-20), s.support.y+(Math.random()*40-20), 'support'));
 }
 function hookSpawnReact(W){
   W.units=W.units.filter(u=>u.kind!=='champ');
-  const brushes=W.map.brush;
-  const b=brushes[Math.floor(Math.random()*brushes.length)];
+  const b=W.map.brush[Math.floor(Math.random()*W.map.brush.length)];
   const id=Math.random()<0.55?M.HOOK_ADC[Math.floor(Math.random()*M.HOOK_ADC.length)]:M.HOOK_SUP[Math.floor(Math.random()*M.HOOK_SUP.length)];
-  const x=b.x+40+Math.random()*Math.max(20,b.w-80);
-  const y=b.y+40+Math.random()*Math.max(20,b.h-80);
-  const u=hookMakeChamp(id,x,y,M.hookEnemy(id).role);
-  u.tx=700+(Math.random()*160-80);
-  u.ty=Math.max(900, Math.min(1900, y+(y>1300?-280:280)));
+  const p=hookPointInShape(b);
+  const u=hookMakeChamp(id,p.x,p.y,M.hookEnemy(id).role);
+  const goal=W.map.riverPath[W.map.riverPath.length-1]||W.map.lanePath[Math.floor(W.map.lanePath.length/2)];
+  u.tx=goal[0]+(Math.random()*80-40); u.ty=goal[1]+(Math.random()*80-40);
   u.appear=W.t;
   W.units.push(u);
   W.appearAt=W.t;
 }
 function hookSpawnWave(W, side){
-  // side: 'enemy' walks down from top; 'ally' walks up from bottom (does not block hooks)
   const fromEnemy=side!=='ally';
-  const y0=fromEnemy?2280:140;
+  const path=W.map.lanePath;
+  if(!path||path.length<2) return;
+  const startI=fromEnemy?path.length-1:0;
   const dir=fromEnemy?-1:1;
-  const kinds=[['melee',-70],['melee',0],['melee',70],['caster',-50],['caster',50],['caster',0]];
+  const a=path[startI], b=path[startI+dir]||a;
+  const tx=b[0]-a[0], ty=b[1]-a[1], len=Math.hypot(tx,ty)||1;
+  const px=-ty/len, py=tx/len;
+  const kinds=[['melee',-55],['melee',0],['melee',55],['caster',-40],['caster',40],['caster',0]];
   if(Math.random()<0.35) kinds.push(['cannon',0]);
-  for(const [k,ox] of kinds){
+  for(const [k,off] of kinds){
     const r=k==='cannon'?42:k==='melee'?36:30;
     W.minions.push({id:'m'+Math.random().toString(36).slice(2,7), kind:'minion', typ:k, team:fromEnemy?'enemy':'ally',
-      x:700+ox+(Math.random()*16-8), y:y0+(Math.random()*24-12), r, ty:fromEnemy?120:HK_H-120, tx:700+ox,
-      spd:k==='cannon'?300:HK_MSPD, dead:false, hp:1});
+      x:a[0]+px*off+(Math.random()*16-8), y:a[1]+py*off+(Math.random()*16-8), r,
+      tx:a[0], ty:a[1], spd:k==='cannon'?300:HK_MSPD, dead:false, hp:1,
+      path, pi:startI, pdir:dir});
   }
 }
 
@@ -203,10 +282,8 @@ function hookStepUnits(W,dt){
         // wander the upper / mid lane
         if(W.mode==='reaction'){ /* keep scripted target */ }
         else {
-          u.tx=560+Math.random()*280;
-          u.ty=1280+Math.random()*700;
-          // slight lane strafe preference
-          if(Math.random()<0.4) u.tx=700+(Math.random()*200-100);
+          const g=hookWanderTarget(W);
+          u.tx=g.x; u.ty=g.y;
         }
       }
       const d=hookMoveTo(u.x,u.y,u.r,W.map,u.tx,u.ty,dt,u.spd);
@@ -219,9 +296,22 @@ function hookStepUnits(W,dt){
 function hookStepMinions(W,dt){
   for(const m of W.minions){
     if(m.dead) continue;
-    const d=hookMoveTo(m.x,m.y,m.r,W.map,m.tx,m.ty,dt,m.spd);
-    m.x=d.x; m.y=d.y;
-    if(d.arrived || m.y<100 || m.y>HK_H-100) m.dead=true;
+    const path=m.path||W.map.lanePath;
+    if(path&&path.length){
+      if(m.pi==null) m.pi=hookNearestPathI(path,m.x,m.y);
+      const tgt=path[m.pi];
+      if(!tgt){ m.dead=true; continue; }
+      const d=hookMoveTo(m.x,m.y,m.r,W.map,tgt[0],tgt[1],dt,m.spd);
+      m.x=d.x; m.y=d.y;
+      if(d.arrived || Math.hypot(m.x-tgt[0],m.y-tgt[1])<28){
+        m.pi+=(m.pdir||1);
+        if(m.pi<0 || m.pi>=path.length) m.dead=true;
+      }
+    }else{
+      const d=hookMoveTo(m.x,m.y,m.r,W.map,m.tx,m.ty,dt,m.spd);
+      m.x=d.x; m.y=d.y;
+      if(d.arrived) m.dead=true;
+    }
   }
   W.minions=W.minions.filter(m=>!m.dead);
 }
@@ -287,7 +377,7 @@ function hookFinish(W, result, at){
     hookAddFx(W,'hit',at.x,at.y,hookChampNow().color,0.55,'HIT');
     if(S.sound) beep(880,0.1,'square',0.05);
     if(W.mode==='reaction'){ W.reactLeft=1.1; }
-    else setTimeout(()=>{ if(!HK||u.dead)return; u.stun=0; u.state='walk'; u.tx=560+Math.random()*280; u.ty=1400+Math.random()*600; }, 900);
+    else setTimeout(()=>{ if(!HK||u.dead)return; u.stun=0; u.state='walk'; const g=hookWanderTarget(HK); u.tx=g.x; u.ty=g.y; }, 900);
   } else if(kind==='minion'){
     W.blocked++; W.streak=0; W.misses++;
     hookToast('BLOCKED','block');
@@ -534,6 +624,20 @@ function drawToken(ctx,v,x,y,r,img,ring,name,hidden){
   ctx.restore();
 }
 
+
+function hookPath(ctx,v,pts,close){
+  if(!pts||!pts.length) return;
+  const a=toScreen(v,pts[0][0],pts[0][1]);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y);
+  for(let i=1;i<pts.length;i++){ const q=toScreen(v,pts[i][0],pts[i][1]); ctx.lineTo(q.x,q.y); }
+  if(close!==false) ctx.closePath();
+}
+function hookFill(ctx,v,pts,fill,stroke,lw){
+  hookPath(ctx,v,pts);
+  if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw||2; ctx.stroke(); }
+}
+
 function hookDraw(){
   const cv=$('#hookCv'); if(!cv) return;
   const ctx=cv.getContext('2d');
@@ -546,54 +650,82 @@ function hookDraw(){
 
   // grass
   const origin=toScreen(v,0,HK_H), ext=toScreen(v,HK_W,0);
-  ctx.fillStyle='#1a3324';
+  ctx.fillStyle='#2a5a32';
   ctx.fillRect(origin.x,origin.y,ext.x-origin.x,ext.y-origin.y);
-  // lane
-  const lp=toScreen(v,map.lane.x,map.lane.y+map.lane.h), ls= {w:map.lane.w*v.sc,h:map.lane.h*v.sc};
-  ctx.fillStyle='#3b3324'; ctx.fillRect(lp.x,lp.y,ls.w,ls.h);
-  // river
-  const rp=toScreen(v,map.river.x,map.river.y+map.river.h);
-  ctx.fillStyle='#16384a'; ctx.fillRect(rp.x,rp.y,map.river.w*v.sc,map.river.h*v.sc);
-  ctx.fillStyle='#1c4a5c';
-  ctx.globalAlpha=0.35;
-  for(let i=0;i<6;i++){
-    const yy=rp.y+((i*37+(W.t||0)*12)%map.river.h*v.sc);
-    ctx.fillRect(rp.x,yy,map.river.w*v.sc,6*v.sc);
+  ctx.globalAlpha=0.18;
+  for(let i=0;i<90;i++){
+    const gx=(i*167)%HK_W, gy=(i*97+40)%HK_H, p=toScreen(v,gx,gy);
+    ctx.fillStyle=i%2?'#3d7040':'#1e3f24';
+    ctx.beginPath(); ctx.ellipse(p.x,p.y, 18*v.sc, 11*v.sc, 0,0,Math.PI*2); ctx.fill();
   }
   ctx.globalAlpha=1;
-  // brush
-  for(const b of map.brush){
-    const p=toScreen(v,b.x,b.y+b.h);
-    ctx.fillStyle='#0c2416'; ctx.fillRect(p.x,p.y,b.w*v.sc,b.h*v.sc);
-    ctx.strokeStyle='#163820'; ctx.lineWidth=2; ctx.strokeRect(p.x,p.y,b.w*v.sc,b.h*v.sc);
-    ctx.fillStyle='#0a1c12';
-    for(let i=0;i<7;i++){
-      const hx=p.x+(i*37%b.w)*v.sc, hy=p.y+((i*53)%b.h)*v.sc;
-      ctx.beginPath(); ctx.ellipse(hx,hy,10*v.sc,16*v.sc,0,0,Math.PI*2); ctx.fill();
-    }
+  // dirt at the river-lane junction + paved lane ribbon
+  if(map.dirt&&map.dirt.pts) hookFill(ctx,v,map.dirt.pts,'#6e5a3a','#5a492e',1);
+  if(map.lanePath&&map.lanePath.length){
+    const a=toScreen(v,map.lanePath[0][0],map.lanePath[0][1]);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y);
+    for(let i=1;i<map.lanePath.length;i++){ const q=toScreen(v,map.lanePath[i][0],map.lanePath[i][1]); ctx.lineTo(q.x,q.y); }
+    ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(10, 86*v.sc); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+    ctx.strokeStyle='#c4b089'; ctx.lineWidth=Math.max(4, 52*v.sc); ctx.globalAlpha=0.55; ctx.stroke(); ctx.globalAlpha=1;
   }
-  // walls
-  ctx.fillStyle='#2a3038';
-  ctx.strokeStyle='#3a4450';
+  // river + dragon pit water
+  if(map.river&&map.river.pts) hookFill(ctx,v,map.river.pts,'#1a4c5e','#163e4c',2);
+  if(map.pitWater&&map.pitWater.pts) hookFill(ctx,v,map.pitWater.pts,'#1c5668','#1a4c5e',1);
+  // faint river shimmer
+  if(map.river&&map.river.pts){
+    ctx.save(); hookPath(ctx,v,map.river.pts); ctx.clip();
+    ctx.globalAlpha=0.22; ctx.fillStyle='#2e7a8c';
+    const bb=hookBBox(map.river.pts);
+    for(let i=0;i<8;i++){
+      const yy=bb.y+((i*55+(W.t||0)*22)%(bb.h+40));
+      const p=toScreen(v,bb.x,yy), p2=toScreen(v,bb.x+bb.w,yy);
+      ctx.fillRect(p.x,p.y,p2.x-p.x, Math.max(2,5*v.sc));
+    }
+    ctx.restore(); ctx.globalAlpha=1;
+  }
+  // brush (walkable tall grass)
+  for(const b of map.brush){
+    if(!b.pts) continue;
+    hookFill(ctx,v,b.pts,'#16351c','#1c4a24',1.5);
+    const bb=hookBBox(b.pts);
+    ctx.save(); hookPath(ctx,v,b.pts); ctx.clip();
+    ctx.fillStyle='#0f2a16';
+    for(let i=0;i<14;i++){
+      const px=bb.x+((i*47)%bb.w), py=bb.y+((i*31)%bb.h), q=toScreen(v,px,py);
+      ctx.beginPath(); ctx.ellipse(q.x,q.y, 7*v.sc, 13*v.sc, 0,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // stone / jungle walls (collision matches these shapes)
   for(const w of map.walls){
-    const p=toScreen(v,w.x,w.y+w.h);
-    ctx.fillRect(p.x,p.y,w.w*v.sc,w.h*v.sc);
-    ctx.strokeRect(p.x,p.y,w.w*v.sc,w.h*v.sc);
+    if(!w.pts) continue;
+    hookFill(ctx,v,w.pts,'#3a3a38','#2a2a28',2);
+    ctx.save(); hookPath(ctx,v,w.pts); ctx.clip();
+    ctx.strokeStyle='#5a5750'; ctx.lineWidth=Math.max(2,3*v.sc);
+    hookPath(ctx,v,w.pts); ctx.stroke();
+    ctx.restore();
+  }
+  // torches
+  for(const tr of map.torches||[]){
+    const p=toScreen(v,tr[0],tr[1]);
+    ctx.beginPath(); ctx.arc(p.x,p.y, Math.max(3,5*v.sc),0,Math.PI*2);
+    ctx.fillStyle='#ff9a32'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x,p.y, Math.max(5,9*v.sc),0,Math.PI*2);
+    ctx.strokeStyle='#ffc87866'; ctx.lineWidth=2; ctx.stroke();
   }
   // towers (simple original markers)
-  for(const t of map.towers){
-    const p=toScreen(v,t.x,t.y);
-    ctx.beginPath(); ctx.arc(p.x,p.y,t.r*v.sc,0,Math.PI*2);
-    ctx.fillStyle=t.team==='ally'?'#2a5a4a':'#5a2a32'; ctx.fill();
-    ctx.strokeStyle=t.team==='ally'?'#36f1a6':'#f16a6a'; ctx.lineWidth=3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(p.x,p.y,t.r*v.sc*0.4,0,Math.PI*2);
+  for(const tw of map.towers){
+    const p=toScreen(v,tw.x,tw.y);
+    ctx.beginPath(); ctx.arc(p.x,p.y,tw.r*v.sc,0,Math.PI*2);
+    ctx.fillStyle=tw.team==='ally'?'#2a5a4a':'#5a2a32'; ctx.fill();
+    ctx.strokeStyle=tw.team==='ally'?'#36f1a6':'#f16a6a'; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x,p.y,tw.r*v.sc*0.4,0,Math.PI*2);
     ctx.fillStyle='#cfc8a4'; ctx.fill();
   }
   // callouts
   ctx.font=`600 ${Math.max(11,12*v.sc)}px system-ui,sans-serif`;
   ctx.fillStyle='#ffffff55'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  const labels=[['BOT LANE',700,200],['RIVER',700,HK_RIVER_Y],['BRUSH',260,1310],['BRUSH',1130,1310]];
-  for(const [lb,x,y] of labels){ const p=toScreen(v,x,y); ctx.fillText(lb,p.x,p.y); }
+  for(const [lb,x,y] of (map.labels||[])){ const p=toScreen(v,x,y); ctx.fillText(lb,p.x,p.y); }
 
   // minions
   for(const m of W.minions||[]){
@@ -853,5 +985,6 @@ Object.assign(window.EZ, {
   hookStep:(ms)=>{ if(!HK) return; const dt=Math.min(0.2,(ms||16)/1000); if(HK.phase!=='run') HK.phase='run'; hookStep(HK,dt); hookDraw(); return HK; },
   hookEnd:()=>hookEndRun(false),
   hookPortraits:()=>({ver:ddVer, loaded:Object.keys(ddImgs)}),
-  hookLoadPortraits:loadPortraits
+  hookLoadPortraits:loadPortraits,
+  hookSightline, hookMapSize:()=>({w:HK_W,h:HK_H}), hookMap
 });

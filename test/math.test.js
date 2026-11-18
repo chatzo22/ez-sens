@@ -168,4 +168,12 @@ const pushed=M.resolveCircleWalls(100,0,20,[{x:90,y:-10,w:40,h:20}]);
 assert(Math.hypot(pushed.x-100,pushed.y-0)+1e-9>=0, 'resolve returns a point'); n++;
 assert(M.hookDiff('pro').react<M.hookDiff('easy').react, 'pro reacts faster'); n++;
 
+
+assert(M.pointInPoly(1,1,[[0,0],[2,0],[2,2],[0,2]]) && !M.pointInPoly(5,5,[[0,0],[2,0],[2,2],[0,2]]), 'pointInPoly'); n++;
+const tPoly=M.rayPolyFirst(0,1,1,0,100,[[4,0],[6,0],[6,2],[4,2]]);
+near(tPoly,4,1e-6,'rayPolyFirst hits square');
+assert.strictEqual(M.rayPolyFirst(0,5,1,0,100,[[4,0],[6,0],[6,2],[4,2]]),null,'rayPolyFirst miss'); n++;
+const outP=M.resolveCirclePoly(5,1,10,[[0,0],[2,0],[2,2],[0,2]]);
+assert(outP.x>2, 'resolveCirclePoly pushes out of a solid'); n++;
+
 console.log(`all ${n} math checks passed (${M.GAMES.length} built-in games)`);

@@ -49,10 +49,12 @@ const URL_=process.argv[2]||'file://'+require('path').resolve(__dirname,'../inde
     EZ.startHook('free');
     EZ.hookSetChamp('Blitzcrank');
     EZ.hookFreeze(true);
-    EZ.hookPlace({clear:true, player:{x:700,y:220}, units:[{champ:'Jinx',role:'adc',x:700,y:900}]});
-    const fired=EZ.hookFireAt(700,900,{skipCast:true});
+    const line=EZ.hookSightline();
+    EZ.hookPlace({clear:true, player:line.player, units:[{champ:'Jinx',role:'adc',x:line.target.x,y:line.target.y}]});
+    const fired=EZ.hookFireAt(line.target.x,line.target.y,{skipCast:true});
     const c=EZMath.hookChamp('Blitzcrank');
-    const dist=500, need=((dist/c.speed)+0.05)*1000;
+    const dist=Math.hypot(line.target.x-line.player.x, line.target.y-line.player.y);
+    const need=((dist/c.speed)+0.08)*1000;
     for(let t=0;t<need;t+=16) EZ.hookStep(16);
     const st=EZ.hookState();
     return {fired, casts:st.casts, hits:st.hits, misses:st.misses, blocked:st.blocked, hook:st.hook&&{alive:st.hook.alive,result:st.hook.result&&st.hook.result.kind}, phase:st.phase};
@@ -63,10 +65,12 @@ const URL_=process.argv[2]||'file://'+require('path').resolve(__dirname,'../inde
 
   // Minion standing in front of the champion should block.
   const blocked=await pg.evaluate(()=>{
-    EZ.hookPlace({clear:true, player:{x:700,y:220}, units:[{champ:'Jinx',role:'adc',x:700,y:1100}], minions:[{x:700,y:700,r:36,team:'enemy'}]});
-    EZ.hookFireAt(700,1100,{skipCast:true});
+    const line2=EZ.hookSightline();
+    EZ.hookPlace({clear:true, player:line2.player, units:[{champ:'Jinx',role:'adc',x:line2.target.x,y:line2.target.y}], minions:[{x:line2.mid.x,y:line2.mid.y,r:36,team:'enemy'}]});
+    EZ.hookFireAt(line2.target.x,line2.target.y,{skipCast:true});
     const c=EZMath.hookChamp('Blitzcrank');
-    const need=((800/c.speed)+0.1)*1000;
+    const dist2=Math.hypot(line2.target.x-line2.player.x, line2.target.y-line2.player.y);
+    const need=((dist2/c.speed)+0.1)*1000;
     for(let t=0;t<need;t+=16) EZ.hookStep(16);
     const st=EZ.hookState();
     return {casts:st.casts, hits:st.hits, blocked:st.blocked, last:st.hook&&st.hook.result&&st.hook.result.kind};

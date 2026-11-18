@@ -319,7 +319,10 @@
     let best=null;
     if(walls){
       for(const w of walls){
-        const t=rayAabbFirst(ox,oy,dx,dy,maxD,w.x,w.y,w.w,w.h);
+        let t=null;
+        if(w.pts) t=rayPolyFirst(ox,oy,dx,dy,maxD,w.pts);
+        else if(w.r) t=rayCircleFirst(ox,oy,dx,dy,maxD,w.x,w.y,w.r);
+        else t=rayAabbFirst(ox,oy,dx,dy,maxD,w.x,w.y,w.w,w.h);
         if(t!=null && (best==null || t<best.t)) best={t, kind:'wall', wall:w};
       }
     }
@@ -332,18 +335,88 @@
     }
     return best;
   }
-  function pointInRect(px,py,r){ return !!(r&&px>=r.x&&py>=r.y&&px<=r.x+r.w&&py<=r.y+r.h); }
+
+  function pointInPoly(px,py,pts){
+    if(!pts||pts.length<3) return false;
+    let inside=false;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+      const xi=pts[i][0], yi=pts[i][1], xj=pts[j][0], yj=pts[j][1];
+      const denom=yj-yi;
+      if(((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(denom||1e-12)+xi)) inside=!inside;
+    }
+    return inside;
+  }
+  function raySegFirst(ox,oy,dx,dy,maxD,ax,ay,bx,by){
+    const ex=bx-ax, ey=by-ay, denom=dx*ey-dy*ex;
+    if(Math.abs(denom)<1e-12) return null;
+    const rx=ax-ox, ry=ay-oy;
+    const t=(rx*ey-ry*ex)/denom, u=(rx*dy-ry*dx)/denom;
+    if(t>=0 && t<=maxD && u>=0 && u<=1) return t;
+    return null;
+  }
+  function rayPolyFirst(ox,oy,dx,dy,maxD,pts){
+    if(!pts||pts.length<2) return null;
+    let best=null;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+      const t=raySegFirst(ox,oy,dx,dy,maxD,pts[j][0],pts[j][1],pts[i][0],pts[i][1]);
+      if(t!=null && (best==null || t<best)) best=t;
+    }
+    return best;
+  }
+  function closestOnSeg(px,py,ax,ay,bx,by){
+    const ex=bx-ax, ey=by-ay, l2=ex*ex+ey*ey||1;
+    const t=Math.max(0,Math.min(1,((px-ax)*ex+(py-ay)*ey)/l2));
+    return {x:ax+ex*t, y:ay+ey*t, t};
+  }
+  function resolveCirclePoly(x,y,r,pts){
+    if(!pts||pts.length<3) return {x,y};
+    if(pointInPoly(x,y,pts)){
+      let bestD=1e9, bx=x, by=y;
+      for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+        const c=closestOnSeg(x,y,pts[j][0],pts[j][1],pts[i][0],pts[i][1]);
+        const d=Math.hypot(x-c.x,y-c.y);
+        if(d<bestD){ bestD=d; bx=c.x; by=c.y; }
+      }
+      const vx=x-bx, vy=y-by, d=Math.hypot(vx,vy);
+      const need=r+1.5;
+      if(d<1e-6) return {x:x+need,y};
+      return {x:bx+vx/d*need, y:by+vy/d*need};
+    }
+    let nx=x, ny=y;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+      const c=closestOnSeg(nx,ny,pts[j][0],pts[j][1],pts[i][0],pts[i][1]);
+      let vx=nx-c.x, vy=ny-c.y, d=Math.hypot(vx,vy);
+      if(d<r){
+        if(d<1e-6){ vx=1; vy=0; d=1; }
+        const p=(r-d)/d;
+        nx+=vx*p; ny+=vy*p;
+      }
+    }
+    return {x:nx,y:ny};
+  }
+
+    function pointInRect(px,py,r){ return !!(r&&px>=r.x&&py>=r.y&&px<=r.x+r.w&&py<=r.y+r.h); }
   function resolveCircleWalls(x,y,r,walls){
     if(!walls) return {x,y};
     for(let i=0;i<3;i++){
       for(const w of walls){
-        const cx=Math.max(w.x, Math.min(x, w.x+w.w));
-        const cy=Math.max(w.y, Math.min(y, w.y+w.h));
-        let dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy);
-        if(d<r){
-          if(d<1e-6){ dx=1; dy=0; d=1; }
-          const push=(r-d)/d;
-          x+=dx*push; y+=dy*push;
+        if(w.pts){
+          const p=resolveCirclePoly(x,y,r,w.pts); x=p.x; y=p.y;
+        }else if(w.r){
+          const vx=x-w.x, vy=y-w.y, d=Math.hypot(vx,vy), need=r+w.r;
+          if(d<need){
+            const p=need-(d||1);
+            x+=(vx||1)/(d||1)*p; y+=(vy||0)/(d||1)*p;
+          }
+        }else{
+          const cx=Math.max(w.x, Math.min(x, w.x+w.w));
+          const cy=Math.max(w.y, Math.min(y, w.y+w.h));
+          let dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy);
+          if(d<r){
+            if(d<1e-6){ dx=1; dy=0; d=1; }
+            const push=(r-d)/d;
+            x+=dx*push; y+=dy*push;
+          }
         }
       }
     }
@@ -354,5 +427,5 @@
     ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint,
     XH_DEF,XH_STYLES,normXH,xhCode,parseEZX,parseXHCode,decodeCsgoXH,csgoBytes,
     DMG_IDS,dmgModel,zoneDamage,newBotState,applyHit,shotsToKill,
-    HOOK_CHAMPS,HOOK_ENEMIES,HOOK_DIFF,HOOK_ADC,HOOK_SUP,hookChamp,hookEnemy,hookDiff,hookChargeRange,hookDir,hookTip,rayCircleFirst,rayAabbFirst,firstHookHit,pointInRect,resolveCircleWalls};
+    HOOK_CHAMPS,HOOK_ENEMIES,HOOK_DIFF,HOOK_ADC,HOOK_SUP,hookChamp,hookEnemy,hookDiff,hookChargeRange,hookDir,hookTip,rayCircleFirst,rayAabbFirst,firstHookHit,pointInRect,resolveCircleWalls,pointInPoly,raySegFirst,rayPolyFirst,closestOnSeg,resolveCirclePoly};
 })(typeof window!=='undefined'?window:globalThis);
