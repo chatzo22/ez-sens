@@ -1,4 +1,4 @@
-// EZ Sens desktop shell (Electron). Loads the bundled single-file app fully offline.
+// EZ Sens desktop shell (Electron). Loads the bundled single-file app from a custom scheme; network is blocked except official Data Dragon portraits for Hook Practice.
 const { app, BrowserWindow, Menu, protocol, session, ipcMain, dialog, shell, screen } = require('electron');
 const path = require('path'), fs = require('fs');
 
@@ -56,8 +56,11 @@ app.whenReady().then(()=>{
   // Allow pointer lock (raw input) and fullscreen; deny everything else
   session.defaultSession.setPermissionRequestHandler((wc,perm,cb)=>cb(['pointerLock','fullscreen','clipboard-sanitized-write'].includes(perm)));
   session.defaultSession.setPermissionCheckHandler((wc,perm)=>['pointerLock','fullscreen','clipboard-sanitized-write'].includes(perm));
-  // Block all network requests except our own scheme / blob / data (fully offline)
-  session.defaultSession.webRequest.onBeforeRequest((d,cb)=>cb({ cancel: !/^(ezsens|blob|data|devtools|chrome-extension):/.test(d.url) }));
+  // Block network requests except our own scheme / blob / data, plus Riot's official Data Dragon CDN (Hook Practice portraits).
+  session.defaultSession.webRequest.onBeforeRequest((d,cb)=>{
+    const ok=/^(ezsens|blob|data|devtools|chrome-extension):/.test(d.url) || /^https:\/\/ddragon\.leagueoflegends\.com\//.test(d.url);
+    cb({ cancel: !ok });
+  });
 
   ipcMain.handle('ezsens:get', ()=>{
     let displayHz=0, gpu='';

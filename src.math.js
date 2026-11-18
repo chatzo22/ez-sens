@@ -248,8 +248,111 @@
     let n=0; while(s.hp>0&&n<30){ applyHit(model,s,zone); n++; } return n;
   }
 
+
+  /* ---- Hook practice (2D skillshot math, League units) ---- */
+  // Approximate public ability values (range, width, missile speed, wind-up).
+  const HOOK_CHAMPS = {
+    Blitzcrank:{ id:'Blitzcrank', name:'Blitzcrank', ability:'Rocket Grab', key:'grab',
+      range:1075, width:70, speed:1800, cast:0.25, color:'#c4a35a' },
+    Thresh:{ id:'Thresh', name:'Thresh', ability:'Death Sentence', key:'chain',
+      range:1100, width:70, speed:1900, cast:0.5, color:'#7ec8a0' },
+    Nautilus:{ id:'Nautilus', name:'Nautilus', ability:'Dredge Line', key:'anchor',
+      range:1100, width:90, speed:2000, cast:0.25, color:'#5b8cff' },
+    Pyke:{ id:'Pyke', name:'Pyke', ability:'Bone Skewer', key:'harpoon',
+      range:1100, rangeMin:400, width:70, speed:2000, cast:0.2, charge:1.0, chargeUp:true, color:'#3ad0c8' }
+  };
+  const HOOK_ENEMIES = {
+    Jinx:{ id:'Jinx', name:'Jinx', role:'adc', color:'#ff6bd6' },
+    Ezreal:{ id:'Ezreal', name:'Ezreal', role:'adc', color:'#ffe07a' },
+    Caitlyn:{ id:'Caitlyn', name:'Caitlyn', role:'adc', color:'#7ec8ff' },
+    Lux:{ id:'Lux', name:'Lux', role:'support', color:'#c9b8ff' },
+    Leona:{ id:'Leona', name:'Leona', role:'support', color:'#f0c060' }
+  };
+  const HOOK_DIFF = {
+    easy:  { id:'easy',  name:'Easy',  react:0.40, flash:0.08, juke:0.85, pred:0.15 },
+    medium:{ id:'medium',name:'Medium',react:0.28, flash:0.18, juke:1.00, pred:0.35 },
+    hard:  { id:'hard',  name:'Hard',  react:0.18, flash:0.30, juke:1.15, pred:0.55 },
+    pro:   { id:'pro',   name:'Pro',   react:0.12, flash:0.45, juke:1.30, pred:0.75 }
+  };
+  const HOOK_ADC=['Jinx','Ezreal','Caitlyn'], HOOK_SUP=['Lux','Leona'];
+  function hookChamp(id){ return HOOK_CHAMPS[id]||HOOK_CHAMPS.Blitzcrank; }
+  function hookEnemy(id){ return HOOK_ENEMIES[id]||HOOK_ENEMIES.Jinx; }
+  function hookDiff(id){ return HOOK_DIFF[id]||HOOK_DIFF.medium; }
+  function hookChargeRange(champ, t){
+    const c=typeof champ==='string'?hookChamp(champ):hookChamp(champ&&champ.id);
+    if(!c.chargeUp) return c.range;
+    const u=Math.max(0,Math.min(1, t/(c.charge||1)));
+    return (c.rangeMin||400)+(c.range-(c.rangeMin||400))*u;
+  }
+  function hookDir(ox,oy,tx,ty){
+    const dx=tx-ox, dy=ty-oy, len=Math.hypot(dx,dy)||1;
+    return {x:dx/len, y:dy/len, len};
+  }
+  function hookTip(ox,oy,dx,dy,speed,t,range){
+    const dist=Math.min(Math.max(0, speed*t), range);
+    return {x:ox+dx*dist, y:oy+dy*dist, dist};
+  }
+  function rayCircleFirst(ox,oy,dx,dy,maxDist,cx,cy,radius){
+    const fx=ox-cx, fy=oy-cy;
+    const a=dx*dx+dy*dy; if(a<1e-12) return null;
+    const b=2*(fx*dx+fy*dy);
+    const c=fx*fx+fy*fy-radius*radius;
+    const disc=b*b-4*a*c; if(disc<0) return null;
+    const s=Math.sqrt(disc);
+    const t1=(-b-s)/(2*a), t2=(-b+s)/(2*a);
+    if(t1>=0 && t1<=maxDist) return t1;
+    if(t2>=0 && t2<=maxDist) return t2;
+    return null;
+  }
+  function rayAabbFirst(ox,oy,dx,dy,maxDist,x,y,w,h){
+    const invX=dx!==0?1/dx:(dx>=0?1e12:-1e12), invY=dy!==0?1/dy:(dy>=0?1e12:-1e12);
+    const t1=(x-ox)*invX, t2=(x+w-ox)*invX, t3=(y-oy)*invY, t4=(y+h-oy)*invY;
+    const tmin=Math.max(Math.min(t1,t2), Math.min(t3,t4));
+    const tmax=Math.min(Math.max(t1,t2), Math.max(t3,t4));
+    if(tmax<0 || tmin>tmax) return null;
+    const t=tmin>=0?tmin:tmax;
+    if(t<0 || t>maxDist) return null;
+    return t;
+  }
+  function firstHookHit(ox,oy,dx,dy,traveled,range,halfWidth,units,walls){
+    const maxD=Math.min(Math.max(0,traveled), range);
+    let best=null;
+    if(walls){
+      for(const w of walls){
+        const t=rayAabbFirst(ox,oy,dx,dy,maxD,w.x,w.y,w.w,w.h);
+        if(t!=null && (best==null || t<best.t)) best={t, kind:'wall', wall:w};
+      }
+    }
+    if(units){
+      for(const u of units){
+        if(!u || u.dead) continue;
+        const t=rayCircleFirst(ox,oy,dx,dy,maxD,u.x,u.y,(u.r||40)+halfWidth);
+        if(t!=null && (best==null || t<best.t)) best={t, kind:u.kind||'unit', unit:u};
+      }
+    }
+    return best;
+  }
+  function pointInRect(px,py,r){ return !!(r&&px>=r.x&&py>=r.y&&px<=r.x+r.w&&py<=r.y+r.h); }
+  function resolveCircleWalls(x,y,r,walls){
+    if(!walls) return {x,y};
+    for(let i=0;i<3;i++){
+      for(const w of walls){
+        const cx=Math.max(w.x, Math.min(x, w.x+w.w));
+        const cy=Math.max(w.y, Math.min(y, w.y+w.h));
+        let dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy);
+        if(d<r){
+          if(d<1e-6){ dx=1; dy=0; d=1; }
+          const push=(r-d)/d;
+          x+=dx*push; y+=dy*push;
+        }
+      }
+    }
+    return {x,y};
+  }
+
   root.EZMath = {K,SOURCES:S,GAMES:B,get,all,setCustom,defaults,dpc,cm360,in360,sensForCm,convert,edpi,menuRound,degPerCountFromCm,countsPer360,yawFromRuler,yawFromCounts,
     ARENA,targetRadius,yFromPitch,pitchFromY,pitchLimits,clampPitch,bouncePitch,offscreenHint,
     XH_DEF,XH_STYLES,normXH,xhCode,parseEZX,parseXHCode,decodeCsgoXH,csgoBytes,
-    DMG_IDS,dmgModel,zoneDamage,newBotState,applyHit,shotsToKill};
+    DMG_IDS,dmgModel,zoneDamage,newBotState,applyHit,shotsToKill,
+    HOOK_CHAMPS,HOOK_ENEMIES,HOOK_DIFF,HOOK_ADC,HOOK_SUP,hookChamp,hookEnemy,hookDiff,hookChargeRange,hookDir,hookTip,rayCircleFirst,rayAabbFirst,firstHookHit,pointInRect,resolveCircleWalls};
 })(typeof window!=='undefined'?window:globalThis);

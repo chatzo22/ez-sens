@@ -51,11 +51,12 @@ const short=n=>n.replace('Counter-Strike 2','CS2').replace(/ \(.*\)/,'');
 /* ---------- tabs ---------- */
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const tab=b.dataset.t, from=document.querySelector('#nav button.on'), fromT=from&&from.dataset.t;
-  if(fromT&&fromT!==tab){ abandonArenaRound(); abandonFlash(); }
+  if(fromT&&fromT!==tab){ abandonArenaRound(); abandonFlash(); if(typeof pauseHook==='function') pauseHook(); }
   $$('#nav button').forEach(x=>x.classList.toggle('on',x===b));
   $$('section.tab').forEach(s=>s.classList.toggle('on',s.id==='t-'+b.dataset.t));
-  setMode(tab==='range'?'range':tab==='flash'?'flash':'arena', tab);
+  setMode(tab==='range'?'range':tab==='flash'?'flash':tab==='hook'?'hook':'arena', tab);
   if(tab==='range')mountStage('#stageHost0'); if(tab==='train')mountStage('#stageHost'); if(tab==='flash')mountStage('#stageHost3'); if(tab==='finder')mountStage('#stageHost2');
+  if(tab==='hook'&&typeof resumeHook==='function') resumeHook();
   if(tab==='results')renderHist(); refresh();});
 
 /* ---------- game picker ---------- */
@@ -105,7 +106,7 @@ function refresh(){
   const pick=[...new Set([S.game,...S.fav])].map(safeGet).filter(Boolean).slice(0,6);
   const info=good?`Arena turns at <b>${fmt(cm,1)} cm/360</b> = ${pick.map(x=>`${esc(short(x.name))} ${x.id===S.game?S.sens:fmtS(x,equiv(cm,x).r)}`).join(' · ')} @ ${S.dpi} DPI`:'Fill in the converter first.';
   { const ri=$('#rangeInfo'); if(ri) ri.innerHTML=good?`<b>${fmt(cm,1)} cm/360</b> (${esc(short(g.name))} ${S.sens} @ ${S.dpi} DPI — change it in the Converter tab)`:'your converter settings'; }
-  $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info; const fi=$('#flashInfo'); if(fi)fi.innerHTML=info;
+  $('#trainInfo').innerHTML=info; $('#finderInfo').innerHTML=info; const fi=$('#flashInfo'); if(fi)fi.innerHTML=info; const hi=$('#hookInfo'); if(hi) hi.innerHTML=good?`Your current converter setting is <b>${fmt(cm,1)} cm/360</b> (${esc(short(g.name))} ${S.sens} @ ${S.dpi} DPI). Hook aim follows the cursor.`:'Fill in the converter to show your cm/360 here.';
   $$('.cdpi').forEach(e=>e.textContent=S.dpi+' DPI'); $('#cpc').textContent=good?Math.round(M.countsPer360(cm,S.dpi)).toLocaleString():'—';
   renderCustomList(); calcCustom();
 }
@@ -900,9 +901,11 @@ function drawXH(c,el){ el=el||$('#xh'); if(!el)return; c=M.normXH(c); const col=
   el.innerHTML=parts.join(''); }
 function drawCurrentXH(){ drawXH(currentXH()); $$('.xh-origin').forEach(el=>drawXH(currentXH(),el)); }
 function setMode(m,tab){ MODE=m; stage.classList.toggle('range',m==='range'); $('#ov').classList.toggle('begin',m==='range'); drawCurrentXH(); syncGrain(); if(typeof syncSceneFog==='function') syncSceneFog();
+  $('#ov').classList.toggle('hide', m==='hook');
   if(m!=='flash'){ if(typeof unloadScn==='function') unloadScn(); camEye.set(0,0,0); }
   if(m==='range'){ setRangeFov(); rangeOverlay(); }
   else if(m==='flash'){ clearHud(); $('#ov').classList.remove('begin'); if(typeof previewScn==='function') previewScn(); if(!FL||FL.phase==='done') flashIdleOv(); }
+  else if(m==='hook'){ clearHud(); }
   else if(!R){ clearHud(); $('#ov').classList.remove('begin');
     if(tab==='finder') showOv(`<div class="big">Sens Finder</div><div class="muted">Press Start finder, then click the arena to lock and begin.</div>`);
     else showOv(`<div class="big">EZ Sens</div><div class="muted">Pick a drill and press Start.</div>`); } }

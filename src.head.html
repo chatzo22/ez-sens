@@ -102,6 +102,7 @@ tr.me td{background:#36f1a60d}
 .rpanel label{margin:8px 0 2px;font-size:11px}.rpanel input,.rpanel select{padding:5px 8px;font-size:13px}
 .rpanel input[type=range]{padding:0}.rpanel .rowx{display:flex;gap:8px}.rpanel .rowx>*{flex:1}
 .rpanel table td{padding:3px 4px;font-size:12px}
+#ov.hide{display:none!important}
 #ov.begin{background:#0000004d}#ov.begin .big{color:#fff;font-size:40px;letter-spacing:3px;text-shadow:0 2px 10px #000a}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:12px 16px;font-weight:700;font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 3px #000}
 #hudFps{position:absolute;left:12px;bottom:10px;font:12px ui-monospace,monospace;color:#9fe;pointer-events:none;text-shadow:0 1px 2px #000}
@@ -157,6 +158,35 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
 .flash-modal .box .notice{margin:0;text-align:left}
 .flash-modal .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 
+
+#hookStage{position:relative;width:100%;height:min(70vh,760px);min-height:520px;background:#0a1210;border:1px solid var(--line,#2a3340);border-radius:14px;overflow:hidden}
+.hook-play{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:1100px){
+  .hook-play{grid-template-columns:minmax(280px,340px) minmax(0,1fr);align-items:start}
+  #hookStage{height:calc(100vh - 210px);min-height:640px;max-height:900px;position:sticky;top:10px}
+  #t-hook .sub{max-width:none}
+}
+
+#t-hook .hook-side .drills{margin:0 0 10px}
+#t-hook .hook-side .drills button{min-width:0;flex:1 1 100%;padding:8px 10px}
+#t-hook .hook-side #hookChamps button{flex:1 1 100%}
+
+#hookStage canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+#hookToast{position:absolute;left:50%;top:16%;transform:translate(-50%,-20px);font:800 34px/1 system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;opacity:0;pointer-events:none;z-index:8;text-shadow:0 2px 10px #000c;transition:opacity .18s linear,transform .18s ease-out}
+#hookToast.show{opacity:1;transform:translate(-50%,0)}
+#hookToast.hit{color:#36f1a6}
+#hookToast.miss{color:#ff6b6b}
+#hookToast.block{color:#ffb36a}
+#hookHud{position:absolute;left:12px;top:12px;z-index:7;font:700 13px/1.3 system-ui,sans-serif;color:#f2f6ff;text-shadow:0 2px 8px #000c;background:#00000066;padding:7px 12px;border-radius:8px;border:1px solid #ffffff22;pointer-events:none}
+#hookChamps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+#hookChamps button{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 12px 8px 8px;border-radius:12px}
+#hookChamps button .hk-ico{width:44px;height:44px;border-radius:50%;flex:0 0 auto;background-size:cover;background-position:center;border:2px solid #ffffff22}
+#hookChamps button.on .hk-ico{border-color:var(--acc,#36f1a6)}
+#hookChamps button b{display:block;font-size:14px}
+#hookChamps button span span{display:block;font-size:12px;color:var(--muted);font-weight:500}
+#hookModes{margin-bottom:10px}
+.hook-disc{font-size:11px;color:var(--muted);margin:12px 0 0;line-height:1.5;max-width:90ch}
+
 </style>
 <script>try{var _s=JSON.parse(localStorage.getItem('ezsens.v1')||'{}');if(_s.settings&&_s.settings.theme==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
 </head>
@@ -178,6 +208,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     <button data-t="setup">Converter</button>
     <button data-t="train">Train</button>
     <button data-t="flash">Flash</button>
+    <button data-t="hook">Hook Practice</button>
     <button data-t="finder">Sens Finder</button>
     <button data-t="custom">Custom game</button>
     <button data-t="results">Results</button>
@@ -378,6 +409,63 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <div class="grid g4" id="lastFlash" style="margin-top:16px"></div>
 </section>
 
+
+<section class="tab" id="t-hook">
+  <h2>Hook Practice</h2>
+  <p class="sub">Top-down support hook practice in an original bot-lane (river, brush and walls). Right-click to move, Q (rebindable) throws the hook toward the cursor, and enemy minions can block it. Targets juke, flash, hide in brush and walk behind minions. Portraits load from Riot's Data Dragon CDN, with colored-token fallback if you're offline.</p>
+  <div class="hook-play">
+    <div class="hook-side">
+  <div id="hookChamps" class="drills" aria-label="Champion"></div>
+  <p class="small muted" id="hookAbility"></p>
+  <div class="row small muted" style="margin-bottom:10px;align-items:center">
+    <div id="hookInfo"></div>
+    <div style="flex:0 0 auto;display:flex;gap:8px"><button class="btn alt" id="fsBtnHook">Fullscreen</button><button class="btn" id="hookBtn">Start practice</button></div>
+  </div>
+  <div class="drills" id="hookModes">
+    <button data-hmode="free" class="on"><b>Free Practice</b><span>No timer. Land hooks at a moving ADC and support.</span></button>
+    <button data-hmode="timed"><b>Timed</b><span>60 seconds. Score from hits, streaks and combos.</span></button>
+    <button data-hmode="flashhook"><b>Flash-Hook</b><span>Shorter flash cooldown (D by default). Bonus for flashing, then hooking.</span></button>
+    <button data-hmode="reaction"><b>Reaction</b><span>A target walks out of brush after a short delay. 10 attempts.</span></button>
+  </div>
+  <div class="card opts" id="hookOpts">
+    <div><label for="hookDiff">Difficulty</label>
+      <select id="hookDiff">
+        <option value="easy">Easy (slow jukes, rare flash)</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+        <option value="pro">Pro (fast react, frequent flash)</option>
+      </select>
+    </div>
+    <div><label for="hookPair">Matchup</label>
+      <select id="hookPair">
+        <option value="random" selected>Random ADC + support</option>
+        <option value="Jinx+Lux">Jinx + Lux</option>
+        <option value="Jinx+Leona">Jinx + Leona</option>
+        <option value="Ezreal+Lux">Ezreal + Lux</option>
+        <option value="Ezreal+Leona">Ezreal + Leona</option>
+        <option value="Caitlyn+Lux">Caitlyn + Lux</option>
+        <option value="Caitlyn+Leona">Caitlyn + Leona</option>
+      </select>
+    </div>
+    <div class="checks" style="flex-basis:100%">
+      <label class="inl"><input type="checkbox" id="hookQuick"> Quick-cast hook (fires on key down; Pyke still charges)</label>
+    </div>
+    <div><label>Hook key</label><button type="button" class="btn alt" id="hookBindQ" data-hookbind="hook">Q</button></div>
+    <div><label>Flash key</label><button type="button" class="btn alt" id="hookBindF" data-hookbind="flash">D</button></div>
+  </div>
+  <div id="hookLive" style="margin-top:14px"></div>
+  <div id="hookRecap" style="margin-top:12px"></div>
+    </div>
+  <div id="hookStage">
+    <div id="hookHud">Right-click to move. Q hooks toward the cursor.</div>
+    <div id="hookToast"></div>
+    <canvas id="hookCv" width="900" height="720" aria-label="Hook practice lane"></canvas>
+  </div>
+  </div>
+
+  <p class="hook-disc">EZ Sens isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
+</section>
+
 <section class="tab" id="t-finder">
   <h2>Sensitivity finder</h2>
   <p class="sub">One warm-up, then five short rounds (10 flicks + 8 s tracking each) at different 360° distances around yours. Speeds are hidden and shuffled so you can't bias yourself. The finder fits a curve to your scores and nudges the result by your overshoot / undershoot tendency. Pick Retro Horizon (the default), Sunrise, Day or Night for the arena. The Range keeps its own look unless you choose Retro Horizon in Range settings. Frame-rate and quality settings from the Train tab apply here too.</p>
@@ -445,11 +533,13 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
   <div class="card tw"><table><thead><tr><th>When</th><th>Points</th><th>Accuracy</th><th>Hits / shots</th><th>Avg time-to-hit</th><th>Setup</th><th>cm/360</th></tr></thead><tbody id="rhist"></tbody></table></div>
   <h3>Flash dodge history</h3>
   <div class="card tw"><table><thead><tr><th>When</th><th>Scenario</th><th>Timing</th><th>Score</th><th>Dodged</th><th>Partial</th><th>Full</th><th>Covered</th><th>Dodge %</th><th>Bots killed</th><th>Peek / swing / slide</th><th>First hit</th><th>Turn-back</th><th>Accuracy</th><th>HS%</th><th>STK</th><th>TTK</th><th>Avg dodge reaction</th><th>cm/360</th></tr></thead><tbody id="fhist"></tbody></table></div>
+  <h3>Hook Practice history</h3>
+  <div class="card tw"><table><thead><tr><th>When</th><th>Champion</th><th>Mode</th><th>Difficulty</th><th>Score</th><th>Hit %</th><th>Hits / casts</th><th>Best streak</th><th>Avg time-to-hit</th><th>Avg react</th><th>cm/360</th></tr></thead><tbody id="hhist"></tbody></table></div>
 </section>
 
 <section class="tab" id="t-about">
   <h2>About EZ Sens</h2>
-  <p class="sub">An original, independent tool. Not affiliated with Valve, Embark Studios or any game publisher. Runs 100% in your browser: no server, no account, no network calls during play.</p>
+  <p class="sub">An original, independent tool. Not affiliated with Valve, Embark Studios, Riot Games or any game publisher. Runs 100% in your browser: no server and no account. Most panels are fully offline. Hook Practice loads official champion portraits from Riot's Data Dragon CDN when you're online, and falls back to colored tokens if those images can't be reached.</p>
   <div class="card">
     <h3>The math</h3>
     <p><code>degrees per count = yaw × sens</code> · <code>cm/360 = 914.4 ÷ (DPI × degrees per count)</code> (914.4 = 360° × 2.54 cm/in) · <code>eDPI = DPI × sens</code>. Converting keeps cm/360 the same. A few games scale with FOV or use an offset; those use their own formula below.</p>
@@ -472,7 +562,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
     </ul>
     <h3>Frame rate &amp; latency</h3>
     <ul class="small">
-      <li>Everything — including the 3D engine (three.js r160, MIT, bundled in this file) — runs locally. Nothing is downloaded during play, so there is no "ping".</li>
+      <li>Everything — including the 3D engine (three.js r160, MIT, bundled in this file) — runs locally. The trainer itself has no "ping". Hook Practice is the exception: it fetches champion square icons from Riot's Data Dragon CDN at runtime and keeps working with plain colored tokens if the CDN is offline.</li>
       <li>Rendering uses <code>requestAnimationFrame</code>, so it runs at your monitor's refresh rate (60/100/144/240 Hz+). The frame-rate setting can cap it lower; it can't go above the display's refresh rate (browsers sync to the display).</li>
       <li>Mouse input uses pointer lock with <code>unadjustedMovement</code> (raw counts, no OS acceleration) and Chrome's <code>pointerrawupdate</code> events where available. Each event rotates the camera immediately; there is no smoothing or frame-time scaling, so sensitivity is identical at any FPS. Clicks are judged against the aim at the moment of the click.</li>
       <li>Low graphics turns off antialiasing, fog and the film-grain overlay, and caps pixel ratio. Auto quality (on by default) does the same temporarily if frame time stays high. Render scale lowers resolution for weaker PCs.</li>
@@ -482,6 +572,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li><b>Flick / micro:</b> score = 100 × accuracy × (500 ms ÷ avg time-to-kill), capped. Overshoot / undershoot is judged where your crosshair first settles after each flick.</li>
       <li><b>Tracking:</b> score = % of time on target. Ahead of the target's motion = overshoot, behind = undershoot.</li>
       <li><b>Finder:</b> quadratic fit of score vs log(cm/360), clamped to the tested range, then up to ±6% slower if you overshoot / faster if you undershoot.</li>
+      <li><b>Hook Practice:</b> a top-down bot-lane drill for support hooks. Pick Blitzcrank (Rocket Grab), Thresh (Death Sentence), Nautilus (Dredge Line) or Pyke (Bone Skewer) with approximate public range, width, missile speed and wind-up values. Right-click moves, Q (rebindable) throws the hook, and D (rebindable) flashes a short dash. Enemy ADC and support pairs (Jinx, Ezreal, Caitlyn, Lux, Leona) strafe, juke after a reaction delay, walk behind minions, and sometimes flash; minions and walls block the hook; brush hides a target until you share that brush. Modes: Free Practice, Timed (60 s), Flash-Hook, and Reaction (10 walk-outs from brush). Recap tracks hit %, hits/casts, average time-to-hit, average react (Reaction mode), best streak and score. Portraits come from Riot's official Data Dragon CDN with a colored-token fallback. EZ Sens isn't endorsed by Riot Games.</li>
       <li><b>Flash dodge:</b> play a situation (Long doors (Dust 2-style), choke hold, site anchor, site entry, off-angle retake, over-wall pop, mid-window cross, ramp walk, or a random mix). Maps are original blockouts inspired by common CS2 and Valorant flash habits, not copies of those maps. Each pop is scored dodged (turned past 90°), partial, full, or covered (fully behind a wall). After the pop, original capsule-and-sphere bots push out from cover into the open (some strafe or shoulder-peek; a Mix stance option — the default — keeps about 40% standing, 30% crouched and 30% switching mid-push, and groups of two or three always include both a standing bot and a crouched or switching one; Standing only, Crouch only and Switching only are also available). Hitboxes follow stance changes. The same Bot stance option applies to Train and Range bot targets. A blind makes them harder to see. Recap tracks dodge %, bots killed, moving kills, standing vs. crouch kills, time to first hit, accuracy, headshot %, average shots-to-kill and TTK (including average TTK on pushing bots). A damage-model option uses headshots only, or close-range Vandal / AK-47 values with or without armor. A Random throws & timing option (on by default) varies the gap between flashes, the throw or pop origin, the arc and the fuse (CS2-style about 1.2–2.0 s, Valorant-style about 0.25–0.6 s), while still leaving a dodge window at or above the difficulty minimum; turn it off to practice the authored variants. Timing presets are Valorant-style (short pop) or CS2-style (thrown bounce). Score rewards clean dodges, faster reactions and re-peek hits.</li>
     </ul>
     <h3>Bots and damage models</h3>
@@ -500,6 +591,7 @@ footer{color:var(--mute);font-size:12px;text-align:center;padding:20px}
       <li>Arena FOV only changes what you see, not turn distance. Third-person games (ARC Raiders, Deadlock) are trained in first-person.</li>
       <li>A recommendation from one session is noisy. Run the finder 2–3 times on different days and average.</li>
       <li><b>Appearance:</b> Dark (default) and Light themes the whole UI. The 3D arenas are unchanged. The Sensitivity Finder, Train and Flash share arena environments: Retro Horizon (the default — a dark synthwave sky, glowing pink horizon and neon grid floor, with neon trim on Flash map edges), plus Sunrise, Day and Night (Night is the original dark arena). The Range keeps its own look unless you pick Retro Horizon in Range settings. Both choices are remembered in this browser.</li>
+      <li><b>Hook Practice:</b> original 2D lane art only (no map or ability art from League). Champion square icons are requested at runtime from the official Data Dragon CDN and are not bundled. If the request fails, units render as colored circles. The desktop app allows that CDN and still blocks other network requests.</li>
       <li><b>Flash dodge:</b> situational blockout maps with scripted throws, wall bounces, line-of-sight occlusion and post-flash peek bots. Some scenarios auto-walk you down a path while you can strafe with A/D or the arrow keys; optional full WASD movement is in the Flash options. Valorant-style uses a short on-screen wind-up; CS2-style uses a thrown bounce and a longer fuse. A photosensitivity notice is a fixed full-screen dialog shown once. Reduced flash intensity caps the white-out; flashes never overlap and each fade is at least 300 ms. A short on-screen toast reports Dodged, Partial, Flashed or Covered after each pop. Shots are blocked by map geometry (no wall-bangs). A tinnitus-style ring can be muted or turned down. Maps use simple original trim, frames, crates and fixtures; peek bots start in cover with a visible head and push into the open, and some crouch.</li>
       <li><b>Off-screen hint:</b> when a target is out of view, a red-to-magenta glow on the screen edge points at it and follows it as you turn (inspired by directional hit indicators, drawn from scratch). Toggle it in Train settings or the Range panel. Tracking targets stay above the floor. The glow tint shifts slightly with the time of day so it stays visible.</li>
       <li><b>Results:</b> after each Train round a recap shows score, accuracy, time-to-hit, first-shot time and your local best. The same numbers live on the Results tab. A short ring flashes on the crosshair for hits and misses.</li>
