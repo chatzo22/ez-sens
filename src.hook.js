@@ -5,56 +5,182 @@ S.hook.keys=Object.assign({},HOOK_DEF.keys,S.hook.keys||{});
 if(!M.hookChamp(S.hook.champ)) S.hook.champ='Blitzcrank';
 store.hookHistory=store.hookHistory||[];
 
-const HK_IMG_W=922, HK_IMG_H=721, HK_W=4000, HK_H=3128;
+const HK_OX=8600, HK_OY=-120, HK_W=14870-HK_OX, HK_H=5400-HK_OY;
 const HK_PR=55, HK_CR=55, HK_MR=34, HK_PSPD=335, HK_MSPD=325, HK_FLASH=400, HK_FCD=20;
-const hx=nx=>nx*HK_W, hy=ny=>(1-ny)*HK_H;
-const hpts=list=>list.map(p=>[hx(p[0]),hy(p[1])]);
+const TW_R=88, TW_RANGE=750;
+const rx=x=>x-HK_OX, ry=y=>y-HK_OY;
+const BLUE_T1={x:rx(10504),y:ry(1029)}, RED_T1={x:rx(13866),y:ry(4505)};
+const DRAGON={x:rx(9866),y:ry(4414)};
+const MEET={x:(BLUE_T1.x+RED_T1.x)/2, y:(BLUE_T1.y+RED_T1.y)/2};
+const LANE_DX=RED_T1.x-BLUE_T1.x, LANE_DY=RED_T1.y-BLUE_T1.y;
+const LANE_LEN=Math.hypot(LANE_DX,LANE_DY);
+const UX=LANE_DX/LANE_LEN, UY=LANE_DY/LANE_LEN;
+const OX=UY, OY=-UX; // south-east / map-edge (outer)
+const LANE_W=1900, LANE_HALF=LANE_W/2;
 
 const DD_API='https://ddragon.leagueoflegends.com';
 const RIOT_DISC="EZ Sens isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.";
-let HK=null, hookRaf=0, hookLast=0, hookCursor={x:hx(0.45),y:hy(0.70)}, hookBind=null, ddVer=null, ddImgs={}, hookReady=false, hookToasts=[];
+let HK=null, hookRaf=0, hookLast=0, hookCursor={x:MEET.x,y:MEET.y}, hookBind=null, ddVer=null, ddImgs={}, hookReady=false, hookToasts=[];
 
-function hookMap(){
-  const walls=[
-    {id:'pit',pts:hpts([[0.2516,0.3051],[0.2245,0.3287],[0.1941,0.344],[0.1605,0.3481],[0.128,0.344],[0.0976,0.3301],[0.0694,0.3065],[0.0477,0.276],[0.0315,0.2386],[0.0228,0.1983],[0.0217,0.1553],[0.0282,0.1151],[0.0423,0.0763],[0.0629,0.0444],[0.09,0.018],[0.1193,0.0014],[0.1518,-0.0042],[0.1855,-0.0014],[0.2169,0.0097],[0.2451,0.0305],[0.2679,0.0596],[0.2852,0.0957],[0.2961,0.1359],[0.2668,0.1442],[0.2581,0.1123],[0.2451,0.0846],[0.2267,0.061],[0.2039,0.0444],[0.18,0.0347],[0.154,0.0333],[0.128,0.0388],[0.1052,0.0513],[0.0846,0.0721],[0.0683,0.0971],[0.0575,0.1276],[0.0521,0.1595],[0.0531,0.1928],[0.0597,0.2233],[0.0716,0.2524],[0.09,0.2774],[0.1106,0.2954],[0.1356,0.3065],[0.1605,0.3093],[0.1866,0.3065],[0.2104,0.294],[0.231,0.276]])},
-    {id:'top',pts:hpts([[0.4794,0.0],[0.692,0.0],[0.705,0.0527],[0.6963,0.1359],[0.6638,0.2191],[0.6182,0.2413],[0.5662,0.2219],[0.5271,0.1914],[0.4859,0.1553],[0.4772,0.0763]])},
-    {id:'torch',pts:hpts([[0.6746,0.1137],[0.7354,0.1026],[0.7679,0.1415],[0.7636,0.2053],[0.7289,0.2386],[0.692,0.2302],[0.6681,0.1692]])},
-    {id:'rightCliff',pts:hpts([[0.8568,0.0],[1.0,0.0],[1.0,0.3467],[0.9816,0.3578],[0.9523,0.3162],[0.9414,0.2427],[0.9458,0.1734],[0.9219,0.1179],[0.8948,0.0666],[0.8677,0.0139]])},
-    {id:'rightMid',pts:hpts([[0.9599,0.3814],[1.0,0.3717],[1.0,0.7143],[0.974,0.7462],[0.9436,0.6865],[0.9414,0.5825],[0.9566,0.4854],[0.961,0.423]])},
-    {id:'br',pts:hpts([[0.949,0.742],[1.0,0.7282],[1.0,1.0],[0.8351,1.0],[0.8113,0.9639],[0.8514,0.9085],[0.9002,0.8669],[0.9458,0.8183],[0.9675,0.7698]])},
-    {id:'island',pts:hpts([[0.2256,0.3773],[0.2842,0.344],[0.3525,0.3412],[0.41,0.3717],[0.4534,0.4189],[0.4881,0.4743],[0.4946,0.5215],[0.4685,0.5659],[0.4317,0.5992],[0.4143,0.6408],[0.3774,0.6879],[0.3384,0.6852],[0.2983,0.6269],[0.2516,0.5659],[0.2256,0.4827],[0.2169,0.4272]])},
-    {id:'leftMid',pts:hpts([[0.0,0.3953],[0.0759,0.3773],[0.1388,0.405],[0.1605,0.4577],[0.1388,0.5104],[0.0759,0.534],[0.0,0.5201]])},
-    {id:'camp',pts:hpts([[0.0,0.6768],[0.0542,0.6602],[0.141,0.6519],[0.2332,0.6685],[0.2408,0.7184],[0.2148,0.7462],[0.0434,0.7517],[0.0,0.7379]])},
-    {id:'ruin',pts:hpts([[0.7972,0.7282],[0.859,0.7143],[0.8915,0.7559],[0.8764,0.8072],[0.8221,0.8183],[0.7896,0.7739]])},
+function hookLaneAt(t){ return {x:BLUE_T1.x+LANE_DX*t, y:BLUE_T1.y+LANE_DY*t}; }
+function hookShift(p, sx, sy){ return {x:p.x+sx, y:p.y+sy}; }
+function hookAlong(p, dist){ return {x:p.x+UX*dist, y:p.y+UY*dist}; }
+function hookPerp(p, dist){ return {x:p.x+OX*dist, y:p.y+OY*dist}; }
+function hookRect(cx, cy, ax, ay, hl, hw){
+  const px=-ay, py=ax;
+  return [
+    [cx-ax*hl-px*hw, cy-ay*hl-py*hw],
+    [cx+ax*hl-px*hw, cy+ay*hl-py*hw],
+    [cx+ax*hl+px*hw, cy+ay*hl+py*hw],
+    [cx-ax*hl+px*hw, cy-ay*hl+py*hw]
   ];
-  const brush=[
-    {id:'river',pts:hpts([[0.3991,0.2386],[0.461,0.2247],[0.4859,0.2746],[0.4685,0.3218],[0.4143,0.3273],[0.3883,0.2829]])},
-    {id:'top',pts:hpts([[0.4859,0.0166],[0.6095,0.0111],[0.6269,0.1179],[0.6052,0.1692],[0.5293,0.1748],[0.4794,0.1082]])},
-    {id:'tri',pts:hpts([[0.2581,0.3773],[0.3818,0.3551],[0.4599,0.4161],[0.4816,0.5021],[0.4534,0.5992],[0.3991,0.6602],[0.3232,0.6214],[0.269,0.5381],[0.2473,0.4549]])},
-    {id:'left',pts:hpts([[0.0,0.423],[0.0954,0.4133],[0.1388,0.4605],[0.1171,0.5104],[0.0195,0.5215],[0.0,0.4827]])},
-    {id:'laneRM',pts:hpts([[0.7646,0.5895],[0.8948,0.5659],[0.9273,0.7004],[0.898,0.7739],[0.8048,0.7878],[0.7505,0.7046]])},
-    {id:'laneBM',pts:hpts([[0.5423,0.7559],[0.7104,0.7323],[0.7646,0.8114],[0.7484,0.8946],[0.5748,0.9126],[0.5315,0.8322]])},
-    {id:'laneBR',pts:hpts([[0.8113,0.7878],[0.9599,0.7601],[0.9892,0.871],[0.949,0.9501],[0.8406,0.9362],[0.7972,0.8669]])},
-    {id:'redTower',pts:hpts([[0.9241,0.1082],[1.0,0.0943],[1.0,0.2843],[0.9631,0.3051],[0.9197,0.2427],[0.9089,0.1637]])},
-  ];
-  const river={pts:hpts([[0.269,0.1359],[0.295,0.0666],[0.3449,0.0139],[0.4176,0.0028],[0.4881,0.0166],[0.5336,0.0666],[0.551,0.1276],[0.5423,0.1969],[0.5184,0.2607],[0.4859,0.3218],[0.4751,0.3773],[0.5076,0.4327],[0.551,0.4688],[0.5445,0.5104],[0.5011,0.5243],[0.4469,0.4882],[0.3883,0.4327],[0.3232,0.3967],[0.269,0.3523],[0.2408,0.2885],[0.2364,0.215],[0.2516,0.1637]])};
-  const pitWater={pts:hpts([[0.2646,0.172],[0.2625,0.1969],[0.256,0.2219],[0.2462,0.2455],[0.2332,0.2649],[0.218,0.2816],[0.1996,0.294],[0.18,0.3024],[0.1605,0.3051],[0.1399,0.3024],[0.1204,0.294],[0.102,0.2816],[0.0868,0.2649],[0.0738,0.2455],[0.064,0.2219],[0.0575,0.1969],[0.0564,0.172],[0.0575,0.1456],[0.064,0.1207],[0.0738,0.0971],[0.0868,0.0777],[0.102,0.061],[0.1204,0.0485],[0.1399,0.0402],[0.1594,0.0388],[0.18,0.0402],[0.1996,0.0485],[0.218,0.061],[0.2332,0.0777],[0.2462,0.0971],[0.256,0.1207],[0.2625,0.1456]])};
-  const dirt={pts:hpts([[0.4664,0.4161],[0.564,0.4022],[0.6508,0.4577],[0.6941,0.5548],[0.6725,0.6519],[0.5857,0.6935],[0.5098,0.638],[0.4664,0.5409]])};
-  const lanePath=hpts([[0.2169,0.9501],[0.3254,0.9182],[0.4338,0.9015],[0.5423,0.8807],[0.6291,0.8322],[0.6941,0.7559],[0.7213,0.6657],[0.705,0.5687],[0.6833,0.4993],[0.7375,0.4092],[0.8026,0.3121],[0.8265,0.215],[0.8243,0.1456]]);
-  const riverPath=hpts([[0.1605,0.172],[0.2495,0.1942],[0.3471,0.2774],[0.4338,0.3606],[0.5098,0.4438],[0.5748,0.4993]]);
-  const towers=[{x:hx(0.8243),y:hy(0.1387),r:173,team:'enemy'}, {x:hx(0.2115),y:hy(0.9598),r:173,team:'ally'}];
-  const torches=[[hx(0.6529),hy(0.1387)],[hx(0.0521),hy(0.7184)],[hx(0.1909),hy(0.7184)],[hx(0.9675),hy(0.7323)],[hx(0.7831),hy(0.9709)]];
-  const spawn={
-    player:{x:hx(0.32),y:hy(0.88)},
-    adc:{x:hx(0.68),y:hy(0.48)},
-    support:{x:hx(0.62),y:hy(0.55)},
-    sightA:{x:hx(0.70),y:hy(0.58)},
-    sightB:{x:hx(0.78),y:hy(0.28)}
-  };
-  const labels=[['DRAGON',hx(0.16),hy(0.17)],['RIVER',hx(0.40),hy(0.28)],['TRI',hx(0.34),hy(0.50)],['BOT LANE',hx(0.62),hy(0.70)]];
-  return {walls,brush,river,pitWater,dirt,lanePath,riverPath,towers,torches,spawn,labels};
+}
+function hookArc(cx, cy, r, a0, a1, n){
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const a=a0+(a1-a0)*i/n;
+    pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
+  }
+  return pts;
+}
+function hookWallStrip(t0, t1, side, face, thick, pockets, n){
+  n=n||36;
+  const inner=[], outer=[];
+  function faceDist(t){
+    let d=face;
+    for(const pk of (pockets||[])){
+      const w=pk.w||0.07;
+      const a=Math.abs(t-pk.t);
+      if(a>=w) continue;
+      const k=a<w*0.45?1:1-(a-w*0.45)/(w*0.55);
+      d=face+(pk.depth||260)*k;
+    }
+    return d;
+  }
+  for(let i=0;i<=n;i++){
+    const t=t0+(t1-t0)*i/n;
+    const p=hookLaneAt(t);
+    const d=faceDist(t);
+    inner.push([p.x+OX*side*d, p.y+OY*side*d]);
+    outer.push([p.x+OX*side*(d+thick), p.y+OY*side*(d+thick)]);
+  }
+  return inner.concat(outer.reverse());
+}
+function hookBrushAt(id, t, side, len, depth){
+  const p=hookLaneAt(t);
+  const d=(LANE_HALF-40)*side;
+  const c=hookPerp(p, d);
+  return {id, pts:hookRect(c.x, c.y, UX, UY, (len||470)/2, (depth||280)/2)};
 }
 
+function hookMap(){
+  const outerPockets=[{t:0.22,w:0.08,depth:280},{t:0.50,w:0.08,depth:280},{t:0.78,w:0.08,depth:280}];
+  const innerBluePk=[{t:0.22,w:0.08,depth:280},{t:0.36,w:0.08,depth:280}];
+  const innerRedPk=[{t:0.72,w:0.08,depth:280}];
+  const walls=[
+    {id:'outer', pts:hookWallStrip(-0.10, 1.10, 1, LANE_HALF+30, 420, outerPockets, 80)},
+    {id:'innerBlue', pts:hookWallStrip(-0.10, 0.385, -1, LANE_HALF+30, 380, innerBluePk, 48)},
+    {id:'innerRed', pts:hookWallStrip(0.605, 1.10, -1, LANE_HALF+30, 380, innerRedPk, 48)},
+  ];
+  // Sides of the river entrance (from the inner-wall gap back toward the pit)
+  const gapL=hookLaneAt(0.385), gapR=hookLaneAt(0.605);
+  const gapL0=hookPerp(gapL, -(LANE_HALF+30)), gapL1=hookPerp(gapL, -(LANE_HALF+30+900));
+  const gapR0=hookPerp(gapR, -(LANE_HALF+30)), gapR1=hookPerp(gapR, -(LANE_HALF+30+900));
+  const capW=70;
+  walls.push({id:'enterL', pts:hookRect((gapL0.x+gapL1.x)/2, (gapL0.y+gapL1.y)/2, OX, OY, 450, capW)});
+  walls.push({id:'enterR', pts:hookRect((gapR0.x+gapR1.x)/2, (gapR0.y+gapR1.y)/2, OX, OY, 450, capW)});
+
+  // Blue tri-brush rock: just behind blue's lane at the river entrance (three-way).
+  const triC=hookShift(hookPerp(hookLaneAt(0.40), -1480), -UX*180, -UY*180);
+  walls.push({id:'triRock', pts:hookRect(triC.x, triC.y, UX, UY, 280, 260)});
+  // Red tri (2024 parity), slightly smaller, on the red side of the entrance.
+  const rtriC=hookShift(hookPerp(hookLaneAt(0.60), -1420), UX*200, UY*200);
+  walls.push({id:'redTriRock', pts:hookRect(rtriC.x, rtriC.y, UX, UY, 230, 210)});
+
+  // Dragon pit ring, opening toward the lane entrance.
+  const toLane=hookLaneAt(0.41);
+  const pitAng=Math.atan2(toLane.y-DRAGON.y, toLane.x-DRAGON.x);
+  const open=0.70, rIn=520, rOut=700;
+  const pitOuter=hookArc(DRAGON.x, DRAGON.y, rOut, pitAng+open, pitAng+Math.PI*2-open, 28);
+  const pitInner=hookArc(DRAGON.x, DRAGON.y, rIn, pitAng+Math.PI*2-open, pitAng+open, 22);
+  walls.push({id:'pit', pts:pitOuter.concat(pitInner)});
+
+  // A couple of simple jungle blocks west of tri, plus a short wall north of the pit.
+  const j1=hookShift(triC, -OX*700-UX*700, -OY*700-UY*700);
+  walls.push({id:'camp', pts:hookRect(j1.x, j1.y, UX, UY, 320, 220)});
+  const j2=hookShift(DRAGON, -UX*980, -UY*980);
+  walls.push({id:'northRiver', pts:hookRect(j2.x, j2.y, UX, UY, 260, 160)});
+
+  const brush=[
+    hookBrushAt('outerA', 0.22, 1),
+    hookBrushAt('outerB', 0.50, 1),
+    hookBrushAt('outerC', 0.78, 1),
+    hookBrushAt('innerA', 0.22, -1),
+    hookBrushAt('innerB', 0.36, -1),
+    hookBrushAt('innerC', 0.72, -1),
+  ];
+  // Tri and red-tri grass sit around the rocks; pixel is the small river-entrance bush.
+  brush.push({id:'tri', pts:hookRect(triC.x, triC.y, UX, UY, 420, 400)});
+  brush.push({id:'redTri', pts:hookRect(rtriC.x, rtriC.y, UX, UY, 320, 300)});
+  const pix=hookPerp(hookLaneAt(0.49), -1180);
+  brush.push({id:'pixel', pts:hookRect(pix.x, pix.y, UX, UY, 150, 120)});
+
+  // River: pit-adjacent water plus a short inlet to the lane gap.
+  const rivA=hookArc(DRAGON.x, DRAGON.y, rOut-30, pitAng-0.9, pitAng+0.9, 10);
+  const inlet0=hookPerp(hookLaneAt(0.42), -(LANE_HALF-40));
+  const inlet1=hookPerp(hookLaneAt(0.57), -(LANE_HALF-40));
+  const inlet2=hookPerp(hookLaneAt(0.57), -1200);
+  const inlet3=hookPerp(hookLaneAt(0.42), -1200);
+  const river={pts:rivA.concat([[inlet2.x,inlet2.y],[inlet1.x,inlet1.y],[inlet0.x,inlet0.y],[inlet3.x,inlet3.y]])};
+  const pitWater={pts:hookArc(DRAGON.x, DRAGON.y, rIn-8, 0, Math.PI*2, 28)};
+  const dirtC=hookPerp(hookLaneAt(0.49), -780);
+  const dirt={pts:hookRect(dirtC.x, dirtC.y, UX, UY, 560, 380)};
+
+  const lanePath=[];
+  for(let i=0;i<=12;i++){
+    const t=0.16+0.68*i/12;
+    const p=hookLaneAt(t);
+    lanePath.push([p.x,p.y]);
+  }
+  const riverPath=[];
+  for(let i=0;i<=6;i++){
+    const t=i/6;
+    const p={
+      x:DRAGON.x+(inlet0.x-DRAGON.x)*t,
+      y:DRAGON.y+(inlet0.y-DRAGON.y)*t
+    };
+    riverPath.push([p.x,p.y]);
+  }
+
+  const towers=[
+    {x:RED_T1.x,y:RED_T1.y,r:TW_R,range:TW_RANGE,team:'enemy'},
+    {x:BLUE_T1.x,y:BLUE_T1.y,r:TW_R,range:TW_RANGE,team:'ally'}
+  ];
+  const torches=[];
+
+  const innerB=hookPerp(hookLaneAt(0.36), -(LANE_HALF-80));
+  const innerC=hookPerp(hookLaneAt(0.72), -(LANE_HALF-80));
+  const adcP=hookShift(hookAlong(MEET, 90), OX*140, OY*140);
+  const sightA=hookPerp(hookLaneAt(0.36), -400);
+  const sightB=hookAlong(sightA, 1000);
+  const spawn={
+    player:{x:innerB.x,y:innerB.y},
+    adc:{x:adcP.x,y:adcP.y},
+    support:{x:innerC.x,y:innerC.y},
+    sightA, sightB,
+    allySup:{x:innerB.x,y:innerB.y},
+    enemySup:{x:innerC.x,y:innerC.y},
+    meet:{x:MEET.x,y:MEET.y}
+  };
+  const labels=[
+    ['DRAGON', DRAGON.x, DRAGON.y],
+    ['PIXEL', pix.x, pix.y],
+    ['TRI', triC.x, triC.y],
+    ['RED TRI', rtriC.x, rtriC.y],
+    ['BOT LANE', MEET.x, MEET.y+40],
+  ];
+  return {walls,brush,river,pitWater,dirt,lanePath,riverPath,towers,torches,spawn,labels,meet:{x:MEET.x,y:MEET.y},laneW:LANE_W};
+}
 
 function hookInRegion(x,y,shape){
   if(!shape) return false;
@@ -85,18 +211,46 @@ function hookNearestPathI(path,x,y){
   }
   return best;
 }
-function hookWanderTarget(W){
-  const map=W.map, roll=Math.random();
-  if(roll<0.5 && map.lanePath){
-    const p=map.lanePath[Math.floor(Math.random()*map.lanePath.length)];
-    return {x:p[0]+(Math.random()*90-45), y:p[1]+(Math.random()*90-45)};
+function hookNamedBrush(map, id){
+  return (map.brush||[]).find(b=>b.id===id);
+}
+function hookWanderTarget(W, u){
+  const map=W.map, meet=map.meet||MEET;
+  const role=u&&u.role;
+  if(role==='adc'){
+    const phase=((W.t+(u.csAt||0))%3.8);
+    if(phase<1.15){
+      // walk up to last-hit an allied minion (the ones the enemy ADC farms)
+      const prey=W.minions.filter(m=>m.team==='ally'&&!m.dead)
+        .sort((a,b)=>(a.hp-b.hp)||(Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y)))[0];
+      if(prey){
+        const away=M.hookDir(meet.x,meet.y,prey.x,prey.y);
+        return {x:prey.x+away.x*(prey.r+u.r+10), y:prey.y+away.y*(prey.r+u.r+10)};
+      }
+      return hookShift(hookAlong(meet, 80), OX*120, OY*120);
+    }
+    // step behind their own melee line after the last-hit
+    const cover=W.minions.filter(m=>m.team==='enemy'&&m.typ==='melee'&&!m.dead);
+    if(cover.length){
+      const m=cover.sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0];
+      const away=M.hookDir(W.player.x,W.player.y,m.x,m.y);
+      return {x:m.x+away.x*(m.r+u.r+12), y:m.y+away.y*(m.r+u.r+12)};
+    }
+    return hookShift(hookAlong(meet, 140), OX*80, OY*80);
   }
-  if(roll<0.75 && map.riverPath){
-    const p=map.riverPath[Math.floor(Math.random()*map.riverPath.length)];
-    return {x:p[0]+(Math.random()*70-35), y:p[1]+(Math.random()*70-35)};
+  if(role==='support'){
+    const phase=((W.t+(u.csAt||1.2))%6.5);
+    const hold=hookNamedBrush(map, 'innerC')||hookNamedBrush(map,'innerB');
+    if(phase<3.4 && hold) return hookPointInShape(hold);
+    // walk up to the side of the wave for a perpendicular angle
+    const side=Math.sin(W.t*0.4)>0?1:-1;
+    return hookPerp(hookAlong(meet, 40), side*380);
   }
-  const b=map.brush[Math.floor(Math.random()*map.brush.length)];
-  return hookPointInShape(b);
+  // fallback: stay near the wave or a lane brush
+  const roll=Math.random();
+  const laneBr=(map.brush||[]).filter(b=>/^(inner|outer)/.test(b.id));
+  if(roll<0.55 && laneBr.length) return hookPointInShape(laneBr[Math.floor(Math.random()*laneBr.length)]);
+  return hookShift(meet, (Math.random()*160-80), (Math.random()*160-80));
 }
 function hookSightline(){
   const s=(HK&&HK.map||hookMap()).spawn;
@@ -147,7 +301,7 @@ function hookWorld(){
     units:[], minions:[], fx:[],
     casts:0, hits:0, misses:0, blocked:0, streak:0, bestStreak:0, score:0, combos:0,
     reacts:[], tths:[],
-    waveAt:1.4, reactLeft:0, reactN:0, reactMax:10, appearAt:0,
+    waveAt:0.8, reactLeft:0, reactN:0, reactMax:10, appearAt:0,
     frozen:false, lastFlash: -99
   };
 }
@@ -236,31 +390,25 @@ function hookAiDecide(W,u,dt){
     u.reactIn-=dt;
     if(u.reactIn<=0 && u.state!=='flash'){
       u.reactIn=-1;
-      const willFlash=(S.hook.mode==='flashhook'?Math.min(0.85,d.flash+0.25):d.flash)>Math.random() && u.flashCd<=0;
       const hx=W.hook?W.hook.dx:M.hookDir(W.player.x,W.player.y,hookCursor.x,hookCursor.y).x;
       const hy=W.hook?W.hook.dy:M.hookDir(W.player.x,W.player.y,hookCursor.x,hookCursor.y).y;
       const s=Math.random()<0.5?1:-1;
       const jx=-hy*s, jy=hx*s;
-      if(willFlash){
-        const fx=u.x+jx*HK_FLASH, fy=u.y+jy*HK_FLASH;
-        const dest=hookMoveTo(u.x,u.y,u.r,W.map,fx,fy,10,HK_FLASH); // snap-ish
-        // actual flash is instantaneous 400 units
-        let nx=u.x+jx*HK_FLASH, ny=u.y+jy*HK_FLASH;
-        const cl=hookMoveTo(u.x,u.y,u.r,W.map,nx,ny,2,HK_FLASH);
+      // Prefer stepping behind minions, then a sidestep juke; flash is last (reflex flash).
+      const cover=W.minions.filter(m=>!m.dead).map(m=>{
+        const away=M.hookDir(W.player.x,W.player.y,m.x,m.y);
+        return {m, x:m.x+away.x*(m.r+u.r+8), y:m.y+away.y*(m.r+u.r+8), d:Math.hypot(m.x-u.x,m.y-u.y)};
+      }).filter(c=>c.d<520).sort((a,b)=>a.d-b.d)[0];
+      const willFlash=(S.hook.mode==='flashhook'?Math.min(0.85,d.flash+0.25):d.flash)>Math.random() && u.flashCd<=0;
+      if(cover && Math.random()<0.7){
+        u.tx=cover.x; u.ty=cover.y; u.state='hide'; u.jukeUntil=W.t+0.75;
+      } else if(willFlash && Math.random()<0.55){
+        const cl=hookMoveTo(u.x,u.y,u.r,W.map,u.x+jx*HK_FLASH,u.y+jy*HK_FLASH,2,HK_FLASH);
         u.x=cl.x; u.y=cl.y; u.tx=cl.x; u.ty=cl.y;
         u.flashCd=30; u.state='walk';
         hookAddFx(W,'flash',u.x,u.y,'#cfe8ff',0.35);
       } else {
-        // maybe hide behind a minion
-        const cover=W.minions.filter(m=>m.team==='enemy'&&!m.dead).map(m=>{
-          const away=M.hookDir(W.player.x,W.player.y,m.x,m.y);
-          return {m, x:m.x+away.x*(m.r+u.r+8), y:m.y+away.y*(m.r+u.r+8), d:Math.hypot(m.x-u.x,m.y-u.y)};
-        }).filter(c=>c.d<420).sort((a,b)=>a.d-b.d)[0];
-        if(cover && Math.random()<0.45){
-          u.tx=cover.x; u.ty=cover.y; u.state='hide'; u.jukeUntil=W.t+0.7;
-        } else {
-          u.jx=jx; u.jy=jy; u.state='juke'; u.jukeUntil=W.t+0.35+Math.random()*0.25;
-        }
+        u.jx=jx; u.jy=jy; u.state='juke'; u.jukeUntil=W.t+0.35+Math.random()*0.3;
       }
     }
   }
@@ -278,11 +426,10 @@ function hookStepUnits(W,dt){
       u.x=dest.x; u.y=dest.y;
     } else {
       if(u.state==='juke' || (u.state==='hide'&&W.t>=u.jukeUntil)) u.state='walk';
-      if(u.state==='walk' && (u.arrived || Math.hypot(u.tx-u.x,u.ty-u.y)<12 || Math.random()<dt*0.35)){
-        // wander the upper / mid lane
+      if(u.state==='walk' && (u.arrived || Math.hypot(u.tx-u.x,u.ty-u.y)<16 || Math.random()<dt*0.45)){
         if(W.mode==='reaction'){ /* keep scripted target */ }
         else {
-          const g=hookWanderTarget(W);
+          const g=hookWanderTarget(W,u);
           u.tx=g.x; u.ty=g.y;
         }
       }
@@ -296,6 +443,16 @@ function hookStepUnits(W,dt){
 function hookStepMinions(W,dt){
   for(const m of W.minions){
     if(m.dead) continue;
+    if(m.hp==null) m.hp=1;
+    const foe=W.minions.filter(o=>!o.dead&&o.team!==m.team)
+      .map(o=>({o,d:Math.hypot(o.x-m.x,o.y-m.y)}))
+      .sort((a,b)=>a.d-b.d)[0];
+    if(foe && foe.d<110){
+      m.fighting=true;
+      m.hp-=dt*(m.typ==='cannon'?0.08:0.14);
+      if(m.hp<=0){ m.dead=true; continue; }
+      continue;
+    }
     const path=m.path||W.map.lanePath;
     if(path&&path.length){
       if(m.pi==null) m.pi=hookNearestPathI(path,m.x,m.y);
@@ -464,7 +621,7 @@ function hookStep(W,dt){
     if(W.mode!=='reaction' && W.t>=W.waveAt){
       hookSpawnWave(W,'enemy');
       hookSpawnWave(W,'ally');
-      W.waveAt=W.t+25;
+      W.waveAt=W.t+20;
     }
     if(W.mode==='reaction'){
       if(!W.units.some(u=>u.kind==='champ'&&!u.dead) && W.reactLeft<=0){
@@ -665,8 +822,8 @@ function hookDraw(){
     const a=toScreen(v,map.lanePath[0][0],map.lanePath[0][1]);
     ctx.beginPath(); ctx.moveTo(a.x,a.y);
     for(let i=1;i<map.lanePath.length;i++){ const q=toScreen(v,map.lanePath[i][0],map.lanePath[i][1]); ctx.lineTo(q.x,q.y); }
-    ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(10, 86*v.sc); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
-    ctx.strokeStyle='#c4b089'; ctx.lineWidth=Math.max(4, 52*v.sc); ctx.globalAlpha=0.55; ctx.stroke(); ctx.globalAlpha=1;
+    ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(10, 980*v.sc); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+    ctx.strokeStyle='#c4b089'; ctx.lineWidth=Math.max(4, 640*v.sc); ctx.globalAlpha=0.55; ctx.stroke(); ctx.globalAlpha=1;
   }
   // river + dragon pit water
   if(map.river&&map.river.pts) hookFill(ctx,v,map.river.pts,'#1a4c5e','#163e4c',2);
@@ -713,13 +870,33 @@ function hookDraw(){
     ctx.beginPath(); ctx.arc(p.x,p.y, Math.max(5,9*v.sc),0,Math.PI*2);
     ctx.strokeStyle='#ffc87866'; ctx.lineWidth=2; ctx.stroke();
   }
-  // towers (simple original markers)
+  // towers: faint 750-unit range, then a simple original marker
   for(const tw of map.towers){
     const p=toScreen(v,tw.x,tw.y);
-    ctx.beginPath(); ctx.arc(p.x,p.y,tw.r*v.sc,0,Math.PI*2);
+    const rng=(tw.range||TW_RANGE)*v.sc;
+    ctx.beginPath(); ctx.arc(p.x,p.y,rng,0,Math.PI*2);
+    ctx.strokeStyle=tw.team==='ally'?'#36f1a644':'#f16a6a44';
+    ctx.lineWidth=Math.max(1,1.5*v.sc); ctx.setLineDash([8,8]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(map.meet){
+    const p=toScreen(v,map.meet.x,map.meet.y);
+    ctx.beginPath(); ctx.arc(p.x,p.y, 70*v.sc,0,Math.PI*2);
+    ctx.strokeStyle='#c4b08933'; ctx.lineWidth=1; ctx.setLineDash([4,6]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  for(const key of ['allySup','enemySup']){
+    const s=map.spawn&&map.spawn[key]; if(!s) continue;
+    const p=toScreen(v,s.x,s.y);
+    ctx.beginPath(); ctx.arc(p.x,p.y, 48*v.sc,0,Math.PI*2);
+    ctx.strokeStyle=key==='allySup'?'#36f1a655':'#f16a6a55';
+    ctx.lineWidth=1.5; ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  for(const tw of map.towers){
+    const p=toScreen(v,tw.x,tw.y);
+    const vis=Math.max(tw.r, 110)*v.sc;
+    ctx.beginPath(); ctx.arc(p.x,p.y,vis,0,Math.PI*2);
     ctx.fillStyle=tw.team==='ally'?'#2a5a4a':'#5a2a32'; ctx.fill();
     ctx.strokeStyle=tw.team==='ally'?'#36f1a6':'#f16a6a'; ctx.lineWidth=3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(p.x,p.y,tw.r*v.sc*0.4,0,Math.PI*2);
+    ctx.beginPath(); ctx.arc(p.x,p.y,vis*0.4,0,Math.PI*2);
     ctx.fillStyle='#cfc8a4'; ctx.fill();
   }
   // callouts
