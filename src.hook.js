@@ -21,6 +21,13 @@ const LANE_W=1900, LANE_HALF=LANE_W/2;
 const DD_API='https://ddragon.leagueoflegends.com';
 const RIOT_DISC="EZ Sens isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.";
 let HK=null, hookRaf=0, hookLast=0, hookCursor={x:MEET.x,y:MEET.y}, hookBind=null, ddVer=null, ddImgs={}, hookReady=false, hookToasts=[];
+let hookMapImg=null;
+if(typeof HK_MAP_DATAURL==='string' && HK_MAP_DATAURL){
+  hookMapImg=new Image();
+  hookMapImg.decoding='async';
+  hookMapImg.onload=()=>{ if(typeof hookDraw==='function') hookDraw(); };
+  hookMapImg.src=HK_MAP_DATAURL;
+}
 
 function hookLaneAt(t){ return {x:BLUE_T1.x+LANE_DX*t, y:BLUE_T1.y+LANE_DY*t}; }
 function hookShift(p, sx, sy){ return {x:p.x+sx, y:p.y+sy}; }
@@ -74,112 +81,28 @@ function hookBrushAt(id, t, side, len, depth){
 }
 
 function hookMap(){
-  const outerPockets=[{t:0.22,w:0.08,depth:280},{t:0.50,w:0.08,depth:280},{t:0.78,w:0.08,depth:280}];
-  const innerBluePk=[{t:0.22,w:0.08,depth:280},{t:0.36,w:0.08,depth:280}];
-  const innerRedPk=[{t:0.72,w:0.08,depth:280}];
-  const walls=[
-    {id:'outer', pts:hookWallStrip(-0.10, 1.10, 1, LANE_HALF+30, 420, outerPockets, 80)},
-    {id:'innerBlue', pts:hookWallStrip(-0.10, 0.385, -1, LANE_HALF+30, 380, innerBluePk, 48)},
-    {id:'innerRed', pts:hookWallStrip(0.605, 1.10, -1, LANE_HALF+30, 380, innerRedPk, 48)},
-  ];
-  // Sides of the river entrance (from the inner-wall gap back toward the pit)
-  const gapL=hookLaneAt(0.385), gapR=hookLaneAt(0.605);
-  const gapL0=hookPerp(gapL, -(LANE_HALF+30)), gapL1=hookPerp(gapL, -(LANE_HALF+30+900));
-  const gapR0=hookPerp(gapR, -(LANE_HALF+30)), gapR1=hookPerp(gapR, -(LANE_HALF+30+900));
-  const capW=70;
-  walls.push({id:'enterL', pts:hookRect((gapL0.x+gapL1.x)/2, (gapL0.y+gapL1.y)/2, OX, OY, 450, capW)});
-  walls.push({id:'enterR', pts:hookRect((gapR0.x+gapR1.x)/2, (gapR0.y+gapR1.y)/2, OX, OY, 450, capW)});
-
-  // Blue tri-brush rock: just behind blue's lane at the river entrance (three-way).
-  const triC=hookShift(hookPerp(hookLaneAt(0.40), -1480), -UX*180, -UY*180);
-  walls.push({id:'triRock', pts:hookRect(triC.x, triC.y, UX, UY, 280, 260)});
-  // Red tri (2024 parity), slightly smaller, on the red side of the entrance.
-  const rtriC=hookShift(hookPerp(hookLaneAt(0.60), -1420), UX*200, UY*200);
-  walls.push({id:'redTriRock', pts:hookRect(rtriC.x, rtriC.y, UX, UY, 230, 210)});
-
-  // Dragon pit ring, opening toward the lane entrance.
-  const toLane=hookLaneAt(0.41);
-  const pitAng=Math.atan2(toLane.y-DRAGON.y, toLane.x-DRAGON.x);
-  const open=0.70, rIn=520, rOut=700;
-  const pitOuter=hookArc(DRAGON.x, DRAGON.y, rOut, pitAng+open, pitAng+Math.PI*2-open, 28);
-  const pitInner=hookArc(DRAGON.x, DRAGON.y, rIn, pitAng+Math.PI*2-open, pitAng+open, 22);
-  walls.push({id:'pit', pts:pitOuter.concat(pitInner)});
-
-  // A couple of simple jungle blocks west of tri, plus a short wall north of the pit.
-  const j1=hookShift(triC, -OX*700-UX*700, -OY*700-UY*700);
-  walls.push({id:'camp', pts:hookRect(j1.x, j1.y, UX, UY, 320, 220)});
-  const j2=hookShift(DRAGON, -UX*980, -UY*980);
-  walls.push({id:'northRiver', pts:hookRect(j2.x, j2.y, UX, UY, 260, 160)});
-
-  const brush=[
-    hookBrushAt('outerA', 0.22, 1),
-    hookBrushAt('outerB', 0.50, 1),
-    hookBrushAt('outerC', 0.78, 1),
-    hookBrushAt('innerA', 0.22, -1),
-    hookBrushAt('innerB', 0.36, -1),
-    hookBrushAt('innerC', 0.72, -1),
-  ];
-  // Tri and red-tri grass sit around the rocks; pixel is the small river-entrance bush.
-  brush.push({id:'tri', pts:hookRect(triC.x, triC.y, UX, UY, 420, 400)});
-  brush.push({id:'redTri', pts:hookRect(rtriC.x, rtriC.y, UX, UY, 320, 300)});
-  const pix=hookPerp(hookLaneAt(0.49), -1180);
-  brush.push({id:'pixel', pts:hookRect(pix.x, pix.y, UX, UY, 150, 120)});
-
-  // River: pit-adjacent water plus a short inlet to the lane gap.
-  const rivA=hookArc(DRAGON.x, DRAGON.y, rOut-30, pitAng-0.9, pitAng+0.9, 10);
-  const inlet0=hookPerp(hookLaneAt(0.42), -(LANE_HALF-40));
-  const inlet1=hookPerp(hookLaneAt(0.57), -(LANE_HALF-40));
-  const inlet2=hookPerp(hookLaneAt(0.57), -1200);
-  const inlet3=hookPerp(hookLaneAt(0.42), -1200);
-  const river={pts:rivA.concat([[inlet2.x,inlet2.y],[inlet1.x,inlet1.y],[inlet0.x,inlet0.y],[inlet3.x,inlet3.y]])};
-  const pitWater={pts:hookArc(DRAGON.x, DRAGON.y, rIn-8, 0, Math.PI*2, 28)};
-  const dirtC=hookPerp(hookLaneAt(0.49), -780);
-  const dirt={pts:hookRect(dirtC.x, dirtC.y, UX, UY, 560, 380)};
-
-  const lanePath=[];
-  for(let i=0;i<=12;i++){
-    const t=0.16+0.68*i/12;
-    const p=hookLaneAt(t);
-    lanePath.push([p.x,p.y]);
-  }
-  const riverPath=[];
-  for(let i=0;i<=6;i++){
-    const t=i/6;
-    const p={
-      x:DRAGON.x+(inlet0.x-DRAGON.x)*t,
-      y:DRAGON.y+(inlet0.y-DRAGON.y)*t
-    };
-    riverPath.push([p.x,p.y]);
-  }
-
+  const geo=(typeof HK_MAP_GEO==='object'&&HK_MAP_GEO)||{};
+  const walls=geo.walls||[];
+  const brush=geo.brush||[];
+  const lanePath=geo.lanePath||[];
+  const riverPath=geo.riverPath||[];
   const towers=[
     {x:RED_T1.x,y:RED_T1.y,r:TW_R,range:TW_RANGE,team:'enemy'},
     {x:BLUE_T1.x,y:BLUE_T1.y,r:TW_R,range:TW_RANGE,team:'ally'}
   ];
-  const torches=[];
-
-  const innerB=hookPerp(hookLaneAt(0.36), -(LANE_HALF-80));
-  const innerC=hookPerp(hookLaneAt(0.72), -(LANE_HALF-80));
-  const adcP=hookShift(hookAlong(MEET, 90), OX*140, OY*140);
-  const sightA=hookPerp(hookLaneAt(0.36), -400);
-  const sightB=hookAlong(sightA, 1000);
-  const spawn={
-    player:{x:innerB.x,y:innerB.y},
-    adc:{x:adcP.x,y:adcP.y},
-    support:{x:innerC.x,y:innerC.y},
-    sightA, sightB,
-    allySup:{x:innerB.x,y:innerB.y},
-    enemySup:{x:innerC.x,y:innerC.y},
-    meet:{x:MEET.x,y:MEET.y}
+  const meet=geo.meet||{x:MEET.x,y:MEET.y};
+  const spawn=geo.spawn||{
+    player:{x:meet.x,y:meet.y},
+    adc:{x:meet.x+OX*140,y:meet.y+OY*140},
+    support:{x:meet.x,y:meet.y},
+    sightA:{x:meet.x,y:meet.y},
+    sightB:{x:meet.x+UX*1000,y:meet.y+UY*1000},
+    allySup:{x:meet.x,y:meet.y},
+    enemySup:{x:meet.x,y:meet.y},
+    meet
   };
-  const labels=[
-    ['DRAGON', DRAGON.x, DRAGON.y],
-    ['PIXEL', pix.x, pix.y],
-    ['TRI', triC.x, triC.y],
-    ['RED TRI', rtriC.x, rtriC.y],
-    ['BOT LANE', MEET.x, MEET.y+40],
-  ];
-  return {walls,brush,river,pitWater,dirt,lanePath,riverPath,towers,torches,spawn,labels,meet:{x:MEET.x,y:MEET.y},laneW:LANE_W};
+  const labels=geo.labels||[['DRAGON',DRAGON.x,DRAGON.y],['BOT LANE',meet.x,meet.y]];
+  return {walls,brush,lanePath,riverPath,towers,torches:[],spawn,labels,meet,laneW:LANE_W};
 }
 
 function hookInRegion(x,y,shape){
@@ -804,64 +727,31 @@ function hookDraw(){
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.fillStyle='#0a1210'; ctx.fillRect(0,0,cv.width,cv.height);
-
-  // grass
   const origin=toScreen(v,0,HK_H), ext=toScreen(v,HK_W,0);
-  ctx.fillStyle='#2a5a32';
-  ctx.fillRect(origin.x,origin.y,ext.x-origin.x,ext.y-origin.y);
-  ctx.globalAlpha=0.18;
-  for(let i=0;i<90;i++){
-    const gx=(i*167)%HK_W, gy=(i*97+40)%HK_H, p=toScreen(v,gx,gy);
-    ctx.fillStyle=i%2?'#3d7040':'#1e3f24';
-    ctx.beginPath(); ctx.ellipse(p.x,p.y, 18*v.sc, 11*v.sc, 0,0,Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha=1;
-  // dirt at the river-lane junction + paved lane ribbon
-  if(map.dirt&&map.dirt.pts) hookFill(ctx,v,map.dirt.pts,'#6e5a3a','#5a492e',1);
-  if(map.lanePath&&map.lanePath.length){
-    const a=toScreen(v,map.lanePath[0][0],map.lanePath[0][1]);
-    ctx.beginPath(); ctx.moveTo(a.x,a.y);
-    for(let i=1;i<map.lanePath.length;i++){ const q=toScreen(v,map.lanePath[i][0],map.lanePath[i][1]); ctx.lineTo(q.x,q.y); }
-    ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(10, 980*v.sc); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
-    ctx.strokeStyle='#c4b089'; ctx.lineWidth=Math.max(4, 640*v.sc); ctx.globalAlpha=0.55; ctx.stroke(); ctx.globalAlpha=1;
-  }
-  // river + dragon pit water
-  if(map.river&&map.river.pts) hookFill(ctx,v,map.river.pts,'#1a4c5e','#163e4c',2);
-  if(map.pitWater&&map.pitWater.pts) hookFill(ctx,v,map.pitWater.pts,'#1c5668','#1a4c5e',1);
-  // faint river shimmer
-  if(map.river&&map.river.pts){
-    ctx.save(); hookPath(ctx,v,map.river.pts); ctx.clip();
-    ctx.globalAlpha=0.22; ctx.fillStyle='#2e7a8c';
-    const bb=hookBBox(map.river.pts);
-    for(let i=0;i<8;i++){
-      const yy=bb.y+((i*55+(W.t||0)*22)%(bb.h+40));
-      const p=toScreen(v,bb.x,yy), p2=toScreen(v,bb.x+bb.w,yy);
-      ctx.fillRect(p.x,p.y,p2.x-p.x, Math.max(2,5*v.sc));
+  const mapW=ext.x-origin.x, mapH=ext.y-origin.y;
+  // Official Summoner's Rift minimap crop (CommunityDragon replay2dlevelminimap).
+  // Collision polygons were traced from the same pixels so walls line up with the art.
+  if(hookMapImg && hookMapImg.complete && hookMapImg.naturalWidth){
+    ctx.drawImage(hookMapImg, origin.x, origin.y, mapW, mapH);
+  }else{
+    ctx.fillStyle='#1a2420';
+    ctx.fillRect(origin.x, origin.y, mapW, mapH);
+    for(const w of map.walls){ if(w.pts) hookFill(ctx,v,w.pts,'#2a332c','#1a221c',1); }
+    if(map.lanePath&&map.lanePath.length){
+      const a=toScreen(v,map.lanePath[0][0],map.lanePath[0][1]);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y);
+      for(let i=1;i<map.lanePath.length;i++){ const q=toScreen(v,map.lanePath[i][0],map.lanePath[i][1]); ctx.lineTo(q.x,q.y); }
+      ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(8, 800*v.sc); ctx.lineCap='round'; ctx.stroke();
     }
-    ctx.restore(); ctx.globalAlpha=1;
   }
-  // brush (walkable tall grass)
+  // Faint brush tint so cover is readable on the official art (and the fallback).
+  ctx.save();
+  ctx.globalAlpha=(hookMapImg&&hookMapImg.complete&&hookMapImg.naturalWidth)?0.22:0.85;
   for(const b of map.brush){
     if(!b.pts) continue;
-    hookFill(ctx,v,b.pts,'#16351c','#1c4a24',1.5);
-    const bb=hookBBox(b.pts);
-    ctx.save(); hookPath(ctx,v,b.pts); ctx.clip();
-    ctx.fillStyle='#0f2a16';
-    for(let i=0;i<14;i++){
-      const px=bb.x+((i*47)%bb.w), py=bb.y+((i*31)%bb.h), q=toScreen(v,px,py);
-      ctx.beginPath(); ctx.ellipse(q.x,q.y, 7*v.sc, 13*v.sc, 0,0,Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
+    hookFill(ctx,v,b.pts,'#0c3a18','#1a5a28',1);
   }
-  // stone / jungle walls (collision matches these shapes)
-  for(const w of map.walls){
-    if(!w.pts) continue;
-    hookFill(ctx,v,w.pts,'#3a3a38','#2a2a28',2);
-    ctx.save(); hookPath(ctx,v,w.pts); ctx.clip();
-    ctx.strokeStyle='#5a5750'; ctx.lineWidth=Math.max(2,3*v.sc);
-    hookPath(ctx,v,w.pts); ctx.stroke();
-    ctx.restore();
-  }
+  ctx.restore();
   // torches
   for(const tr of map.torches||[]){
     const p=toScreen(v,tr[0],tr[1]);
