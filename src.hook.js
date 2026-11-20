@@ -729,8 +729,8 @@ function hookDraw(){
   ctx.fillStyle='#0a1210'; ctx.fillRect(0,0,cv.width,cv.height);
   const origin=toScreen(v,0,HK_H), ext=toScreen(v,HK_W,0);
   const mapW=ext.x-origin.x, mapH=ext.y-origin.y;
-  // Official Summoner's Rift minimap crop (CommunityDragon replay2dlevelminimap).
-  // Collision polygons were traced from the same pixels so walls line up with the art.
+  // In-game-style bot-lane art (screenshot textures warped onto v1.22 geometry).
+  // Collision polygons still match the accurate top-down layout.
   if(hookMapImg && hookMapImg.complete && hookMapImg.naturalWidth){
     ctx.drawImage(hookMapImg, origin.x, origin.y, mapW, mapH);
   }else{
@@ -744,12 +744,24 @@ function hookDraw(){
       ctx.strokeStyle='#8a7348'; ctx.lineWidth=Math.max(8, 800*v.sc); ctx.lineCap='round'; ctx.stroke();
     }
   }
-  // Faint brush tint so cover is readable on the official art (and the fallback).
+  const hasArt=!!(hookMapImg&&hookMapImg.complete&&hookMapImg.naturalWidth);
+  // Tall grass is already in the baked art; keep a light outline so cover is readable.
   ctx.save();
-  ctx.globalAlpha=(hookMapImg&&hookMapImg.complete&&hookMapImg.naturalWidth)?0.22:0.85;
-  for(const b of map.brush){
-    if(!b.pts) continue;
-    hookFill(ctx,v,b.pts,'#0c3a18','#1a5a28',1);
+  if(hasArt){
+    ctx.globalAlpha=0.3;
+    for(const b of map.brush){
+      if(!b.pts) continue;
+      hookPath(ctx,v,b.pts);
+      ctx.strokeStyle='#d7f0b0'; ctx.lineWidth=Math.max(1,1.2*v.sc);
+      ctx.setLineDash([5,5]); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }else{
+    ctx.globalAlpha=0.85;
+    for(const b of map.brush){
+      if(!b.pts) continue;
+      hookFill(ctx,v,b.pts,'#0c3a18','#1a5a28',1);
+    }
   }
   ctx.restore();
   // torches
@@ -760,7 +772,7 @@ function hookDraw(){
     ctx.beginPath(); ctx.arc(p.x,p.y, Math.max(5,9*v.sc),0,Math.PI*2);
     ctx.strokeStyle='#ffc87866'; ctx.lineWidth=2; ctx.stroke();
   }
-  // towers: faint 750-unit range, then a simple original marker
+  // towers: faint 750-unit range. Markers are skipped when the baked turrets are visible.
   for(const tw of map.towers){
     const p=toScreen(v,tw.x,tw.y);
     const rng=(tw.range||TW_RANGE)*v.sc;
@@ -780,14 +792,16 @@ function hookDraw(){
     ctx.strokeStyle=key==='allySup'?'#36f1a655':'#f16a6a55';
     ctx.lineWidth=1.5; ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);
   }
-  for(const tw of map.towers){
-    const p=toScreen(v,tw.x,tw.y);
-    const vis=Math.max(tw.r, 110)*v.sc;
-    ctx.beginPath(); ctx.arc(p.x,p.y,vis,0,Math.PI*2);
-    ctx.fillStyle=tw.team==='ally'?'#2a5a4a':'#5a2a32'; ctx.fill();
-    ctx.strokeStyle=tw.team==='ally'?'#36f1a6':'#f16a6a'; ctx.lineWidth=3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(p.x,p.y,vis*0.4,0,Math.PI*2);
-    ctx.fillStyle='#cfc8a4'; ctx.fill();
+  if(!hasArt){
+    for(const tw of map.towers){
+      const p=toScreen(v,tw.x,tw.y);
+      const vis=Math.max(tw.r, 110)*v.sc;
+      ctx.beginPath(); ctx.arc(p.x,p.y,vis,0,Math.PI*2);
+      ctx.fillStyle=tw.team==='ally'?'#2a5a4a':'#5a2a32'; ctx.fill();
+      ctx.strokeStyle=tw.team==='ally'?'#36f1a6':'#f16a6a'; ctx.lineWidth=3; ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x,p.y,vis*0.4,0,Math.PI*2);
+      ctx.fillStyle='#cfc8a4'; ctx.fill();
+    }
   }
   // callouts
   ctx.font=`600 ${Math.max(11,12*v.sc)}px system-ui,sans-serif`;
